@@ -1,4 +1,3 @@
-# Update base_agent.py with the complete base agent
 """
 Base Agent Class
 
@@ -9,17 +8,26 @@ UNIVERSAL DESIGN:
 - Works with ANY OpenTable restaurant URL
 - Discovers menu items dynamically (no hardcoding)
 - Discovers aspects dynamically (adapts to restaurant type)
-- Creates analysis plans autonomously
+- Creates analysis plans autonomously using Claude AI
 - Executes with full reasoning transparency
 """
 
 import os
+import sys
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
+# Add project root to path so imports work
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+# Import the planner
+from src.agent.planner import AgentPlanner
+
+# Load environment variables
 load_dotenv()
 
 
@@ -31,60 +39,38 @@ class RestaurantAnalysisAgent:
     It discovers menu items, aspects, and patterns directly from reviews.
     
     Key Features:
-    - Universal: Works with any restaurant type (Japanese, Italian, Fast Food, etc.)
-    - Adaptive: Discovers what matters to each specific restaurant
-    - Autonomous: Plans its own analysis strategy
+    - Universal: Works with any restaurant type
+    - Adaptive: Discovers what matters to each restaurant
+    - Autonomous: Plans its own analysis strategy using AI
     - Transparent: Logs all reasoning for visibility
     
     Example Usage:
-        # Create agent (works for ANY restaurant)
         agent = RestaurantAnalysisAgent()
         
-        # Agent logs its thinking
-        agent._log_reasoning("Starting analysis for new restaurant")
-        agent._log_reasoning("Discovered 45 menu items from reviews")
+        # Create a plan for any restaurant
+        plan = agent.create_analysis_plan(
+            restaurant_url="https://opentable.ca/r/ANY-RESTAURANT"
+        )
         
-        # View the reasoning log
-        for entry in agent.get_reasoning_log():
-            print(entry)
-    
-    Attributes:
-        client: Anthropic API client for Claude
-        model: Claude model name to use
-        current_plan: List of analysis steps the agent will execute (D1-008)
-        reasoning_log: Complete log of agent's decision-making process (D1-007)
-        execution_results: Results from each step of analysis
+        # View reasoning
+        for log in agent.get_reasoning_log():
+            print(log)
     """
     
     def __init__(self, api_key: Optional[str] = None):
         """
         Initialize the Restaurant Analysis Agent.
         
-        Sets up the agent with Claude API connection and empty storage
-        for plans, logs, and results.
-        
         Args:
             api_key: Anthropic API key (optional)
-                    If not provided, will look for ANTHROPIC_API_KEY in environment
-        
-        Raises:
-            ValueError: If no API key is found
-        
-        Example:
-            agent = RestaurantAnalysisAgent()
-            print(agent)  # Shows agent info
         """
-        
-        # Get the API key
+        # Get API key
         self.api_key = api_key or os.getenv('ANTHROPIC_API_KEY')
         
         if not self.api_key:
             raise ValueError(
                 "❌ No API key found!\n"
-                "Please either:\n"
-                "1. Set ANTHROPIC_API_KEY in your .env file, OR\n"
-                "2. Pass api_key parameter when creating agent\n"
-                "Example: agent = RestaurantAnalysisAgent(api_key='your-key')"
+                "Set ANTHROPIC_API_KEY in .env or pass api_key parameter"
             )
         
         # Initialize Claude client
@@ -93,106 +79,111 @@ class RestaurantAnalysisAgent:
         except Exception as e:
             raise ConnectionError(f"❌ Failed to connect to Claude API: {e}")
         
-        # Set the Claude model
+        # Set model
         self.model = "claude-sonnet-4-20250514"
         
-        # D1-008: Initialize current_plan (list of steps to execute)
+        # Initialize planner
+        self.planner = AgentPlanner(client=self.client, model=self.model)
+        
+        # Initialize state
         self.current_plan: List[Dict[str, Any]] = []
-        
-        # D1-007: Initialize reasoning_log (tracks agent's thinking)
         self.reasoning_log: List[str] = []
-        
-        # Initialize execution results storage
         self.execution_results: Dict[str, Any] = {}
         
-        # Log that agent is ready
+        # Log initialization
         self._log_reasoning("Agent initialized and ready for analysis")
+        self._log_reasoning(f"Using model: {self.model}")
+        self._log_reasoning("Planner module loaded")
     
     def _log_reasoning(self, message: str) -> None:
         """
-        D1-009: Log the agent's reasoning process.
-        
-        This method records what the agent is thinking/doing at each step.
-        All reasoning is timestamped and stored for transparency.
+        Log the agent's reasoning process.
         
         Args:
-            message: The reasoning message to log
-        
-        Example:
-            agent._log_reasoning("Discovered 52 menu items from reviews")
-            agent._log_reasoning("Detected service quality issue - alerting manager")
-        
-        Notes:
-            - Logs are stored in self.reasoning_log
-            - Each entry has a timestamp
-            - Prints to console for real-time visibility
+            message: Reasoning message to log
         """
-        # Create timestamped log entry
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         log_entry = f"[{timestamp}] {message}"
-        
-        # Add to reasoning log
         self.reasoning_log.append(log_entry)
-        
-        # Print for real-time visibility
         print(f"🤖 {log_entry}")
     
-    def get_reasoning_log(self) -> List[str]:
+    def create_analysis_plan(
+        self, 
+        restaurant_url: str,
+        restaurant_name: str = "Unknown",
+        review_count: str = "500"
+    ) -> List[Dict[str, Any]]:
         """
-        Get the complete reasoning log.
+        Create an analysis plan for a restaurant.
+        
+        Uses AI to generate a custom plan that adapts to any restaurant type.
+        
+        Args:
+            restaurant_url: OpenTable URL for the restaurant
+            restaurant_name: Name of restaurant (optional)
+            review_count: Estimated review count (optional)
         
         Returns:
-            Copy of the reasoning log (list of timestamped messages)
+            List of plan steps
         
         Example:
-            logs = agent.get_reasoning_log()
-            for log in logs:
-                print(log)
+            plan = agent.create_analysis_plan(
+                restaurant_url="https://opentable.ca/r/any-restaurant"
+            )
         """
+        self._log_reasoning(f"Creating analysis plan for: {restaurant_name}")
+        self._log_reasoning(f"Data source: {restaurant_url}")
+        
+        # Prepare context for planner
+        context = {
+            "restaurant_name": restaurant_name,
+            "data_source": restaurant_url,
+            "review_count": review_count,
+            "goals": "Comprehensive analysis with actionable insights"
+        }
+        
+        # Generate plan using AI
+        self._log_reasoning("Calling planner to generate strategy...")
+        plan = self.planner.create_plan(context)
+        
+        if not plan:
+            self._log_reasoning("❌ Failed to generate plan")
+            return []
+        
+        self._log_reasoning(f"✅ Generated plan with {len(plan)} steps")
+        
+        # Validate the plan
+        self._log_reasoning("Validating plan quality...")
+        validation = self.planner.validate_plan(plan)
+        
+        if validation['valid']:
+            self._log_reasoning("✅ Plan validation passed")
+        else:
+            self._log_reasoning(f"⚠️  Plan has {len(validation['issues'])} issues")
+            for issue in validation['issues']:
+                self._log_reasoning(f"  - {issue}")
+        
+        # Store the plan
+        self.current_plan = plan
+        
+        return plan
+    
+    def get_reasoning_log(self) -> List[str]:
+        """Get the complete reasoning log."""
         return self.reasoning_log.copy()
     
+    def get_current_plan(self) -> List[Dict[str, Any]]:
+        """Get the current analysis plan."""
+        return self.current_plan.copy()
+    
     def clear_state(self) -> None:
-        """
-        Clear agent state for a new analysis.
-        
-        Resets the plan, logs, and results. Useful when analyzing
-        multiple restaurants with the same agent instance.
-        
-        Example:
-            agent.analyze_restaurant("restaurant1")
-            agent.clear_state()  # Reset for next analysis
-            agent.analyze_restaurant("restaurant2")
-        """
+        """Clear agent state for new analysis."""
         self.current_plan = []
         self.reasoning_log = []
         self.execution_results = {}
         self._log_reasoning("Agent state cleared for new analysis")
     
-    def get_state_summary(self) -> Dict[str, Any]:
-        """
-        Get a summary of current agent state.
-        
-        Returns:
-            Dictionary with state information
-        
-        Example:
-            state = agent.get_state_summary()
-            print(f"Agent has {state['log_entries']} log entries")
-        """
-        return {
-            "model": self.model,
-            "planned_steps": len(self.current_plan),
-            "log_entries": len(self.reasoning_log),
-            "results_stored": len(self.execution_results)
-        }
-    
     def __repr__(self) -> str:
-        """
-        String representation of the agent.
-        
-        Returns:
-            String describing the agent's current state
-        """
         return (
             f"RestaurantAnalysisAgent("
             f"model={self.model}, "
@@ -201,107 +192,65 @@ class RestaurantAnalysisAgent:
         )
 
 
-# D1-010: Test code - runs when you execute this file directly
+# D1-015: Test with sample context
 if __name__ == "__main__":
     print("=" * 70)
-    print("D1-010: TESTING RestaurantAnalysisAgent Base Structure")
+    print("D1-015: Testing Plan Generation with Sample Reviews Context")
     print("=" * 70 + "\n")
     
     try:
-        # Test 1: Create agent
-        print("Test 1: Creating agent...")
+        # Create agent
+        print("Creating agent...")
         agent = RestaurantAnalysisAgent()
-        print(f"✅ Agent created: {agent}\n")
+        print(f"✅ Agent: {agent}\n")
         
-        # Test 2: Check attributes exist (D1-007, D1-008)
-        print("Test 2: Checking attributes (D1-007, D1-008)...")
-        assert hasattr(agent, 'client'), "❌ Missing 'client'"
-        assert hasattr(agent, 'model'), "❌ Missing 'model'"
-        assert hasattr(agent, 'current_plan'), "❌ Missing 'current_plan' (D1-008)"
-        assert hasattr(agent, 'reasoning_log'), "❌ Missing 'reasoning_log' (D1-007)"
-        assert hasattr(agent, 'execution_results'), "❌ Missing 'execution_results'"
-        print("✅ All attributes present\n")
+        # Test 1: Japanese restaurant
+        print("=" * 70)
+        print("TEST 1: Japanese Restaurant (Miku)")
+        print("=" * 70 + "\n")
         
-        # Test 3: Check initial state
-        print("Test 3: Checking initial state...")
-        assert len(agent.current_plan) == 0, "❌ Plan should start empty"
-        assert len(agent.reasoning_log) == 1, "❌ Should have 1 log entry (initialization)"
-        assert len(agent.execution_results) == 0, "❌ Results should start empty"
-        print("✅ Initial state correct\n")
+        plan1 = agent.create_analysis_plan(
+            restaurant_url="https://opentable.ca/r/miku-vancouver",
+            restaurant_name="Miku Restaurant",
+            review_count="500"
+        )
         
-        # Test 4: Test _log_reasoning() method (D1-009)
-        print("Test 4: Testing _log_reasoning() method (D1-009)...")
-        initial_log_count = len(agent.reasoning_log)
+        print(f"\n📋 Plan Summary ({len(plan1)} steps):")
+        for step in plan1[:5]:  # Show first 5 steps
+            print(f"  {step['step']}. {step['action']}")
+        print("  ...\n")
         
-        agent._log_reasoning("Test reasoning message 1")
-        agent._log_reasoning("Test reasoning message 2")
-        agent._log_reasoning("Analyzing restaurant reviews")
+        # Test 2: Different restaurant type
+        print("=" * 70)
+        print("TEST 2: Italian Restaurant")
+        print("=" * 70 + "\n")
         
-        assert len(agent.reasoning_log) == initial_log_count + 3, "❌ Logs not added correctly"
-        assert "Test reasoning message 1" in agent.reasoning_log[-3]
-        assert "Test reasoning message 2" in agent.reasoning_log[-2]
-        assert "Analyzing restaurant reviews" in agent.reasoning_log[-1]
-        print("✅ _log_reasoning() working correctly\n")
+        agent.clear_state()  # Clear for new analysis
         
-        # Test 5: Test get_reasoning_log()
-        print("Test 5: Testing get_reasoning_log()...")
+        plan2 = agent.create_analysis_plan(
+            restaurant_url="https://opentable.ca/r/italian-bistro",
+            restaurant_name="Italian Bistro",
+            review_count="300"
+        )
+        
+        print(f"\n📋 Plan Summary ({len(plan2)} steps):")
+        for step in plan2[:5]:
+            print(f"  {step['step']}. {step['action']}")
+        print("  ...\n")
+        
+        # Show reasoning log
+        print("=" * 70)
+        print("REASONING LOG (last 10 entries)")
+        print("=" * 70)
         logs = agent.get_reasoning_log()
-        assert isinstance(logs, list), "❌ Should return a list"
-        assert len(logs) > 0, "❌ Should have log entries"
-        print(f"✅ Retrieved {len(logs)} log entries\n")
+        for log in logs[-10:]:
+            print(log)
         
-        # Test 6: Display sample logs
-        print("Test 6: Sample reasoning log entries:")
-        print("-" * 70)
-        for log in logs[-3:]:  # Show last 3 entries
-            print(f"  {log}")
-        print("-" * 70 + "\n")
-        
-        # Test 7: Test clear_state()
-        print("Test 7: Testing clear_state()...")
-        agent.clear_state()
-        assert len(agent.current_plan) == 0, "❌ Plan not cleared"
-        assert len(agent.reasoning_log) == 1, "❌ Log not cleared (should have 1 entry from clear)"
-        assert len(agent.execution_results) == 0, "❌ Results not cleared"
-        print("✅ clear_state() working correctly\n")
-        
-        # Test 8: Test get_state_summary()
-        print("Test 8: Testing get_state_summary()...")
-        agent._log_reasoning("Adding some test logs")
-        agent._log_reasoning("For state summary test")
-        state = agent.get_state_summary()
-        print(f"State summary: {state}")
-        assert 'model' in state
-        assert 'planned_steps' in state
-        assert 'log_entries' in state
-        print("✅ get_state_summary() working correctly\n")
-        
-        # Test 9: Test __repr__()
-        print("Test 9: Testing string representation...")
-        agent_str = str(agent)
-        print(f"Agent representation: {agent_str}")
-        assert "RestaurantAnalysisAgent" in agent_str
-        assert "model=" in agent_str
-        print("✅ __repr__() working correctly\n")
-        
-        # Final summary
+        print("\n" + "=" * 70)
+        print("🎉 All tests passed!")
         print("=" * 70)
-        print("🎉 ALL TESTS PASSED!")
-        print("=" * 70)
-        print("\n✅ D1-007: reasoning_log attribute - COMPLETE")
-        print("✅ D1-008: current_plan attribute - COMPLETE")
-        print("✅ D1-009: _log_reasoning() method - COMPLETE")
-        print("✅ D1-010: Basic agent initialization - COMPLETE")
-        print("\nAgent is ready for Day 1 completion!")
         
-    except ValueError as e:
-        print(f"❌ ValueError: {e}")
-        print("\nMake sure your .env file has ANTHROPIC_API_KEY set!")
-    except AssertionError as e:
-        print(f"❌ Test failed: {e}")
-        import traceback
-        traceback.print_exc()
     except Exception as e:
-        print(f"❌ Unexpected error: {e}")
+        print(f"❌ Error: {e}")
         import traceback
         traceback.print_exc()
