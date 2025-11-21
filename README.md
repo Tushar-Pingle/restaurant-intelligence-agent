@@ -198,3 +198,49 @@ User → Agent.analyze_restaurant(url)
 - Sentiment per aspect
 
 ---
+
+### ✅ Day 4 - Menu Discovery Integration (Nov 19, 2025) - COMPLETE
+
+**What we built:**
+- [x] Integrated menu discovery with main agent
+- [x] Dynamic menu analysis in workflow
+- [x] Text visualizations with sentiment color coding
+- [x] Chart generation (ready for Gradio UI)
+- [x] JSON export for results
+- [x] Complete documentation
+
+**Key achievements:**
+- Menu discovery now part of main analysis flow
+- Agent automatically discovers items from reviews
+- Visualizations show sentiment with colors (🟢🟡🟠🔴)
+- Charts saved as images (ready for Gradio display)
+- Full documentation for future UI integration
+
+**Integration flow:**
+```
+analyze_restaurant(url, reviews)
+  ├─→ Create plan
+  ├─→ Execute plan
+  ├─→ 🆕 Discover menu items (dynamic!)
+  ├─→ Analyze sentiment per item
+  └─→ Generate insights (with menu data)
+```
+
+**Test results:**
+- ✅ Menu discovery integration: PASSED
+- ✅ End-to-end flow: PASSED
+- ✅ Visualizations: PASSED (text + chart)
+- ✅ JSON export: PASSED
+
+**Files updated:**
+- `src/agent/base_agent.py` - Integrated menu discovery
+- `src/agent/menu_discovery.py` - Added visualizations
+- `docs/menu_discovery.md` - Complete documentation
+
+**Next up - Day 5:**
+- Aspect discovery module
+- Dynamic aspect extraction (service, ambience, value)
+- Sentiment per aspect
+- Integration with agent
+
+---
