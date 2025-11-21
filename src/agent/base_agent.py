@@ -28,6 +28,7 @@ if project_root not in sys.path:
 from src.agent.planner import AgentPlanner
 from src.agent.executor import AgentExecutor
 from src.agent.insights_generator import InsightsGenerator
+from src.agent.menu_discovery import MenuDiscovery  # D4-009: Added
 
 # Load environment variables
 load_dotenv()
@@ -37,36 +38,28 @@ class RestaurantAnalysisAgent:
     """
     Autonomous agent for restaurant review analysis.
     
-    This agent can analyze ANY restaurant without prior configuration.
-    It discovers menu items, aspects, and patterns directly from reviews.
-    
     Complete workflow:
     1. Creates analysis plan (AI-powered)
     2. Executes plan step-by-step
-    3. Generates role-specific insights
+    3. Discovers menu items dynamically (NEW!)
+    4. Analyzes menu item sentiment
+    5. Generates role-specific insights
     
     Example Usage:
         agent = RestaurantAnalysisAgent()
         
-        # Analyze any restaurant (will be connected to scraper later)
+        # Analyze with dynamic menu discovery
         results = agent.analyze_restaurant(
-            restaurant_url="https://opentable.ca/r/ANY-RESTAURANT"
+            restaurant_url="https://opentable.ca/r/ANY-RESTAURANT",
+            reviews=review_list  # Will discover menu items from these
         )
         
-        # Get chef insights
-        chef_insights = results['insights']['chef']
-        
-        # Get manager insights
-        manager_insights = results['insights']['manager']
+        # Get menu analysis
+        menu_items = results['menu_analysis']['food_items']
     """
     
     def __init__(self, api_key: Optional[str] = None):
-        """
-        Initialize the Restaurant Analysis Agent.
-        
-        Args:
-            api_key: Anthropic API key (optional)
-        """
+        """Initialize the Restaurant Analysis Agent."""
         # Get API key
         self.api_key = api_key or os.getenv('ANTHROPIC_API_KEY')
         
@@ -85,21 +78,23 @@ class RestaurantAnalysisAgent:
         # Set model
         self.model = "claude-sonnet-4-20250514"
         
-        # D2-016: Initialize all components
+        # Initialize all components
         self.planner = AgentPlanner(client=self.client, model=self.model)
         self.executor = AgentExecutor()
         self.insights_generator = InsightsGenerator(client=self.client, model=self.model)
+        self.menu_discovery = MenuDiscovery(client=self.client, model=self.model)  # D4-009: Added
         
         # Initialize state
         self.current_plan: List[Dict[str, Any]] = []
         self.reasoning_log: List[str] = []
         self.execution_results: Dict[str, Any] = {}
         self.generated_insights: Dict[str, Any] = {}
+        self.menu_analysis: Dict[str, Any] = {}  # D4-009: Added
         
         # Log initialization
         self._log_reasoning("Agent initialized and ready for analysis")
         self._log_reasoning(f"Using model: {self.model}")
-        self._log_reasoning("All modules loaded: Planner, Executor, Insights Generator")
+        self._log_reasoning("All modules loaded: Planner, Executor, Insights, Menu Discovery")
     
     def _log_reasoning(self, message: str) -> None:
         """Log the agent's reasoning process."""
@@ -112,31 +107,28 @@ class RestaurantAnalysisAgent:
         self,
         restaurant_url: str,
         restaurant_name: str = "Unknown",
+        reviews: Optional[List[str]] = None,
         review_count: str = "500",
         progress_callback: Optional[Callable[[str], None]] = None
     ) -> Dict[str, Any]:
         """
-        D2-017: Main entry point - complete restaurant analysis.
+        D4-010: Main entry point - complete restaurant analysis with dynamic menu discovery.
         
         This orchestrates the entire analysis workflow:
         1. Create analysis plan
         2. Execute plan steps
-        3. Generate insights
+        3. Discover menu items dynamically (NEW!)
+        4. Generate insights (using menu data)
         
         Args:
             restaurant_url: OpenTable URL
             restaurant_name: Restaurant name (optional)
+            reviews: List of review texts (optional, for testing)
             review_count: Estimated review count (optional)
             progress_callback: Optional callback for progress updates
         
         Returns:
-            Complete analysis results with insights
-        
-        Example:
-            results = agent.analyze_restaurant(
-                restaurant_url="https://opentable.ca/r/any-restaurant",
-                progress_callback=lambda s: print(f"Progress: {s}")
-            )
+            Complete analysis results with menu analysis and insights
         """
         self._log_reasoning(f"Starting analysis for: {restaurant_name}")
         self._log_reasoning(f"URL: {restaurant_url}")
@@ -166,21 +158,30 @@ class RestaurantAnalysisAgent:
         
         self.execution_results = execution_results
         
-        if not execution_results['success']:
-            self._log_reasoning(f"⚠️  Execution completed with errors")
+        # D4-010: Step 3: Discover menu items (if reviews provided)
+        if reviews:
+            self._log_reasoning("Phase 3: Discovering menu items dynamically...")
+            menu_analysis = self.discover_menu_items(
+                reviews=reviews,
+                restaurant_name=restaurant_name
+            )
+            self.menu_analysis = menu_analysis
+        else:
+            self._log_reasoning("⚠️  No reviews provided - skipping menu discovery")
+            menu_analysis = {"food_items": [], "drinks": [], "total_extracted": 0}
         
-        # Step 3: Generate insights
-        self._log_reasoning("Phase 3: Generating role-specific insights...")
+        # Step 4: Generate insights
+        self._log_reasoning("Phase 4: Generating role-specific insights...")
         
-        # Prepare analysis data for insights generator
-        # (This will use real data once scraper is built)
+        # Prepare analysis data for insights generator (now includes menu data)
         analysis_data = {
             'restaurant_name': restaurant_name,
             'execution_results': execution_results['results'],
+            'menu_analysis': menu_analysis,  # D4-010: Include menu data
             'summary': self.executor.get_execution_summary()
         }
         
-        # Generate chef insights
+        # Generate chef insights (with menu data)
         self._log_reasoning("Generating insights for Head Chef...")
         chef_insights = self.insights_generator.generate_insights(
             analysis_data=analysis_data,
@@ -212,12 +213,98 @@ class RestaurantAnalysisAgent:
             },
             'plan': plan,
             'execution': execution_results,
+            'menu_analysis': menu_analysis,  # D4-010: Include menu analysis
             'insights': {
                 'chef': chef_insights,
                 'manager': manager_insights
             },
             'reasoning_log': self.reasoning_log.copy()
         }
+    
+    def discover_menu_items(
+        self,
+        reviews: List[str],
+        restaurant_name: str = "the restaurant"
+    ) -> Dict[str, Any]:
+        """
+        D4-010: Discover menu items from reviews.
+        
+        Args:
+            reviews: List of review texts
+            restaurant_name: Restaurant name
+        
+        Returns:
+            Menu analysis with items and sentiment
+        """
+        self._log_reasoning(f"Analyzing {len(reviews)} reviews for menu items...")
+        
+        menu_data = self.menu_discovery.extract_menu_items(
+            reviews=reviews,
+            restaurant_name=restaurant_name
+        )
+        
+        food_count = len(menu_data.get('food_items', []))
+        drink_count = len(menu_data.get('drinks', []))
+        
+        self._log_reasoning(f"✅ Discovered {food_count} food items and {drink_count} drinks")
+        
+        return menu_data
+    
+    def visualize_menu(
+        self,
+        save_chart: bool = True,
+        save_json: bool = True,
+        output_dir: str = "outputs"
+    ) -> Dict[str, str]:
+        """
+        D4-013, D4-014, D4-015: Visualize menu analysis results.
+        
+        Args:
+            save_chart: Save chart visualization
+            save_json: Save JSON data
+            output_dir: Directory to save outputs
+        
+        Returns:
+            Dictionary with paths to saved files
+        """
+        if not self.menu_analysis or not self.menu_analysis.get('food_items'):
+            self._log_reasoning("⚠️  No menu analysis to visualize")
+            return {}
+        
+        os.makedirs(output_dir, exist_ok=True)
+        
+        results = {}
+        
+        # Text visualization
+        self._log_reasoning("Creating text visualization...")
+        text_viz = self.menu_discovery.visualize_items_text(self.menu_analysis)
+        print("\n" + text_viz)
+        
+        # Chart visualization
+        if save_chart:
+            self._log_reasoning("Creating chart visualization...")
+            chart_path = os.path.join(output_dir, "menu_analysis.png")
+            saved_chart = self.menu_discovery.visualize_items_chart(
+                self.menu_analysis,
+                output_path=chart_path
+            )
+            if saved_chart:
+                results['chart'] = saved_chart
+                self._log_reasoning(f"✅ Chart saved to: {saved_chart}")
+        
+        # JSON data
+        if save_json:
+            self._log_reasoning("Saving JSON data...")
+            json_path = os.path.join(output_dir, "menu_analysis.json")
+            saved_json = self.menu_discovery.save_results(
+                self.menu_analysis,
+                output_path=json_path
+            )
+            if saved_json:
+                results['json'] = saved_json
+                self._log_reasoning(f"✅ JSON saved to: {saved_json}")
+        
+        return results
     
     def create_analysis_plan(
         self,
@@ -267,12 +354,17 @@ class RestaurantAnalysisAgent:
         """Get generated insights."""
         return self.generated_insights.copy()
     
+    def get_menu_analysis(self) -> Dict[str, Any]:
+        """Get menu analysis results."""
+        return self.menu_analysis.copy()
+    
     def clear_state(self) -> None:
         """Clear agent state for new analysis."""
         self.current_plan = []
         self.reasoning_log = []
         self.execution_results = {}
         self.generated_insights = {}
+        self.menu_analysis = {}
         self._log_reasoning("Agent state cleared for new analysis")
     
     def __repr__(self) -> str:
@@ -284,10 +376,10 @@ class RestaurantAnalysisAgent:
         )
 
 
-# D2-018: Test end-to-end agent flow
+# D4-011: Test end-to-end with dynamic menu
 if __name__ == "__main__":
     print("=" * 70)
-    print("D2-018: Testing End-to-End Agent Flow")
+    print("D4-011: Testing End-to-End with Dynamic Menu Discovery")
     print("=" * 70 + "\n")
     
     try:
@@ -295,18 +387,29 @@ if __name__ == "__main__":
         print("Creating agent...\n")
         agent = RestaurantAnalysisAgent()
         
-        # Define progress callback
+        # Sample reviews for testing
+        test_reviews = [
+            "The salmon sushi was absolutely incredible! So fresh and perfectly prepared.",
+            "Miso soup was authentic and warming. Loved it!",
+            "Tempura was a bit disappointing - too oily for my taste.",
+            "Their spicy tuna roll is amazing! Best I've ever had.",
+            "Hot sake paired perfectly with the meal.",
+            "Edamame was fresh and perfectly salted.",
+        ]
+        
+        # Progress callback
         def show_progress(status):
             print(f"  📊 {status}")
         
-        # Analyze a restaurant (end-to-end)
+        # Run complete analysis
         print("=" * 70)
-        print("Analyzing Restaurant (Full Workflow)")
+        print("Analyzing Restaurant (with Menu Discovery)")
         print("=" * 70 + "\n")
         
         results = agent.analyze_restaurant(
             restaurant_url="https://opentable.ca/r/test-restaurant",
-            restaurant_name="Test Restaurant",
+            restaurant_name="Test Japanese Restaurant",
+            reviews=test_reviews,  # D4-011: Provide reviews
             progress_callback=show_progress
         )
         
@@ -317,41 +420,36 @@ if __name__ == "__main__":
         
         print(f"\nSuccess: {results['success']}")
         print(f"Restaurant: {results['restaurant']['name']}")
-        print(f"Plan steps: {len(results['plan'])}")
-        print(f"Execution time: {results['execution']['execution_time']:.2f}s")
         
-        # Show insights
-        print("\n" + "=" * 70)
-        print("CHEF INSIGHTS")
-        print("=" * 70)
-        chef = results['insights']['chef']
-        print(f"\nSummary: {chef.get('summary', 'N/A')[:200]}...")
-        print(f"Strengths: {len(chef.get('strengths', []))}")
-        print(f"Concerns: {len(chef.get('concerns', []))}")
-        print(f"Recommendations: {len(chef.get('recommendations', []))}")
+        # D4-011: Show menu analysis
+        menu = results['menu_analysis']
+        print(f"\n📋 Menu Analysis:")
+        print(f"   Food items discovered: {len(menu.get('food_items', []))}")
+        print(f"   Drinks discovered: {len(menu.get('drinks', []))}")
         
-        print("\n" + "=" * 70)
-        print("MANAGER INSIGHTS")
-        print("=" * 70)
-        manager = results['insights']['manager']
-        print(f"\nSummary: {manager.get('summary', 'N/A')[:200]}...")
-        print(f"Strengths: {len(manager.get('strengths', []))}")
-        print(f"Concerns: {len(manager.get('concerns', []))}")
-        print(f"Recommendations: {len(manager.get('recommendations', []))}")
+        if menu.get('food_items'):
+            print("\n   Top food items:")
+            for item in menu['food_items'][:3]:
+                print(f"     • {item['name']} (sentiment: {item['sentiment']:+.2f})")
         
-        # Show reasoning log summary
+        # Visualize menu
         print("\n" + "=" * 70)
-        print("REASONING LOG (Last 10 entries)")
+        print("MENU VISUALIZATION")
         print("=" * 70)
-        for log in results['reasoning_log'][-10:]:
-            print(log)
+        
+        viz_results = agent.visualize_menu(save_chart=True, save_json=True)
+        
+        if viz_results:
+            print("\n📁 Saved files:")
+            for file_type, path in viz_results.items():
+                print(f"   • {file_type}: {path}")
         
         print("\n" + "=" * 70)
-        print("🎉 End-to-end test complete!")
+        print("🎉 End-to-end test with menu discovery complete!")
         print("=" * 70)
-        print("\n✅ D2-016: Integration - COMPLETE")
-        print("✅ D2-017: analyze_restaurant() - COMPLETE")
-        print("✅ D2-018: End-to-end flow - COMPLETE")
+        print("\n✅ D4-009: Menu discovery integrated")
+        print("✅ D4-010: analyze_restaurant() uses dynamic menu")
+        print("✅ D4-011: End-to-end test PASSED")
         
     except Exception as e:
         print(f"❌ Error: {e}")
