@@ -244,3 +244,43 @@ analyze_restaurant(url, reviews)
 - Integration with agent
 
 ---
+
+### ✅ Day 5 - Aspect Discovery (Nov 19, 2025) - COMPLETE
+
+**What we built:**
+- [x] Dynamic aspect discovery (AI-powered)
+- [x] AI extracts reviews per aspect
+- [x] Sentiment analysis per aspect
+- [x] On-demand summary generation
+- [x] Text + chart visualizations
+- [x] Separate JSON exports for UI
+
+**Key achievements:**
+- Adapts to ANY restaurant type (discovers relevant aspects)
+- Japanese: presentation, freshness, authenticity
+- Italian: portion size, sauce quality, wine pairing
+- Mexican: spice level, authenticity, value
+- AI matches reviews to aspects (no hardcoded keywords!)
+- Organized data structure for Gradio UI
+- Visualizations ready for UI integration
+
+**Test results:**
+- ✅ Japanese aspects: PASSED
+- ✅ Italian aspects: PASSED
+- ✅ Mexican aspects: PASSED
+- ✅ Sentiment validation: PASSED
+- ✅ Visualizations: PASSED
+- ✅ Different counts: PASSED
+
+**Files:**
+- `src/agent/aspect_discovery.py` - Complete module (400+ lines)
+- `src/agent/base_agent.py` - Integrated with summaries
+- `outputs/summaries_aspects.json` - Organized for UI
+- `outputs/aspect_analysis.png` - Visualization
+
+**Next up - Day 6:**
+- Anomaly detection module
+- Trend analysis
+- Alert generation
+
+---
