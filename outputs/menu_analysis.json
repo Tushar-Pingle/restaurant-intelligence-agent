@@ -1,0 +1,33 @@
+{
+  "food_items": [
+    {
+      "name": "salmon sushi",
+      "mention_count": 1,
+      "sentiment": 0.9,
+      "category": "sushi",
+      "related_reviews": [
+        {
+          "review_index": 0,
+          "review_text": "Salmon sushi was incredible! So fresh.",
+          "sentiment_context": "Salmon sushi was incredible! So fresh."
+        }
+      ]
+    }
+  ],
+  "drinks": [
+    {
+      "name": "hot sake",
+      "mention_count": 1,
+      "sentiment": 0.8,
+      "category": "alcoholic",
+      "related_reviews": [
+        {
+          "review_index": 2,
+          "review_text": "Hot sake paired perfectly.",
+          "sentiment_context": "Hot sake paired perfectly."
+        }
+      ]
+    }
+  ],
+  "total_extracted": 2
+}

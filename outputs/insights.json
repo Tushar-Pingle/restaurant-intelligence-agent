@@ -1,0 +1,66 @@
+{
+  "chef": {
+    "summary": "Your culinary execution is receiving exceptional praise, particularly for ingredient freshness and sushi quality. The salmon sushi and sake pairing expertise are standout strengths, with customers specifically highlighting the incredible freshness and stunning presentation of your dishes.",
+    "strengths": [
+      "Salmon sushi consistently praised for exceptional freshness and incredible taste (100% positive sentiment)",
+      "Ingredient quality, particularly fish freshness, receiving perfect customer satisfaction scores",
+      "Presentation and plating techniques are stunning and visually impressive to diners",
+      "Sake pairing knowledge demonstrates strong understanding of flavor complementarity"
+    ],
+    "concerns": [
+      "Limited menu item feedback data - only 2 items mentioned across reviews may indicate narrow menu appeal or lack of variety exploration by customers"
+    ],
+    "recommendations": [
+      {
+        "priority": "medium",
+        "action": "Expand signature sushi offerings beyond salmon to capitalize on your freshness reputation",
+        "reason": "Your salmon sushi is a proven winner - leveraging this success across more sushi varieties could drive higher menu engagement",
+        "evidence": "Salmon sushi achieved 0.9 sentiment score with customers specifically praising freshness"
+      },
+      {
+        "priority": "medium",
+        "action": "Develop more sake-food pairing recommendations for staff to share with customers",
+        "reason": "Your sake pairing expertise is appreciated by customers and could differentiate the dining experience",
+        "evidence": "Hot sake pairing received 0.8 sentiment score with perfect pairing feedback"
+      },
+      {
+        "priority": "low",
+        "action": "Maintain current presentation standards and consider documenting plating techniques for consistency",
+        "reason": "Presentation is a key strength that should be preserved and standardized across all dishes",
+        "evidence": "Presentation aspect received 1.0 sentiment score with 'stunning' customer feedback"
+      }
+    ]
+  },
+  "manager": {
+    "summary": "Test Restaurant shows strong customer satisfaction with an overall sentiment of 0.73, indicating positive guest experiences. However, service speed issues are creating significant operational challenges that require immediate management attention to maintain the restaurant's reputation.",
+    "strengths": [
+      "Exceptional beverage service with sake pairings receiving perfect customer satisfaction scores",
+      "Strong visual presentation standards being consistently maintained by front-of-house staff",
+      "Overall positive customer sentiment (0.73) indicates effective service delivery in most areas"
+    ],
+    "concerns": [
+      "Critical service speed issues with customers experiencing 25-minute wait times, creating negative experiences and potential revenue loss",
+      "Limited operational data available from only 4 customer touchpoints, suggesting need for broader feedback collection systems"
+    ],
+    "recommendations": [
+      {
+        "priority": "high",
+        "action": "Implement immediate service speed improvement measures including kitchen-to-table timing protocols and staff scheduling optimization",
+        "reason": "25-minute wait times are creating strongly negative customer experiences that can damage reputation and reduce repeat business",
+        "evidence": "Service speed received -1.0 sentiment score with specific customer complaint about 25-minute delays"
+      },
+      {
+        "priority": "medium",
+        "action": "Expand customer feedback collection systems to capture more comprehensive operational insights",
+        "reason": "Current analysis based on limited touchpoints may not reflect full operational picture needed for strategic decisions",
+        "evidence": "Only 5 aspects identified from customer feedback, suggesting gaps in feedback capture"
+      },
+      {
+        "priority": "medium",
+        "action": "Develop staff training program focused on beverage service excellence to leverage existing strength",
+        "reason": "Sake pairing success can be replicated across other service areas to enhance overall customer experience",
+        "evidence": "Perfect 1.0 sentiment score for sake pairing service indicates staff capability in this area"
+      }
+    ]
+  }
+}

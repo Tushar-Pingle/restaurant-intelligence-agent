@@ -1,0 +1,70 @@
+{
+  "aspects": [
+    {
+      "name": "freshness",
+      "sentiment": 1.0,
+      "mention_count": 1,
+      "description": "quality and freshness of ingredients, especially fish",
+      "related_reviews": [
+        {
+          "review_index": 0,
+          "review_text": "Salmon sushi was incredible! So fresh.",
+          "sentiment_context": "So fresh"
+        }
+      ]
+    },
+    {
+      "name": "sushi quality",
+      "sentiment": 1.0,
+      "mention_count": 1,
+      "description": "quality and taste of sushi dishes",
+      "related_reviews": [
+        {
+          "review_index": 0,
+          "review_text": "Salmon sushi was incredible! So fresh.",
+          "sentiment_context": "Salmon sushi was incredible"
+        }
+      ]
+    },
+    {
+      "name": "service speed",
+      "sentiment": -1.0,
+      "mention_count": 1,
+      "description": "how quickly service and food delivery occurs",
+      "related_reviews": [
+        {
+          "review_index": 1,
+          "review_text": "Service speed slow - waited 25 minutes.",
+          "sentiment_context": "Service speed slow - waited 25 minutes"
+        }
+      ]
+    },
+    {
+      "name": "sake pairing",
+      "sentiment": 1.0,
+      "mention_count": 1,
+      "description": "quality and appropriateness of sake selections with food",
+      "related_reviews": [
+        {
+          "review_index": 2,
+          "review_text": "Hot sake paired perfectly.",
+          "sentiment_context": "Hot sake paired perfectly"
+        }
+      ]
+    },
+    {
+      "name": "presentation",
+      "sentiment": 1.0,
+      "mention_count": 1,
+      "description": "visual appeal and plating of dishes",
+      "related_reviews": [
+        {
+          "review_index": 3,
+          "review_text": "Presentation stunning!",
+          "sentiment_context": "Presentation stunning"
+        }
+      ]
+    }
+  ],
+  "total_aspects": 5
+}

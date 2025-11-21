@@ -1,0 +1,20 @@
+{
+  "food": {
+    "salmon sushi": {
+      "name": "salmon sushi",
+      "sentiment": 0.9,
+      "mention_count": 1,
+      "category": "sushi",
+      "summary": "Customers are extremely enthusiastic about the salmon sushi at Test Restaurant, with reviewers consistently praising its exceptional freshness and incredible quality. The feedback indicates this dish is a standout menu item that exceeds customer expectations. No concerns were mentioned in the available reviews."
+    }
+  },
+  "drinks": {
+    "hot sake": {
+      "name": "hot sake",
+      "sentiment": 0.8,
+      "mention_count": 1,
+      "category": "alcoholic",
+      "summary": "Based on the single review available, customers have a very positive experience with the hot sake at Test Restaurant. The reviewer specifically praised how well the hot sake paired with their meal, suggesting it complements the restaurant's food offerings effectively. However, with only one review mentioning this item, more customer feedback would be needed to identify broader patterns in praise or concerns."
+    }
+  }
+}
