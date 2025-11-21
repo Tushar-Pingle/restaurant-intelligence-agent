@@ -2,15 +2,14 @@
 Menu Discovery Module
 
 Dynamically discovers menu items and drinks from restaurant reviews.
-Calculates sentiment per item and provides visualizations.
+Generates summaries per item using AI (no keywords!).
 
 Key Features:
 - Extracts food items AND drinks
-- Maintains granularity (salmon sushi ≠ salmon roll)
-- Lowercase normalization (avoids duplicates)
-- Sentiment analysis per item (context-based)
+- AI extracts reviews mentioning each item
+- Sentiment per item
+- Generates item-level summaries
 - Visualizations (text + charts)
-- Works with ANY cuisine type
 """
 
 from typing import List, Dict, Any, Optional
@@ -22,7 +21,7 @@ import os
 class MenuDiscovery:
     """
     Discovers menu items and drinks from reviews using AI.
-    Calculates sentiment and provides visualizations.
+    Generates item-level summaries.
     """
     
     def __init__(self, client: Anthropic, model: str):
@@ -38,6 +37,7 @@ class MenuDiscovery:
     ) -> Dict[str, Any]:
         """
         Extract menu items and drinks from reviews with sentiment.
+        AI identifies which reviews mention each item.
         
         Args:
             reviews: List of review texts
@@ -45,7 +45,7 @@ class MenuDiscovery:
             max_items: Maximum items to return
         
         Returns:
-            Dictionary with food_items and drinks (with sentiment)
+            Dictionary with food_items and drinks (with related reviews)
         """
         prompt = self._build_extraction_prompt(reviews, restaurant_name, max_items)
         
@@ -84,25 +84,84 @@ class MenuDiscovery:
         
         return data
     
+    def generate_item_summary(
+        self,
+        item: Dict[str, Any],
+        restaurant_name: str = "the restaurant"
+    ) -> str:
+        """
+        Generate a 2-3 sentence summary for a specific menu item.
+        
+        Args:
+            item: Item data with related reviews
+            restaurant_name: Restaurant name
+        
+        Returns:
+            Summary text for this item (2-3 sentences)
+        """
+        item_name = item.get('name', 'unknown')
+        sentiment = item.get('sentiment', 0)
+        related_reviews = item.get('related_reviews', [])
+        
+        if not related_reviews:
+            return f"No specific feedback found for {item_name}."
+        
+        # Prepare reviews for summary
+        review_texts = [r.get('review_text', '') for r in related_reviews[:10]]
+        reviews_combined = "\n\n".join(review_texts)
+        
+        prompt = f"""Summarize customer feedback about "{item_name}" at {restaurant_name}.
+
+REVIEWS MENTIONING THIS ITEM:
+{reviews_combined}
+
+TASK:
+Create a 2-3 sentence summary of what customers say about {item_name}.
+
+- Overall sentiment: {sentiment:+.2f} ({self._sentiment_label(sentiment)})
+- Be specific and evidence-based
+- Mention common praise points
+- Mention concerns if any
+- Keep it concise (2-3 sentences max)
+
+Summary:"""
+        
+        try:
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=200,
+                temperature=0.4,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            
+            return response.content[0].text.strip()
+            
+        except Exception as e:
+            print(f"❌ Error generating summary: {e}")
+            return f"Unable to generate summary for {item_name}."
+    
+    def _sentiment_label(self, sentiment: float) -> str:
+        """Convert sentiment score to label."""
+        if sentiment >= 0.7:
+            return "Very Positive"
+        elif sentiment >= 0.3:
+            return "Positive"
+        elif sentiment >= 0:
+            return "Mixed"
+        elif sentiment >= -0.3:
+            return "Negative"
+        else:
+            return "Very Negative"
+    
     def visualize_items_text(
         self,
         items_data: Dict[str, Any],
         top_n: int = 10
     ) -> str:
-        """
-        D4-013, D4-014: Create text visualization with sentiment color coding.
-        
-        Args:
-            items_data: Extracted items data
-            top_n: Number of top items to show
-        
-        Returns:
-            Formatted text visualization
-        """
+        """Create text visualization with sentiment color coding."""
         food_items = items_data.get('food_items', [])
         drinks = items_data.get('drinks', [])
         
-        # Sort by mention count
         food_sorted = sorted(food_items, key=lambda x: x.get('mention_count', 0), reverse=True)
         drinks_sorted = sorted(drinks, key=lambda x: x.get('mention_count', 0), reverse=True)
         
@@ -111,7 +170,6 @@ class MenuDiscovery:
         output.append("TOP MENU ITEMS (with sentiment)")
         output.append("=" * 70)
         
-        # Food items
         output.append(f"\n🍽️  FOOD ITEMS (Top {min(top_n, len(food_sorted))}):")
         output.append("-" * 70)
         
@@ -120,27 +178,24 @@ class MenuDiscovery:
             sentiment = item.get('sentiment', 0)
             mentions = item.get('mention_count', 0)
             
-            # D4-014: Sentiment color coding
             if sentiment >= 0.7:
-                emoji = "��"  # Green - very positive
+                emoji = "🟢"
                 sentiment_text = "POSITIVE"
             elif sentiment >= 0.3:
-                emoji = "🟡"  # Yellow - neutral/mixed
+                emoji = "🟡"
                 sentiment_text = "MIXED"
             elif sentiment >= 0:
-                emoji = "🟠"  # Orange - slightly negative
+                emoji = "��"
                 sentiment_text = "NEUTRAL"
             else:
-                emoji = "🔴"  # Red - negative
+                emoji = "🔴"
                 sentiment_text = "NEGATIVE"
             
-            # Create bar visualization
             bar_length = int((mentions / max([i.get('mention_count', 1) for i in food_sorted[:top_n]])) * 20)
             bar = "█" * bar_length + "░" * (20 - bar_length)
             
             output.append(f"{emoji} {name:25} [{sentiment:+.2f}] {sentiment_text:8} {bar} {mentions} mentions")
         
-        # Drinks
         if drinks_sorted:
             output.append(f"\n🍹 DRINKS (Top {min(top_n, len(drinks_sorted))}):")
             output.append("-" * 70)
@@ -182,20 +237,7 @@ class MenuDiscovery:
         output_path: str = "menu_analysis.png",
         top_n: int = 10
     ) -> str:
-        """
-        D4-013, D4-014: Create chart visualization with sentiment colors.
-        
-        NOTE: Charts will be displayed in Gradio UI (Day 15-16).
-        For now, saves to file for testing.
-        
-        Args:
-            items_data: Extracted items data
-            output_path: Path to save chart
-            top_n: Number of items to show
-        
-        Returns:
-            Path to saved chart
-        """
+        """Create chart visualization with sentiment colors."""
         try:
             import matplotlib.pyplot as plt
             import matplotlib.patches as mpatches
@@ -206,24 +248,21 @@ class MenuDiscovery:
             if not food_sorted:
                 return None
             
-            # Prepare data
             names = [item.get('name', 'unknown')[:20] for item in food_sorted]
             mentions = [item.get('mention_count', 0) for item in food_sorted]
             sentiments = [item.get('sentiment', 0) for item in food_sorted]
             
-            # D4-014: Color coding by sentiment
             colors = []
             for sentiment in sentiments:
                 if sentiment >= 0.7:
-                    colors.append('#4CAF50')  # Green - positive
+                    colors.append('#4CAF50')
                 elif sentiment >= 0.3:
-                    colors.append('#FFC107')  # Yellow - mixed
+                    colors.append('#FFC107')
                 elif sentiment >= 0:
-                    colors.append('#FF9800')  # Orange - neutral
+                    colors.append('#FF9800')
                 else:
-                    colors.append('#F44336')  # Red - negative
+                    colors.append('#F44336')
             
-            # Create chart
             fig, ax = plt.subplots(figsize=(12, 8))
             bars = ax.barh(names, mentions, color=colors)
             
@@ -231,14 +270,12 @@ class MenuDiscovery:
             ax.set_ylabel('Menu Items', fontsize=12)
             ax.set_title('Top Menu Items by Mentions (Color = Sentiment)', fontsize=14, fontweight='bold')
             
-            # Add sentiment scores as text
             for i, (bar, sentiment) in enumerate(zip(bars, sentiments)):
                 width = bar.get_width()
                 ax.text(width + 0.5, bar.get_y() + bar.get_height()/2, 
                        f'{sentiment:+.2f}',
                        ha='left', va='center', fontsize=10)
             
-            # Legend
             green_patch = mpatches.Patch(color='#4CAF50', label='Positive (≥0.7)')
             yellow_patch = mpatches.Patch(color='#FFC107', label='Mixed (0.3-0.7)')
             orange_patch = mpatches.Patch(color='#FF9800', label='Neutral (0-0.3)')
@@ -253,8 +290,7 @@ class MenuDiscovery:
             return output_path
             
         except ImportError:
-            print("⚠️  matplotlib not installed - skipping chart generation")
-            print("   Install with: pip install matplotlib")
+            print("⚠️  matplotlib not installed - skipping chart")
             return None
         except Exception as e:
             print(f"❌ Error creating chart: {e}")
@@ -265,16 +301,7 @@ class MenuDiscovery:
         items_data: Dict[str, Any],
         output_path: str = "menu_analysis.json"
     ) -> str:
-        """
-        D4-015: Save menu analysis results to JSON.
-        
-        Args:
-            items_data: Extracted items data
-            output_path: Path to save JSON
-        
-        Returns:
-            Path to saved file
-        """
+        """Save menu analysis results to JSON."""
         try:
             with open(output_path, 'w', encoding='utf-8') as f:
                 json.dump(items_data, f, indent=2, ensure_ascii=False)
@@ -292,42 +319,48 @@ class MenuDiscovery:
         restaurant_name: str,
         max_items: int
     ) -> str:
-        """Build menu extraction prompt with sentiment analysis."""
+        """Build menu extraction prompt with AI-based review matching."""
         review_sample = reviews[:100] if len(reviews) > 100 else reviews
-        reviews_text = "\n\n---\n\n".join(review_sample)
+        
+        # Number reviews for AI reference
+        numbered_reviews = []
+        for i, review in enumerate(review_sample):
+            numbered_reviews.append(f"[Review {i}]: {review}")
+        
+        reviews_text = "\n\n".join(numbered_reviews)
         
         prompt = f"""You are analyzing customer reviews for {restaurant_name} to discover SPECIFIC menu items and drinks WITH SENTIMENT.
 
-REVIEWS:
+REVIEWS (numbered for reference):
 {reviews_text}
 
 YOUR TASK:
-Extract SPECIFIC food items and drinks mentioned in reviews AND calculate sentiment for each.
+1. Extract SPECIFIC food items and drinks
+2. Calculate sentiment for each
+3. IDENTIFY WHICH REVIEWS mention each item (use review numbers!)
 
 CRITICAL RULES:
 
 1. GRANULARITY:
-   - Keep items SEPARATE and SPECIFIC
-   - "salmon sushi" ≠ "salmon roll" ≠ "salmon nigiri" (all different!)
-   - Extract the EXACT item name customers use
+   - Keep items SEPARATE: "salmon sushi" ≠ "salmon roll" ≠ "salmon nigiri"
    - Use LOWERCASE for all item names
 
 2. SENTIMENT ANALYSIS:
-   - For EACH item, analyze sentiment from the CONTEXT where it's mentioned
-   - Look at the sentence/phrase around the item mention
+   - Calculate sentiment from context where item is mentioned
    - Score: -1.0 (very negative) to +1.0 (very positive)
-   
-   Examples:
-   - "The salmon sushi was amazing" → +0.9
-   - "Salmon sushi was okay" → +0.3
-   - "Disappointed with the salmon sushi" → -0.6
 
 3. FOOD vs DRINKS:
    - Separate food from drinks
-   - Differentiate: cocktails ≠ wine ≠ beer ≠ coffee
+   - Differentiate drink types
 
-4. FILTER NOISE:
-   - ❌ Skip: "food", "meal", "dish", "delicious" (generic terms)
+4. REVIEW EXTRACTION (CRITICAL!):
+   - For EACH item, identify which reviews mention it
+   - Use review numbers: [Review 0], [Review 1], etc.
+   - Include full review text
+   - This enables item-level summaries!
+
+5. FILTER NOISE:
+   - ❌ Skip: "food", "meal", "delicious"
    - ✅ Only: SPECIFIC menu items
 
 OUTPUT FORMAT (JSON):
@@ -338,28 +371,26 @@ OUTPUT FORMAT (JSON):
       "mention_count": number,
       "sentiment": float (-1.0 to 1.0),
       "category": "appetizer/entree/dessert/etc",
-      "example_context": "quote showing sentiment"
+      "related_reviews": [
+        {{
+          "review_index": 0,
+          "review_text": "full review text",
+          "sentiment_context": "specific quote about this item"
+        }}
+      ]
     }}
   ],
-  "drinks": [
-    {{
-      "name": "drink name in lowercase",
-      "mention_count": number,
-      "sentiment": float (-1.0 to 1.0),
-      "type": "cocktail/wine/beer/coffee/etc",
-      "example_context": "quote showing sentiment"
-    }}
-  ],
+  "drinks": [...same structure...],
   "total_extracted": total_count
 }}
 
-Extract ALL items with sentiment (up to {max_items} items):"""
+Extract ALL items with their related reviews (up to {max_items} items):"""
         
         return prompt
 
 
 if __name__ == "__main__":
-    print("Testing menu discovery with visualization...")
+    print("Testing menu discovery with item summaries...\n")
     
     from dotenv import load_dotenv
     load_dotenv()
@@ -367,21 +398,26 @@ if __name__ == "__main__":
     client = Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
     discovery = MenuDiscovery(client=client, model="claude-sonnet-4-20250514")
     
-    # Quick test
-    sample_reviews = [
-        "The salmon sushi was incredible! Best I've ever had.",
-        "Miso soup was authentic and warming. Perfect.",
-        "Tempura was disappointing - too oily.",
+    test_reviews = [
+        "The salmon sushi was incredible! So fresh and melts in your mouth.",
+        "Miso soup was authentic but a bit too salty for my taste.",
+        "Tempura was disappointing - way too oily and heavy.",
+        "The spicy tuna roll is amazing! Best I've ever had.",
+        "Hot sake paired perfectly with the meal. Great selection.",
     ]
     
-    result = discovery.extract_menu_items(sample_reviews, "Test Restaurant")
+    result = discovery.extract_menu_items(test_reviews, "Test Restaurant")
     
-    # Test visualizations
-    print(discovery.visualize_items_text(result, top_n=5))
+    print("=" * 70)
+    print("ITEM SUMMARIES TEST")
+    print("=" * 70 + "\n")
     
-    chart_path = discovery.visualize_items_chart(result, "test_menu.png", top_n=5)
-    if chart_path:
-        print(f"\n📊 Chart saved to: {chart_path}")
-    
-    json_path = discovery.save_results(result, "test_menu.json")
-    print(f"💾 JSON saved to: {json_path}")
+    for item in result.get('food_items', [])[:3]:
+        name = item.get('name', 'unknown')
+        sentiment = item.get('sentiment', 0)
+        
+        print(f"📋 {name.upper()} (sentiment: {sentiment:+.2f})")
+        print("-" * 70)
+        
+        summary = discovery.generate_item_summary(item, "Test Restaurant")
+        print(f"{summary}\n")
