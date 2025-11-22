@@ -1,8 +1,7 @@
 """
 Base Agent Class
 
-Complete autonomous agent for restaurant review analysis.
-Exports organized data in separate files for easy UI access.
+Complete autonomous agent with MCP tool integration.
 """
 
 import os
@@ -18,20 +17,33 @@ project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
+# Import agent components
 from src.agent.planner import AgentPlanner
 from src.agent.executor import AgentExecutor
 from src.agent.insights_generator import InsightsGenerator
 from src.agent.menu_discovery import MenuDiscovery
 from src.agent.aspect_discovery import AspectDiscovery
 
+# Import MCP tools
+from src.mcp_integrations.save_report import save_json_report_direct, list_saved_reports_direct
+from src.mcp_integrations.query_reviews import index_reviews_direct, query_reviews_direct
+from src.mcp_integrations.generate_chart import generate_sentiment_chart_direct, generate_comparison_chart_direct
+
 load_dotenv()
 
 
 class RestaurantAnalysisAgent:
-    """Autonomous agent for restaurant review analysis."""
+    """
+    Autonomous agent with MCP tool integration.
+    
+    MCP Tools Available:
+    - save_report: Save analysis to files
+    - query_reviews: RAG Q&A on reviews
+    - generate_chart: Create visualizations
+    """
     
     def __init__(self, api_key: Optional[str] = None):
-        """Initialize the Restaurant Analysis Agent."""
+        """Initialize the Restaurant Analysis Agent with MCP tools."""
         self.api_key = api_key or os.getenv('ANTHROPIC_API_KEY')
         
         if not self.api_key:
@@ -59,16 +71,17 @@ class RestaurantAnalysisAgent:
         self.menu_analysis: Dict[str, Any] = {}
         self.aspect_analysis: Dict[str, Any] = {}
         
-        # Organized summary storage (separate structures)
-        self.menu_summaries = {
-            "food": {},   # {item_name: {name, sentiment, summary, ...}}
-            "drinks": {}  # {drink_name: {name, sentiment, summary, ...}}
-        }
+        # Summary storage
+        self.menu_summaries = {"food": {}, "drinks": {}}
+        self.aspect_summaries = {}
         
-        self.aspect_summaries = {}  # {aspect_name: {name, sentiment, summary, ...}}
+        # Store reviews for Q&A
+        self.reviews: List[str] = []
+        self.restaurant_name: str = ""
         
-        self._log_reasoning("Agent initialized and ready for analysis")
+        self._log_reasoning("Agent initialized with MCP tools")
         self._log_reasoning(f"Using model: {self.model}")
+        self._log_reasoning("MCP tools: save_report, query_reviews, generate_chart")
     
     def _log_reasoning(self, message: str) -> None:
         """Log the agent's reasoning process."""
@@ -85,8 +98,19 @@ class RestaurantAnalysisAgent:
         review_count: str = "500",
         progress_callback: Optional[Callable[[str], None]] = None
     ) -> Dict[str, Any]:
-        """Main entry point - complete restaurant analysis."""
+        """
+        Main entry point - complete restaurant analysis with MCP tools.
+        
+        MCP tools used:
+        - index_reviews (for Q&A)
+        - save_report (exports)
+        - generate_chart (visualizations)
+        """
         self._log_reasoning(f"Starting analysis for: {restaurant_name}")
+        
+        # Store for later use
+        self.restaurant_name = restaurant_name
+        self.reviews = reviews or []
         
         # Create plan
         plan = self.create_analysis_plan(restaurant_url, restaurant_name, review_count)
@@ -107,6 +131,11 @@ class RestaurantAnalysisAgent:
             
             self._log_reasoning("Phase 4: Discovering aspects...")
             self.aspect_analysis = self.discover_aspects(reviews, restaurant_name)
+            
+            # MCP TOOL: Index reviews for Q&A
+            self._log_reasoning("MCP Tool: Indexing reviews for Q&A...")
+            index_result = index_reviews_direct(restaurant_name, reviews)
+            self._log_reasoning(f"✅ {index_result}")
         else:
             self.menu_analysis = {"food_items": [], "drinks": [], "total_extracted": 0}
             self.aspect_analysis = {"aspects": [], "total_aspects": 0}
@@ -143,34 +172,101 @@ class RestaurantAnalysisAgent:
             'reasoning_log': self.reasoning_log.copy()
         }
     
+    def ask_question(self, question: str) -> str:
+        """
+        MCP TOOL: Ask a question about the reviews using RAG.
+        
+        Args:
+            question: Question to ask
+        
+        Returns:
+            Answer based on reviews
+        """
+        if not self.restaurant_name or not self.reviews:
+            return "No analysis has been run yet. Please analyze a restaurant first."
+        
+        self._log_reasoning(f"MCP Tool: Querying reviews - '{question}'")
+        answer = query_reviews_direct(self.restaurant_name, question)
+        return answer
+    
+    def save_analysis_report(self, output_dir: str = "reports") -> str:
+        """
+        MCP TOOL: Save complete analysis report.
+        
+        Args:
+            output_dir: Directory to save report
+        
+        Returns:
+            Path to saved report
+        """
+        self._log_reasoning("MCP Tool: Saving analysis report...")
+        
+        complete_analysis = {
+            "restaurant": self.restaurant_name,
+            "timestamp": datetime.now().isoformat(),
+            "menu_analysis": self.menu_analysis,
+            "aspect_analysis": self.aspect_analysis,
+            "insights": self.generated_insights,
+            "summary": self.executor.get_execution_summary()
+        }
+        
+        filepath = save_json_report_direct(self.restaurant_name, complete_analysis, output_dir)
+        self._log_reasoning(f"✅ Report saved to: {filepath}")
+        
+        return filepath
+    
+    def generate_visualizations(self) -> Dict[str, str]:
+        """
+        MCP TOOL: Generate all visualizations.
+        
+        Returns:
+            Dict with paths to generated charts
+        """
+        self._log_reasoning("MCP Tool: Generating visualizations...")
+        
+        charts = {}
+        
+        # Menu sentiment chart
+        if self.menu_analysis.get('food_items'):
+            food_items = self.menu_analysis['food_items'][:10]
+            menu_chart = generate_sentiment_chart_direct(
+                food_items,
+                "outputs/menu_sentiment.png"
+            )
+            charts['menu'] = menu_chart
+            self._log_reasoning(f"✅ Menu chart: {menu_chart}")
+        
+        # Aspect comparison chart
+        if self.aspect_analysis.get('aspects'):
+            aspect_data = {
+                a['name']: a['sentiment'] 
+                for a in self.aspect_analysis['aspects'][:10]
+            }
+            aspect_chart = generate_comparison_chart_direct(
+                aspect_data,
+                "outputs/aspect_comparison.png",
+                "Aspect Sentiment Comparison"
+            )
+            charts['aspects'] = aspect_chart
+            self._log_reasoning(f"✅ Aspect chart: {aspect_chart}")
+        
+        return charts
+    
+    # ... (keep all other existing methods)
+    
     def get_item_summary(
         self, item_name: str, item_type: str = "food", restaurant_name: str = "the restaurant"
     ) -> Dict[str, Any]:
-        """
-        Get or generate summary for a menu item.
-        
-        Args:
-            item_name: Name of item (lowercase)
-            item_type: "food" or "drinks"
-            restaurant_name: Restaurant name
-        
-        Returns:
-            Dict with name, sentiment, summary, etc.
-        """
-        # Check cache
+        """Get or generate summary for a menu item."""
         if item_name in self.menu_summaries[item_type]:
-            self._log_reasoning(f"Returning cached summary for: {item_name}")
             return self.menu_summaries[item_type][item_name]
         
-        # Find and generate
         items = self.menu_analysis.get('food_items' if item_type == 'food' else 'drinks', [])
         
         for item in items:
             if item.get('name', '').lower() == item_name.lower():
-                self._log_reasoning(f"Generating summary for: {item_name}")
                 summary_text = self.menu_discovery.generate_item_summary(item, restaurant_name)
                 
-                # Store in cache
                 self.menu_summaries[item_type][item_name] = {
                     "name": item['name'],
                     "sentiment": item.get('sentiment', 0),
@@ -184,28 +280,14 @@ class RestaurantAnalysisAgent:
         return {"name": item_name, "summary": f"No data found for {item_name}"}
     
     def get_aspect_summary(self, aspect_name: str, restaurant_name: str = "the restaurant") -> Dict[str, Any]:
-        """
-        Get or generate summary for an aspect.
-        
-        Args:
-            aspect_name: Name of aspect (lowercase)
-            restaurant_name: Restaurant name
-        
-        Returns:
-            Dict with name, sentiment, summary, etc.
-        """
-        # Check cache
+        """Get or generate summary for an aspect."""
         if aspect_name in self.aspect_summaries:
-            self._log_reasoning(f"Returning cached summary for: {aspect_name}")
             return self.aspect_summaries[aspect_name]
         
-        # Find and generate
         for aspect in self.aspect_analysis.get('aspects', []):
             if aspect.get('name', '').lower() == aspect_name.lower():
-                self._log_reasoning(f"Generating summary for: {aspect_name}")
                 summary_text = self.aspect_discovery.generate_aspect_summary(aspect, restaurant_name)
                 
-                # Store in cache
                 self.aspect_summaries[aspect_name] = {
                     "name": aspect['name'],
                     "sentiment": aspect.get('sentiment', 0),
@@ -229,50 +311,34 @@ class RestaurantAnalysisAgent:
         return [aspect['name'] for aspect in self.aspect_analysis.get('aspects', [])]
     
     def export_analysis(self, output_dir: str = "outputs") -> Dict[str, str]:
-        """
-        Export organized analysis data to SEPARATE JSON files.
-        
-        Creates:
-        - menu_analysis.json (raw menu data)
-        - aspect_analysis.json (raw aspect data)
-        - insights.json (chef + manager insights)
-        - summaries_menu.json (organized menu summaries for UI)
-        - summaries_aspects.json (organized aspect summaries for UI)
-        """
+        """Export organized analysis data to JSON files."""
         os.makedirs(output_dir, exist_ok=True)
         saved_files = {}
         
-        # Raw menu data
         menu_path = os.path.join(output_dir, "menu_analysis.json")
         with open(menu_path, 'w', encoding='utf-8') as f:
             json.dump(self.menu_analysis, f, indent=2, ensure_ascii=False)
-        saved_files['menu_raw'] = menu_path
+        saved_files['menu'] = menu_path
         
-        # Raw aspect data
         aspect_path = os.path.join(output_dir, "aspect_analysis.json")
         with open(aspect_path, 'w', encoding='utf-8') as f:
             json.dump(self.aspect_analysis, f, indent=2, ensure_ascii=False)
-        saved_files['aspects_raw'] = aspect_path
+        saved_files['aspects'] = aspect_path
         
-        # Insights
         insights_path = os.path.join(output_dir, "insights.json")
         with open(insights_path, 'w', encoding='utf-8') as f:
             json.dump(self.generated_insights, f, indent=2, ensure_ascii=False)
         saved_files['insights'] = insights_path
         
-        # SEPARATE: Menu summaries (for UI)
         menu_summaries_path = os.path.join(output_dir, "summaries_menu.json")
         with open(menu_summaries_path, 'w', encoding='utf-8') as f:
             json.dump(self.menu_summaries, f, indent=2, ensure_ascii=False)
         saved_files['summaries_menu'] = menu_summaries_path
         
-        # SEPARATE: Aspect summaries (for UI)
         aspect_summaries_path = os.path.join(output_dir, "summaries_aspects.json")
         with open(aspect_summaries_path, 'w', encoding='utf-8') as f:
             json.dump(self.aspect_summaries, f, indent=2, ensure_ascii=False)
         saved_files['summaries_aspects'] = aspect_summaries_path
-        
-        self._log_reasoning(f"✅ Exported to {output_dir}/ (separate menu & aspect summaries)")
         
         return saved_files
     
@@ -305,25 +371,6 @@ class RestaurantAnalysisAgent:
         self.current_plan = plan
         return plan
     
-    def visualize_menu(self, save_chart: bool = True, output_dir: str = "outputs") -> Dict[str, str]:
-        """Visualize menu."""
-        if not self.menu_analysis.get('food_items'):
-            return {}
-        
-        os.makedirs(output_dir, exist_ok=True)
-        results = {}
-        
-        text_viz = self.menu_discovery.visualize_items_text(self.menu_analysis)
-        print("\n" + text_viz)
-        
-        if save_chart:
-            chart_path = os.path.join(output_dir, "menu_chart.png")
-            saved = self.menu_discovery.visualize_items_chart(self.menu_analysis, chart_path)
-            if saved:
-                results['chart'] = saved
-        
-        return results
-    
     def clear_state(self) -> None:
         """Clear agent state."""
         self.current_plan = []
@@ -334,7 +381,8 @@ class RestaurantAnalysisAgent:
         self.aspect_analysis = {}
         self.menu_summaries = {"food": {}, "drinks": {}}
         self.aspect_summaries = {}
-        self._log_reasoning("Agent state cleared")
+        self.reviews = []
+        self.restaurant_name = ""
     
     def __repr__(self) -> str:
         items = self.get_all_menu_items()
@@ -342,51 +390,53 @@ class RestaurantAnalysisAgent:
         return f"RestaurantAnalysisAgent(items={total}, aspects={len(self.get_all_aspects())})"
 
 
-# Test separate JSON exports
+# Test with MCP tools
 if __name__ == "__main__":
     print("=" * 70)
-    print("Testing Separate JSON Exports")
+    print("Testing Agent with MCP Tools")
     print("=" * 70 + "\n")
     
     agent = RestaurantAnalysisAgent()
     
     test_reviews = [
-        "Salmon sushi was incredible! So fresh.",
-        "Service speed slow - waited 25 minutes.",
-        "Hot sake paired perfectly.",
-        "Presentation stunning!",
+        "Salmon sushi was incredible! So fresh and perfectly prepared.",
+        "Service was slow - we waited 25 minutes for our food.",
+        "Miso soup was authentic and warming.",
+        "Presentation is absolutely stunning! Every dish is art.",
+        "Hot sake paired perfectly with the meal.",
     ]
     
+    # Run analysis
     results = agent.analyze_restaurant(
         restaurant_url="https://test.com",
         restaurant_name="Test Restaurant",
         reviews=test_reviews
     )
     
-    # Generate some summaries
-    items = agent.get_all_menu_items()
-    aspects = agent.get_all_aspects()
-    
-    if items['food']:
-        agent.get_item_summary(items['food'][0], "food", "Test Restaurant")
-    
-    if items['drinks']:
-        agent.get_item_summary(items['drinks'][0], "drinks", "Test Restaurant")
-    
-    if aspects:
-        agent.get_aspect_summary(aspects[0], "Test Restaurant")
-    
-    # Export
     print("\n" + "=" * 70)
-    print("EXPORTING SEPARATE JSONs")
+    print("TESTING MCP TOOLS")
     print("=" * 70 + "\n")
     
-    files = agent.export_analysis()
-    for file_type, path in files.items():
-        print(f"✅ {file_type}: {path}")
+    # Test Q&A
+    print("MCP Tool: query_reviews")
+    print("-" * 70)
+    answer = agent.ask_question("What do customers say about the salmon sushi?")
+    print(f"Q: What do customers say about the salmon sushi?")
+    print(f"A: {answer}\n")
+    
+    # Test save report
+    print("MCP Tool: save_report")
+    print("-" * 70)
+    report_path = agent.save_analysis_report()
+    print(f"✅ Report saved to: {report_path}\n")
+    
+    # Test generate charts
+    print("MCP Tool: generate_chart")
+    print("-" * 70)
+    charts = agent.generate_visualizations()
+    for chart_type, path in charts.items():
+        print(f"✅ {chart_type} chart: {path}")
     
     print("\n" + "=" * 70)
-    print("📁 Check outputs/ folder:")
-    print("   - summaries_menu.json (food + drinks)")
-    print("   - summaries_aspects.json (aspects)")
+    print("🎉 Agent + MCP Tools working together!")
     print("=" * 70)

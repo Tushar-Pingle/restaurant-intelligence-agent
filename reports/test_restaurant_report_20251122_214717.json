@@ -1,0 +1,208 @@
+{
+  "restaurant": "Test Restaurant",
+  "timestamp": "2025-11-22T21:47:17.740778",
+  "menu_analysis": {
+    "food_items": [
+      {
+        "name": "salmon sushi",
+        "mention_count": 1,
+        "sentiment": 0.9,
+        "category": "sushi",
+        "related_reviews": [
+          {
+            "review_index": 0,
+            "review_text": "Salmon sushi was incredible! So fresh and perfectly prepared.",
+            "sentiment_context": "Salmon sushi was incredible! So fresh and perfectly prepared."
+          }
+        ]
+      },
+      {
+        "name": "miso soup",
+        "mention_count": 1,
+        "sentiment": 0.8,
+        "category": "appetizer",
+        "related_reviews": [
+          {
+            "review_index": 2,
+            "review_text": "Miso soup was authentic and warming.",
+            "sentiment_context": "Miso soup was authentic and warming."
+          }
+        ]
+      }
+    ],
+    "drinks": [
+      {
+        "name": "hot sake",
+        "mention_count": 1,
+        "sentiment": 0.8,
+        "category": "alcoholic",
+        "related_reviews": [
+          {
+            "review_index": 4,
+            "review_text": "Hot sake paired perfectly with the meal.",
+            "sentiment_context": "Hot sake paired perfectly with the meal."
+          }
+        ]
+      }
+    ],
+    "total_extracted": 3
+  },
+  "aspect_analysis": {
+    "aspects": [
+      {
+        "name": "freshness",
+        "sentiment": 1.0,
+        "mention_count": 1,
+        "description": "quality and freshness of ingredients, particularly seafood",
+        "related_reviews": [
+          {
+            "review_index": 0,
+            "review_text": "Salmon sushi was incredible! So fresh and perfectly prepared.",
+            "sentiment_context": "So fresh"
+          }
+        ]
+      },
+      {
+        "name": "food preparation",
+        "sentiment": 1.0,
+        "mention_count": 1,
+        "description": "skill and technique in preparing dishes",
+        "related_reviews": [
+          {
+            "review_index": 0,
+            "review_text": "Salmon sushi was incredible! So fresh and perfectly prepared.",
+            "sentiment_context": "perfectly prepared"
+          }
+        ]
+      },
+      {
+        "name": "service speed",
+        "sentiment": -1.0,
+        "mention_count": 1,
+        "description": "how quickly food and service are delivered",
+        "related_reviews": [
+          {
+            "review_index": 1,
+            "review_text": "Service was slow - we waited 25 minutes for our food.",
+            "sentiment_context": "Service was slow - we waited 25 minutes"
+          }
+        ]
+      },
+      {
+        "name": "authenticity",
+        "sentiment": 1.0,
+        "mention_count": 1,
+        "description": "how genuine and traditional the cuisine tastes",
+        "related_reviews": [
+          {
+            "review_index": 2,
+            "review_text": "Miso soup was authentic and warming.",
+            "sentiment_context": "authentic"
+          }
+        ]
+      },
+      {
+        "name": "presentation",
+        "sentiment": 1.0,
+        "mention_count": 1,
+        "description": "visual appeal and artistic plating of dishes",
+        "related_reviews": [
+          {
+            "review_index": 3,
+            "review_text": "Presentation is absolutely stunning! Every dish is art.",
+            "sentiment_context": "absolutely stunning! Every dish is art"
+          }
+        ]
+      },
+      {
+        "name": "drink pairing",
+        "sentiment": 1.0,
+        "mention_count": 1,
+        "description": "how well beverages complement the meal",
+        "related_reviews": [
+          {
+            "review_index": 4,
+            "review_text": "Hot sake paired perfectly with the meal.",
+            "sentiment_context": "paired perfectly"
+          }
+        ]
+      }
+    ],
+    "total_aspects": 6
+  },
+  "insights": {
+    "chef": {
+      "summary": "Your culinary execution is exceptionally strong with customers consistently praising freshness, preparation quality, and presentation. The limited menu items analyzed show outstanding performance across all food quality metrics, indicating excellent kitchen standards and technique.",
+      "strengths": [
+        "Exceptional ingredient freshness - salmon sushi specifically praised as 'incredible' and 'so fresh' (sentiment: 0.9)",
+        "Perfect food preparation technique - dishes described as 'perfectly prepared' with flawless execution (sentiment: 1.0)",
+        "Outstanding presentation standards - customers calling plating 'absolutely stunning' and describing 'every dish is art' (sentiment: 1.0)",
+        "Authentic flavor profiles - miso soup praised as 'authentic and warming', showing strong traditional technique (sentiment: 0.8)",
+        "Excellent beverage pairing knowledge - hot sake noted to pair 'perfectly with the meal' (sentiment: 0.8)"
+      ],
+      "concerns": [
+        "Limited menu visibility in reviews - only 3 items mentioned across 500 reviews suggests either limited menu variety or certain dishes not making memorable impressions"
+      ],
+      "recommendations": [
+        {
+          "priority": "medium",
+          "action": "Expand signature dish offerings or enhance existing menu items to increase customer engagement and mentions",
+          "reason": "With only 3 menu items mentioned across 500 reviews, there's opportunity to create more memorable culinary experiences",
+          "evidence": "Only salmon sushi, miso soup, and hot sake mentioned despite 52 total menu items discovered"
+        },
+        {
+          "priority": "low",
+          "action": "Document and standardize current preparation techniques for salmon dishes and presentation protocols",
+          "reason": "Current quality is exceptional - preserving these standards through documentation ensures consistency",
+          "evidence": "Perfect sentiment scores (1.0) for freshness, preparation, and presentation aspects"
+        },
+        {
+          "priority": "low",
+          "action": "Consider featuring more traditional/authentic dishes prominently",
+          "reason": "Customers specifically value authenticity, which could differentiate the restaurant further",
+          "evidence": "Miso soup's authenticity specifically praised with positive sentiment (1.0)"
+        }
+      ]
+    },
+    "manager": {
+      "summary": "Test Restaurant shows strong operational performance with an overall positive sentiment of 0.73 across 500 reviews. While customers consistently praise the restaurant's presentation standards and authentic dining experience, there's a critical service speed issue that requires immediate management attention to maintain customer satisfaction.",
+      "strengths": [
+        "Exceptional presentation standards creating memorable dining experiences - customers describe dishes as 'absolutely stunning' and 'art'",
+        "Strong beverage service with excellent pairing knowledge - staff successfully recommend complementary drinks that enhance the overall meal experience",
+        "Authentic dining atmosphere that meets customer expectations for traditional cuisine experience"
+      ],
+      "concerns": [
+        "Significant service speed issues with customers waiting 25+ minutes for food delivery, creating negative experiences that could impact repeat business",
+        "Limited sample size for operational insights - only 6 service-related aspects identified from 500 reviews suggests potential gaps in feedback collection"
+      ],
+      "recommendations": [
+        {
+          "priority": "high",
+          "action": "Implement kitchen-to-table timing protocols and train wait staff on proactive customer communication during delays",
+          "reason": "Service speed directly impacts customer satisfaction and table turnover rates",
+          "evidence": "Service speed has -1.0 sentiment with specific complaints about 25-minute wait times"
+        },
+        {
+          "priority": "medium",
+          "action": "Develop systematic feedback collection process to capture more operational insights from customer reviews",
+          "reason": "Better data collection will help identify operational blind spots and improvement opportunities",
+          "evidence": "Only 6 operational aspects identified from 500 reviews indicates missed feedback opportunities"
+        },
+        {
+          "priority": "medium",
+          "action": "Leverage presentation excellence as a competitive advantage in marketing and staff training programs",
+          "reason": "Outstanding presentation is a key differentiator that drives customer satisfaction and social media engagement",
+          "evidence": "Perfect 1.0 sentiment score for presentation with customers calling dishes 'art'"
+        }
+      ]
+    }
+  },
+  "summary": {
+    "total_steps": 12,
+    "completed_steps": 12,
+    "successful_steps": 12,
+    "failed_steps": 0,
+    "execution_time": "1.20s",
+    "success": true
+  }
+}
