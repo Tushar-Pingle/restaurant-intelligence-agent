@@ -1,33 +1,325 @@
 {
   "food_items": [
     {
-      "name": "salmon sushi",
+      "name": "japanese sweet potatoes",
       "mention_count": 1,
       "sentiment": 0.9,
-      "category": "sushi",
+      "category": "small plates",
       "related_reviews": [
         {
-          "review_index": 0,
-          "review_text": "Salmon sushi was incredible! So fresh.",
-          "sentiment_context": "Salmon sushi was incredible! So fresh."
+          "review_index": 8,
+          "review_text": "The small plates are superb for sampling a wide variety of tastes. WE loved the Japanese sweet potatoes, Hawsworth style Korean fried chicken with spicy maple syrup, and his house-made sausage.",
+          "sentiment_context": "WE loved the Japanese sweet potatoes"
         }
-      ]
+      ],
+      "summary": "The japanese sweet potatoes is positively received by customers, mentioned in 1 review(s). Customers noted: 'WE loved the Japanese sweet potatoes...'"
+    },
+    {
+      "name": "korean fried chicken",
+      "mention_count": 1,
+      "sentiment": 0.9,
+      "category": "small plates",
+      "related_reviews": [
+        {
+          "review_index": 8,
+          "review_text": "The small plates are superb for sampling a wide variety of tastes. WE loved the Japanese sweet potatoes, Hawsworth style Korean fried chicken with spicy maple syrup, and his house-made sausage.",
+          "sentiment_context": "WE loved the... Hawsworth style Korean fried chicken with spicy maple syrup"
+        }
+      ],
+      "summary": "The korean fried chicken is positively received by customers, mentioned in 1 review(s). Customers noted: 'WE loved the... Hawsworth style Korean fried chicken with spicy maple syrup...'"
+    },
+    {
+      "name": "house-made sausage",
+      "mention_count": 1,
+      "sentiment": 0.9,
+      "category": "small plates",
+      "related_reviews": [
+        {
+          "review_index": 8,
+          "review_text": "The small plates are superb for sampling a wide variety of tastes. WE loved the Japanese sweet potatoes, Hawsworth style Korean fried chicken with spicy maple syrup, and his house-made sausage.",
+          "sentiment_context": "WE loved the... his house-made sausage"
+        }
+      ],
+      "summary": "The house-made sausage is positively received by customers, mentioned in 1 review(s). Customers noted: 'WE loved the... his house-made sausage...'"
+    },
+    {
+      "name": "pizza margherita",
+      "mention_count": 1,
+      "sentiment": 0.3,
+      "category": "pizza",
+      "related_reviews": [
+        {
+          "review_index": 12,
+          "review_text": "Food (pizza margherita) was a bit salty maybe for our taste and some are burnt, chicken with maple is good, however, they can't accommodate modifications. Drink was not bad either. What's bad is, we were never asked if everything was okay. Not a single time did they come and ask even for a water refill. Worse was the table next to us was very well taken care of. We did see how many times the server went there. And never to our table except for one time when he got dirty plate and at the same time asked us if we are ready to pay (gosh, AGAIN didn't even try to ask if everything went well) which made us feel more UNWELCOME. I'm not sure if because we are asian or what. Cos the other table are not asian like us. We still tipped despite of this terrible experience because (there's one that was good to us was the one who served the food, he's a friendly fellow), which we probably shouldn't. Don't think we're gonna come back.",
+          "sentiment_context": "Food (pizza margherita) was a bit salty maybe for our taste and some are burnt"
+        }
+      ],
+      "summary": "The pizza margherita is received mixed feedback by customers, mentioned in 1 review(s). Customers noted: 'Food (pizza margherita) was a bit salty maybe for our taste and some are burnt...'"
+    },
+    {
+      "name": "chicken with maple",
+      "mention_count": 1,
+      "sentiment": 0.7,
+      "category": "entrees",
+      "related_reviews": [
+        {
+          "review_index": 12,
+          "review_text": "Food (pizza margherita) was a bit salty maybe for our taste and some are burnt, chicken with maple is good, however, they can't accommodate modifications. Drink was not bad either. What's bad is, we were never asked if everything was okay. Not a single time did they come and ask even for a water refill. Worse was the table next to us was very well taken care of. We did see how many times the server went there. And never to our table except for one time when he got dirty plate and at the same time asked us if we are ready to pay (gosh, AGAIN didn't even try to ask if everything went well) which made us feel more UNWELCOME. I'm not sure if because we are asian or what. Cos the other table are not asian like us. We still tipped despite of this terrible experience because (there's one that was good to us was the one who served the food, he's a friendly fellow), which we probably shouldn't. Don't think we're gonna come back.",
+          "sentiment_context": "chicken with maple is good"
+        }
+      ],
+      "summary": "The chicken with maple is positively received by customers, mentioned in 1 review(s). Customers noted: 'chicken with maple is good...'"
+    },
+    {
+      "name": "wood fired pizza",
+      "mention_count": 1,
+      "sentiment": 0.9,
+      "category": "pizza",
+      "related_reviews": [
+        {
+          "review_index": 18,
+          "review_text": "Love this downtown gem, their sharing plates are amazing and wood fired pizza is sooooo good!",
+          "sentiment_context": "wood fired pizza is sooooo good!"
+        }
+      ],
+      "summary": "The wood fired pizza is positively received by customers, mentioned in 1 review(s). Customers noted: 'wood fired pizza is sooooo good!...'"
+    },
+    {
+      "name": "broccolini",
+      "mention_count": 1,
+      "sentiment": 0.9,
+      "category": "small plates",
+      "related_reviews": [
+        {
+          "review_index": 19,
+          "review_text": "Broccolini and meatballs were fantastic. Service was excellent",
+          "sentiment_context": "Broccolini... were fantastic"
+        }
+      ],
+      "summary": "The broccolini is positively received by customers, mentioned in 1 review(s). Customers noted: 'Broccolini... were fantastic...'"
+    },
+    {
+      "name": "meatballs",
+      "mention_count": 1,
+      "sentiment": 0.9,
+      "category": "small plates",
+      "related_reviews": [
+        {
+          "review_index": 19,
+          "review_text": "Broccolini and meatballs were fantastic. Service was excellent",
+          "sentiment_context": "meatballs were fantastic"
+        }
+      ],
+      "summary": "The meatballs is positively received by customers, mentioned in 1 review(s). Customers noted: 'meatballs were fantastic...'"
+    },
+    {
+      "name": "dessert",
+      "mention_count": 1,
+      "sentiment": 0.9,
+      "category": "desserts",
+      "related_reviews": [
+        {
+          "review_index": 16,
+          "review_text": "The food came out fast, was hot, and our server was wonderful! Dessert delicious and drinks great, as always. Highly recommend",
+          "sentiment_context": "Dessert delicious"
+        }
+      ],
+      "summary": "The dessert is positively received by customers, mentioned in 1 review(s). Customers noted: 'Dessert delicious...'"
+    },
+    {
+      "name": "cauliflower hummus",
+      "mention_count": 1,
+      "sentiment": 0.9,
+      "category": "appetizer",
+      "related_reviews": [
+        {
+          "review_index": 1,
+          "review_text": "It's never bad there.  Ever.  Service was 5 star.  Selection is great….with the cauliflower hummus stole the show for us.  One dish (pasta) was a bit salty to fully enjoy, and the beef and fish dishes were great.  I'll be going back…again…and again.",
+          "sentiment_context": "cauliflower hummus stole the show for us"
+        }
+      ],
+      "summary": "The cauliflower hummus is positively received by customers, mentioned in 1 review(s). Customers noted: 'cauliflower hummus stole the show for us...'"
+    },
+    {
+      "name": "pasta",
+      "mention_count": 1,
+      "sentiment": 0.3,
+      "category": "main",
+      "related_reviews": [
+        {
+          "review_index": 1,
+          "review_text": "It's never bad there.  Ever.  Service was 5 star.  Selection is great….with the cauliflower hummus stole the show for us.  One dish (pasta) was a bit salty to fully enjoy, and the beef and fish dishes were great.  I'll be going back…again…and again.",
+          "sentiment_context": "One dish (pasta) was a bit salty to fully enjoy"
+        }
+      ],
+      "summary": "The pasta is received mixed feedback by customers, mentioned in 1 review(s). Customers noted: 'One dish (pasta) was a bit salty to fully enjoy...'"
+    },
+    {
+      "name": "beef dishes",
+      "mention_count": 1,
+      "sentiment": 0.8,
+      "category": "main",
+      "related_reviews": [
+        {
+          "review_index": 1,
+          "review_text": "It's never bad there.  Ever.  Service was 5 star.  Selection is great….with the cauliflower hummus stole the show for us.  One dish (pasta) was a bit salty to fully enjoy, and the beef and fish dishes were great.  I'll be going back…again…and again.",
+          "sentiment_context": "the beef and fish dishes were great"
+        }
+      ],
+      "summary": "The beef dishes is positively received by customers, mentioned in 1 review(s). Customers noted: 'the beef and fish dishes were great...'"
+    },
+    {
+      "name": "fish dishes",
+      "mention_count": 1,
+      "sentiment": 0.8,
+      "category": "main",
+      "related_reviews": [
+        {
+          "review_index": 1,
+          "review_text": "It's never bad there.  Ever.  Service was 5 star.  Selection is great….with the cauliflower hummus stole the show for us.  One dish (pasta) was a bit salty to fully enjoy, and the beef and fish dishes were great.  I'll be going back…again…and again.",
+          "sentiment_context": "the beef and fish dishes were great"
+        }
+      ],
+      "summary": "The fish dishes is positively received by customers, mentioned in 1 review(s). Customers noted: 'the beef and fish dishes were great...'"
+    },
+    {
+      "name": "pizza",
+      "mention_count": 1,
+      "sentiment": 0.9,
+      "category": "main",
+      "related_reviews": [
+        {
+          "review_index": 4,
+          "review_text": "Great food and service , had pizza and rigatoni and both were very delicious and we will be coming back again soon! :)",
+          "sentiment_context": "had pizza and rigatoni and both were very delicious"
+        }
+      ],
+      "summary": "The pizza is positively received by customers, mentioned in 1 review(s). Customers noted: 'had pizza and rigatoni and both were very delicious...'"
+    },
+    {
+      "name": "rigatoni",
+      "mention_count": 1,
+      "sentiment": 0.9,
+      "category": "main",
+      "related_reviews": [
+        {
+          "review_index": 4,
+          "review_text": "Great food and service , had pizza and rigatoni and both were very delicious and we will be coming back again soon! :)",
+          "sentiment_context": "had pizza and rigatoni and both were very delicious"
+        }
+      ],
+      "summary": "The rigatoni is positively received by customers, mentioned in 1 review(s). Customers noted: 'had pizza and rigatoni and both were very delicious...'"
+    },
+    {
+      "name": "brick pressed chicken",
+      "mention_count": 1,
+      "sentiment": 0.9,
+      "category": "main",
+      "related_reviews": [
+        {
+          "review_index": 6,
+          "review_text": "Everything we ordered was so delicious!  My fave was the brick pressed chicken. Very loud though so hard to hear conversation.",
+          "sentiment_context": "My fave was the brick pressed chicken"
+        }
+      ],
+      "summary": "The brick pressed chicken is positively received by customers, mentioned in 1 review(s). Customers noted: 'My fave was the brick pressed chicken...'"
+    },
+    {
+      "name": "japanese yam",
+      "mention_count": 1,
+      "sentiment": 0.7,
+      "category": "side",
+      "related_reviews": [
+        {
+          "review_index": 13,
+          "review_text": "The Japanese yam is delicious but unfortunately, every time I come back , this plate keeps getting smaller",
+          "sentiment_context": "The Japanese yam is delicious but unfortunately, every time I come back , this plate keeps getting smaller"
+        }
+      ],
+      "summary": "The japanese yam is positively received by customers, mentioned in 1 review(s). Customers noted: 'The Japanese yam is delicious but unfortunately, every time I come back , this plate keeps getting s...'"
+    },
+    {
+      "name": "sweet potatoes",
+      "mention_count": 1,
+      "sentiment": 0.9,
+      "category": "side",
+      "related_reviews": [
+        {
+          "review_index": 17,
+          "review_text": "Recommendation from a friend to go here and it did not disappoint. We were able to try a few things bc of the family style service which honestly, thank you. Stress free ordering since it's not the review of one dish you tried but 5 different dishes (sides, apps, and main). Sweet potatoes was by far the winner overall and could eat that every time.",
+          "sentiment_context": "Sweet potatoes was by far the winner overall and could eat that every time"
+        }
+      ],
+      "summary": "The sweet potatoes is positively received by customers, mentioned in 1 review(s). Customers noted: 'Sweet potatoes was by far the winner overall and could eat that every time...'"
     }
   ],
   "drinks": [
     {
-      "name": "hot sake",
-      "mention_count": 1,
+      "name": "drinks",
+      "mention_count": 3,
       "sentiment": 0.8,
-      "category": "alcoholic",
+      "category": "beverages",
       "related_reviews": [
         {
-          "review_index": 2,
-          "review_text": "Hot sake paired perfectly.",
-          "sentiment_context": "Hot sake paired perfectly."
+          "review_index": 1,
+          "review_text": "We had Great time! The food hit the mark the drinks were fabulous.",
+          "sentiment_context": "the drinks were fabulous"
+        },
+        {
+          "review_index": 12,
+          "review_text": "Food (pizza margherita) was a bit salty maybe for our taste and some are burnt, chicken with maple is good, however, they can't accommodate modifications. Drink was not bad either. What's bad is, we were never asked if everything was okay. Not a single time did they come and ask even for a water refill. Worse was the table next to us was very well taken care of. We did see how many times the server went there. And never to our table except for one time when he got dirty plate and at the same time asked us if we are ready to pay (gosh, AGAIN didn't even try to ask if everything went well) which made us feel more UNWELCOME. I'm not sure if because we are asian or what. Cos the other table are not asian like us. We still tipped despite of this terrible experience because (there's one that was good to us was the one who served the food, he's a friendly fellow), which we probably shouldn't. Don't think we're gonna come back.",
+          "sentiment_context": "Drink was not bad either"
+        },
+        {
+          "review_index": 16,
+          "review_text": "The food came out fast, was hot, and our server was wonderful! Dessert delicious and drinks great, as always. Highly recommend",
+          "sentiment_context": "drinks great"
         }
-      ]
+      ],
+      "summary": "The drinks is positively received by customers, mentioned in 3 review(s). Customers noted: 'the drinks were fabulous...'"
+    },
+    {
+      "name": "wine list",
+      "mention_count": 1,
+      "sentiment": 0.9,
+      "category": "wine",
+      "related_reviews": [
+        {
+          "review_index": 4,
+          "review_text": "A must do when in Vancouver. Excellent small plate. Great staff and an amazing wine list",
+          "sentiment_context": "amazing wine list"
+        }
+      ],
+      "summary": "The wine list is positively received by customers, mentioned in 1 review(s). Customers noted: 'amazing wine list...'"
+    },
+    {
+      "name": "sprite",
+      "mention_count": 1,
+      "sentiment": 0.2,
+      "category": "soft drinks",
+      "related_reviews": [
+        {
+          "review_index": 5,
+          "review_text": "4th time visiting Nightingale. Celebrating my daughter's 24th Bday, made a reso 3 weeks in advance and did not appreciate the \"booth\" upstairs we were seated? Also did not appreciate no refills for my Sprite as I was the only one not drinking!",
+          "sentiment_context": "did not appreciate no refills for my Sprite"
+        }
+      ],
+      "summary": "The sprite is received mixed feedback by customers, mentioned in 1 review(s). Customers noted: 'did not appreciate no refills for my Sprite...'"
+    },
+    {
+      "name": "cocktails",
+      "mention_count": 1,
+      "sentiment": 0.9,
+      "category": "cocktail",
+      "related_reviews": [
+        {
+          "review_index": 10,
+          "review_text": "Had a great solo evening at the bar. Cocktails, food, ambience are all top notch. Great happy hour, too. Will be a regular spot when in Vancouver.",
+          "sentiment_context": "Cocktails, food, ambience are all top notch"
+        }
+      ],
+      "summary": "The cocktails is positively received by customers, mentioned in 1 review(s). Customers noted: 'Cocktails, food, ambience are all top notch...'"
     }
   ],
-  "total_extracted": 2
+  "total_extracted": 22
 }

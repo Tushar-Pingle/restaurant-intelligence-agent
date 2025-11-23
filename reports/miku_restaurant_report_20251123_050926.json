@@ -1,0 +1,861 @@
+{
+  "restaurant": "Miku Restaurant",
+  "timestamp": "2025-11-23T05:09:26.904265",
+  "menu_analysis": {
+    "food_items": [
+      {
+        "name": "sushi",
+        "mention_count": 10,
+        "sentiment": 0.9,
+        "category": "sushi",
+        "related_reviews": [
+          {
+            "review_index": 2,
+            "review_text": "Good service, and good sushi. There is a 50 character minimum for this",
+            "sentiment_context": "good sushi"
+          },
+          {
+            "review_index": 5,
+            "review_text": "For being Michelin rated i was disappointed.  Staff left us with no water and drink for about 20 min.  Sushi was good but had better at less expensive places.",
+            "sentiment_context": "Sushi was good but had better at less expensive places"
+          },
+          {
+            "review_index": 6,
+            "review_text": "Had the Kaiseki. While the lobster ceviche course and all the sushi and sashimi was excellent, the sablefish and dessert were a real miss for me. The sablefish lacked flavour and the matcha opera cake was a pretty odd texture. The cake almost felt stale. \n\nThe service was great, was seated immediately and well taken care of.",
+            "sentiment_context": "all the sushi and sashimi was excellent"
+          },
+          {
+            "review_index": 9,
+            "review_text": "Our lunches, veggie and sushi, were delicious. And the service was excellent, very friendly. The place is beautiful along with the view. \nThe only negative is the chairs need to be replaced or stuffed as you sink uncomfortably into them.",
+            "sentiment_context": "veggie and sushi, were delicious"
+          },
+          {
+            "review_index": 0,
+            "review_text": "A-MA-ZING sushi and sashimi!!!!\nGreat service (look fo Charlotte if she's working)",
+            "sentiment_context": "A-MA-ZING sushi"
+          },
+          {
+            "review_index": 8,
+            "review_text": "We've been many times - the sushi and lamb chops were outstanding , as always.  However the potatoes accompanying the lamb looked beautiful but were cold as ice.  The Brussel sprout chips  were giant Brussel sprouts not cooked through- the best part is the crispy chips and there were very few- unlike any time I have had them in the past.  The bar service was mediocre - again unlike the table service experienced in the past.",
+            "sentiment_context": "the sushi and lamb chops were outstanding"
+          },
+          {
+            "review_index": 9,
+            "review_text": "Outstanding night out! Service and food were superb. And as weird as it sounds for a sushi restaurant, I HIGHLY recommend the lamb chops. (Sadly forgot to take a picture of them.)",
+            "sentiment_context": "for a sushi restaurant"
+          },
+          {
+            "review_index": 13,
+            "review_text": "Absolutely fantastic spot for a catch up with a friend. Of course the sushi shines but the mushroom risotto is also incredible.",
+            "sentiment_context": "the sushi shines"
+          },
+          {
+            "review_index": 0,
+            "review_text": "Have been here multiple times since 2011, and each has been better than the last.\n\nMy partner and I had supper with a friend from overseas, and indulged in the 7 course Chef's tasting menu, including a variety of seafood, sashimi, sushi, smoked duck, and Wagyu, with a lovely seasonal desert. Portions, were small but after the 7 course, we were satiated. \n\nAdd a bottle of wine (you can get a BC wine selection or pick from an excellent wine list).\n\nExtraordinary.",
+            "sentiment_context": "indulged in the 7 course Chef's tasting menu, including a variety of seafood, sashimi, sushi"
+          },
+          {
+            "review_index": 3,
+            "review_text": "My first visit to Miku turned into something truly memorable — a special occasion shared with my children, their partners, and dear friends visiting from South Africa and London. We were given a lovely semi-private dining room with a big table for the eight of us, and from our seats we could take in one of the most breathtaking views in Vancouver — overlooking Canada Place and the cruise ship terminal.\n\nThe food was exceptional — fresh, beautifully presented, and easily the best sushi experience I've had in Vancouver and the Lower Mainland. Every dish felt like a little artwork on a plate. I ordered the Sable fish…a superb decision and a masterpiece presentation. The staff were wonderful — attentive without being overbearing, warm yet professional, and genuinely invested in making our day special.\n\nAfter 35 years in Vancouver, Miku has found its way right to the top of my list of favourite dining experiences. It's a place that manages to feel both elegant and comfortable — perfect for a celebration or a romantic meal. And considering the quality, the luncheon was very well priced and worth every single penny.\n\nA heartfelt thank you to management and staff.",
+            "sentiment_context": "easily the best sushi experience I've had in Vancouver and the Lower Mainland"
+          }
+        ]
+      },
+      {
+        "name": "sashimi",
+        "mention_count": 5,
+        "sentiment": 0.6000000000000001,
+        "category": "sushi",
+        "related_reviews": [
+          {
+            "review_index": 6,
+            "review_text": "Had the Kaiseki. While the lobster ceviche course and all the sushi and sashimi was excellent, the sablefish and dessert were a real miss for me. The sablefish lacked flavour and the matcha opera cake was a pretty odd texture. The cake almost felt stale. \n\nThe service was great, was seated immediately and well taken care of.",
+            "sentiment_context": "all the sushi and sashimi was excellent"
+          },
+          {
+            "review_index": 10,
+            "review_text": "The ambiance is nice and the restaurant has a great view of the harbor. The sashimi is really fresh and nicely presented. The sushi is season just right so there's not a need to deep in soy sauce. Desert is wonderful and not too sweet. Would definitely come back with a bigger party to try out more items on the menu.",
+            "sentiment_context": "The sashimi is really fresh and nicely presented"
+          },
+          {
+            "review_index": 0,
+            "review_text": "A-MA-ZING sushi and sashimi!!!!\nGreat service (look fo Charlotte if she's working)",
+            "sentiment_context": "A-MA-ZING sushi and sashimi!!!!"
+          },
+          {
+            "review_index": 8,
+            "review_text": "Our party of 5 shared our orders.  Food was fresh but it didn't meet expectations. Sashimi slices were too thin.  The service from our waiter was disappointing.  He was not friendly nor welcoming.",
+            "sentiment_context": "Sashimi slices were too thin"
+          },
+          {
+            "review_index": 0,
+            "review_text": "Have been here multiple times since 2011, and each has been better than the last.\n\nMy partner and I had supper with a friend from overseas, and indulged in the 7 course Chef's tasting menu, including a variety of seafood, sashimi, sushi, smoked duck, and Wagyu, with a lovely seasonal desert. Portions, were small but after the 7 course, we were satiated. \n\nAdd a bottle of wine (you can get a BC wine selection or pick from an excellent wine list).\n\nExtraordinary.",
+            "sentiment_context": "indulged in the 7 course Chef's tasting menu, including a variety of seafood, sashimi, sushi"
+          }
+        ]
+      },
+      {
+        "name": "lobster ceviche",
+        "mention_count": 2,
+        "sentiment": 0.9,
+        "category": "appetizer",
+        "related_reviews": [
+          {
+            "review_index": 3,
+            "review_text": "It was a wonderful evening! Our 24 anniversary. The food was delicious and the service provided was amazing. My favourite was the lobster ceviche, but all the other dishes were exquisite. I definitely recommend.",
+            "sentiment_context": "My favourite was the lobster ceviche"
+          },
+          {
+            "review_index": 6,
+            "review_text": "Had the Kaiseki. While the lobster ceviche course and all the sushi and sashimi was excellent, the sablefish and dessert were a real miss for me. The sablefish lacked flavour and the matcha opera cake was a pretty odd texture. The cake almost felt stale. \n\nThe service was great, was seated immediately and well taken care of.",
+            "sentiment_context": "the lobster ceviche course and all the sushi and sashimi was excellent"
+          }
+        ]
+      },
+      {
+        "name": "kaiseki",
+        "mention_count": 2,
+        "sentiment": 0.6,
+        "category": "entree",
+        "related_reviews": [
+          {
+            "review_index": 6,
+            "review_text": "Had the Kaiseki. While the lobster ceviche course and all the sushi and sashimi was excellent, the sablefish and dessert were a real miss for me. The sablefish lacked flavour and the matcha opera cake was a pretty odd texture. The cake almost felt stale. \n\nThe service was great, was seated immediately and well taken care of.",
+            "sentiment_context": "Had the Kaiseki. While the lobster ceviche course and all the sushi and sashimi was excellent, the sablefish and dessert were a real miss"
+          },
+          {
+            "review_index": 4,
+            "review_text": "We sat at the bar and had a great experience. We had the kaiseki and loved every portion.",
+            "sentiment_context": "We had the kaiseki and loved every portion"
+          }
+        ]
+      },
+      {
+        "name": "lamb chops",
+        "mention_count": 2,
+        "sentiment": 1.0,
+        "category": "entree",
+        "related_reviews": [
+          {
+            "review_index": 8,
+            "review_text": "We've been many times - the sushi and lamb chops were outstanding , as always.  However the potatoes accompanying the lamb looked beautiful but were cold as ice.  The Brussel sprout chips  were giant Brussel sprouts not cooked through- the best part is the crispy chips and there were very few- unlike any time I have had them in the past.  The bar service was mediocre - again unlike the table service experienced in the past.",
+            "sentiment_context": "the sushi and lamb chops were outstanding"
+          },
+          {
+            "review_index": 9,
+            "review_text": "Outstanding night out! Service and food were superb. And as weird as it sounds for a sushi restaurant, I HIGHLY recommend the lamb chops. (Sadly forgot to take a picture of them.)",
+            "sentiment_context": "I HIGHLY recommend the lamb chops"
+          }
+        ]
+      },
+      {
+        "name": "seafood",
+        "mention_count": 2,
+        "sentiment": 0.9,
+        "category": "entree",
+        "related_reviews": [
+          {
+            "review_index": 0,
+            "review_text": "Have been here multiple times since 2011, and each has been better than the last.\n\nMy partner and I had supper with a friend from overseas, and indulged in the 7 course Chef's tasting menu, including a variety of seafood, sashimi, sushi, smoked duck, and Wagyu, with a lovely seasonal desert. Portions, were small but after the 7 course, we were satiated. \n\nAdd a bottle of wine (you can get a BC wine selection or pick from an excellent wine list).\n\nExtraordinary.",
+            "sentiment_context": "indulged in the 7 course Chef's tasting menu, including a variety of seafood"
+          },
+          {
+            "review_index": 1,
+            "review_text": "Food was amazing. Worth every penny. Service was attentive and friendly. I would recommend this place to anyone who loves seafood. Soft Shell crab was to die for.",
+            "sentiment_context": "I would recommend this place to anyone who loves seafood"
+          }
+        ]
+      },
+      {
+        "name": "salmon aburi sushi",
+        "mention_count": 1,
+        "sentiment": 0.9,
+        "category": "sushi",
+        "related_reviews": [
+          {
+            "review_index": 0,
+            "review_text": "The food was delicious, I highly recommend the salmon aburi sushi. My friend and I ended up eating a whole try of them after tasting them in the sampler plate.",
+            "sentiment_context": "I highly recommend the salmon aburi sushi. My friend and I ended up eating a whole try of them"
+          }
+        ]
+      },
+      {
+        "name": "sampler plate",
+        "mention_count": 1,
+        "sentiment": 0.8,
+        "category": "appetizer",
+        "related_reviews": [
+          {
+            "review_index": 0,
+            "review_text": "The food was delicious, I highly recommend the salmon aburi sushi. My friend and I ended up eating a whole try of them after tasting them in the sampler plate.",
+            "sentiment_context": "after tasting them in the sampler plate"
+          }
+        ]
+      },
+      {
+        "name": "sablefish",
+        "mention_count": 1,
+        "sentiment": -0.6,
+        "category": "entree",
+        "related_reviews": [
+          {
+            "review_index": 6,
+            "review_text": "Had the Kaiseki. While the lobster ceviche course and all the sushi and sashimi was excellent, the sablefish and dessert were a real miss for me. The sablefish lacked flavour and the matcha opera cake was a pretty odd texture. The cake almost felt stale. \n\nThe service was great, was seated immediately and well taken care of.",
+            "sentiment_context": "the sablefish and dessert were a real miss for me. The sablefish lacked flavour"
+          }
+        ]
+      },
+      {
+        "name": "matcha opera cake",
+        "mention_count": 1,
+        "sentiment": -0.7,
+        "category": "dessert",
+        "related_reviews": [
+          {
+            "review_index": 6,
+            "review_text": "Had the Kaiseki. While the lobster ceviche course and all the sushi and sashimi was excellent, the sablefish and dessert were a real miss for me. The sablefish lacked flavour and the matcha opera cake was a pretty odd texture. The cake almost felt stale. \n\nThe service was great, was seated immediately and well taken care of.",
+            "sentiment_context": "the matcha opera cake was a pretty odd texture. The cake almost felt stale"
+          }
+        ]
+      },
+      {
+        "name": "birthday seafood side dish",
+        "mention_count": 1,
+        "sentiment": 1.0,
+        "category": "appetizer",
+        "related_reviews": [
+          {
+            "review_index": 8,
+            "review_text": "We celebrated my daughter's 22nd birthday dinner at Miku and stayed at the beautiful Pan Pacific hotel across the street. The service was impeccable, the food was absolutely delicious with stunning presentation, and the chef surprised us with a birthday seafood side dish that beat any cake we've ever been surprised with at any other restaurant! Haha. Definitely worth the Michelin star rating and would absolutely recommend this restaurant to anyone visiting downtown Vancouver!!",
+            "sentiment_context": "the chef surprised us with a birthday seafood side dish that beat any cake we've ever been surprised with at any other restaurant"
+          }
+        ]
+      },
+      {
+        "name": "veggie",
+        "mention_count": 1,
+        "sentiment": 0.8,
+        "category": "entree",
+        "related_reviews": [
+          {
+            "review_index": 9,
+            "review_text": "Our lunches, veggie and sushi, were delicious. And the service was excellent, very friendly. The place is beautiful along with the view. \nThe only negative is the chairs need to be replaced or stuffed as you sink uncomfortably into them.",
+            "sentiment_context": "Our lunches, veggie and sushi, were delicious"
+          }
+        ]
+      },
+      {
+        "name": "desert",
+        "mention_count": 1,
+        "sentiment": 0.8,
+        "category": "dessert",
+        "related_reviews": [
+          {
+            "review_index": 10,
+            "review_text": "The ambiance is nice and the restaurant has a great view of the harbor. The sashimi is really fresh and nicely presented. The sushi is season just right so there's not a need to deep in soy sauce. Desert is wonderful and not too sweet. Would definitely come back with a bigger party to try out more items on the menu.",
+            "sentiment_context": "Desert is wonderful and not too sweet"
+          }
+        ]
+      },
+      {
+        "name": "aburi sushi",
+        "mention_count": 1,
+        "sentiment": 0.9,
+        "category": "sushi",
+        "related_reviews": [
+          {
+            "review_index": 12,
+            "review_text": "Dining at Miku in Vancouver was an outstanding experience from start to finish. The service was attentive without being intrusive, and the atmosphere struck a perfect balance between elegance and warmth. Every dish showcased remarkable technique and freshness, especially the aburi sushi, which stood out for its exceptional flavor and texture.\n\nThe presentation reflected true attention to detail, and each bite felt like something special. The drink selection also deserves mention, as it paired beautifully with the meal.\n\nMiku not only met expectations, it exceeded them. I would gladly recommend it to anyone looking for a top-tier dining experience in Vancouver.",
+            "sentiment_context": "especially the aburi sushi, which stood out for its exceptional flavor and texture"
+          }
+        ]
+      },
+      {
+        "name": "aburi selection",
+        "mention_count": 1,
+        "sentiment": 0.8,
+        "category": "entree",
+        "related_reviews": [
+          {
+            "review_index": 1,
+            "review_text": "Miku is my fav resto to go! Enjoy the cooked food & aburi selection.",
+            "sentiment_context": "Enjoy the cooked food & aburi selection"
+          }
+        ]
+      },
+      {
+        "name": "omakase",
+        "mention_count": 1,
+        "sentiment": 1.0,
+        "category": "entree",
+        "related_reviews": [
+          {
+            "review_index": 7,
+            "review_text": "We had an amazing experience!  Andy was perfect on assisting us and explaining each dish from Omakase prepared by the Chef.  The food was prepared perfectly and the service was splendid.  We can't wait to go back.",
+            "sentiment_context": "explaining each dish from Omakase prepared by the Chef. The food was prepared perfectly"
+          }
+        ]
+      },
+      {
+        "name": "potatoes",
+        "mention_count": 1,
+        "sentiment": -0.5,
+        "category": "side",
+        "related_reviews": [
+          {
+            "review_index": 8,
+            "review_text": "We've been many times - the sushi and lamb chops were outstanding , as always.  However the potatoes accompanying the lamb looked beautiful but were cold as ice.  The Brussel sprout chips  were giant Brussel sprouts not cooked through- the best part is the crispy chips and there were very few- unlike any time I have had them in the past.  The bar service was mediocre - again unlike the table service experienced in the past.",
+            "sentiment_context": "the potatoes accompanying the lamb looked beautiful but were cold as ice"
+          }
+        ]
+      },
+      {
+        "name": "brussel sprout chips",
+        "mention_count": 1,
+        "sentiment": -0.6,
+        "category": "side",
+        "related_reviews": [
+          {
+            "review_index": 8,
+            "review_text": "We've been many times - the sushi and lamb chops were outstanding , as always.  However the potatoes accompanying the lamb looked beautiful but were cold as ice.  The Brussel sprout chips  were giant Brussel sprouts not cooked through- the best part is the crispy chips and there were very few- unlike any time I have had them in the past.  The bar service was mediocre - again unlike the table service experienced in the past.",
+            "sentiment_context": "The Brussel sprout chips were giant Brussel sprouts not cooked through"
+          }
+        ]
+      },
+      {
+        "name": "mushroom risotto",
+        "mention_count": 1,
+        "sentiment": 1.0,
+        "category": "entree",
+        "related_reviews": [
+          {
+            "review_index": 13,
+            "review_text": "Absolutely fantastic spot for a catch up with a friend. Of course the sushi shines but the mushroom risotto is also incredible.",
+            "sentiment_context": "the mushroom risotto is also incredible"
+          }
+        ]
+      },
+      {
+        "name": "miku omakase menu",
+        "mention_count": 1,
+        "sentiment": 0.8,
+        "category": "tasting menu",
+        "related_reviews": [
+          {
+            "review_index": 0,
+            "review_text": "Was there to celebrate my husband's birthday. We were seated a little after we arrived and we already knew what we wanted to order. We went with the Miku omakase menu along with the wine pairing. The food was delicious along with the great wine selection for the pairing; it really goes well with the courses that we had. The staff were very friendly. I would definitely recommend this place and would come back if I'm in Vancouver next time.",
+            "sentiment_context": "We went with the Miku omakase menu along with the wine pairing. The food was delicious"
+          }
+        ]
+      },
+      {
+        "name": "aburi",
+        "mention_count": 1,
+        "sentiment": 0.9,
+        "category": "sushi",
+        "related_reviews": [
+          {
+            "review_index": 1,
+            "review_text": "While expensive,  the quality of food is always excellent and its always delicious! Love the aburi.  Wish we could afford to order more of the unagi sushi, but the price is getting a bit steep IMO - delicious,  but hard to justify. Service was friendly enough, and a nice setting. Miss the old days of them offering the little chocolates at the hostess stand on the way out - I'm sure they could afford to bring those back.",
+            "sentiment_context": "Love the aburi"
+          }
+        ]
+      },
+      {
+        "name": "unagi sushi",
+        "mention_count": 1,
+        "sentiment": 0.6,
+        "category": "sushi",
+        "related_reviews": [
+          {
+            "review_index": 1,
+            "review_text": "While expensive,  the quality of food is always excellent and its always delicious! Love the aburi.  Wish we could afford to order more of the unagi sushi, but the price is getting a bit steep IMO - delicious,  but hard to justify. Service was friendly enough, and a nice setting. Miss the old days of them offering the little chocolates at the hostess stand on the way out - I'm sure they could afford to bring those back.",
+            "sentiment_context": "Wish we could afford to order more of the unagi sushi, but the price is getting a bit steep IMO - delicious, but hard to justify"
+          }
+        ]
+      },
+      {
+        "name": "chocolates",
+        "mention_count": 1,
+        "sentiment": 0.3,
+        "category": "dessert",
+        "related_reviews": [
+          {
+            "review_index": 1,
+            "review_text": "While expensive,  the quality of food is always excellent and its always delicious! Love the aburi.  Wish we could afford to order more of the unagi sushi, but the price is getting a bit steep IMO - delicious,  but hard to justify. Service was friendly enough, and a nice setting. Miss the old days of them offering the little chocolates at the hostess stand on the way out - I'm sure they could afford to bring those back.",
+            "sentiment_context": "Miss the old days of them offering the little chocolates at the hostess stand on the way out"
+          }
+        ]
+      },
+      {
+        "name": "oshi aburi sushi",
+        "mention_count": 1,
+        "sentiment": 0.9,
+        "category": "sushi",
+        "related_reviews": [
+          {
+            "review_index": 14,
+            "review_text": "We always love going there for the famous oshi aburi sushi! Good ambiance, food, and service as usual.",
+            "sentiment_context": "We always love going there for the famous oshi aburi sushi!"
+          }
+        ]
+      },
+      {
+        "name": "smoked duck",
+        "mention_count": 1,
+        "sentiment": 0.9,
+        "category": "entree",
+        "related_reviews": [
+          {
+            "review_index": 0,
+            "review_text": "Have been here multiple times since 2011, and each has been better than the last.\n\nMy partner and I had supper with a friend from overseas, and indulged in the 7 course Chef's tasting menu, including a variety of seafood, sashimi, sushi, smoked duck, and Wagyu, with a lovely seasonal desert. Portions, were small but after the 7 course, we were satiated. \n\nAdd a bottle of wine (you can get a BC wine selection or pick from an excellent wine list).\n\nExtraordinary.",
+            "sentiment_context": "indulged in the 7 course Chef's tasting menu, including a variety of seafood, sashimi, sushi, smoked duck, and Wagyu"
+          }
+        ]
+      },
+      {
+        "name": "wagyu",
+        "mention_count": 1,
+        "sentiment": 0.9,
+        "category": "entree",
+        "related_reviews": [
+          {
+            "review_index": 0,
+            "review_text": "Have been here multiple times since 2011, and each has been better than the last.\n\nMy partner and I had supper with a friend from overseas, and indulged in the 7 course Chef's tasting menu, including a variety of seafood, sashimi, sushi, smoked duck, and Wagyu, with a lovely seasonal desert. Portions, were small but after the 7 course, we were satiated. \n\nAdd a bottle of wine (you can get a BC wine selection or pick from an excellent wine list).\n\nExtraordinary.",
+            "sentiment_context": "indulged in the 7 course Chef's tasting menu, including a variety of seafood, sashimi, sushi, smoked duck, and Wagyu"
+          }
+        ]
+      },
+      {
+        "name": "seasonal desert",
+        "mention_count": 1,
+        "sentiment": 0.8,
+        "category": "dessert",
+        "related_reviews": [
+          {
+            "review_index": 0,
+            "review_text": "Have been here multiple times since 2011, and each has been better than the last.\n\nMy partner and I had supper with a friend from overseas, and indulged in the 7 course Chef's tasting menu, including a variety of seafood, sashimi, sushi, smoked duck, and Wagyu, with a lovely seasonal desert. Portions, were small but after the 7 course, we were satiated. \n\nAdd a bottle of wine (you can get a BC wine selection or pick from an excellent wine list).\n\nExtraordinary.",
+            "sentiment_context": "with a lovely seasonal desert"
+          }
+        ]
+      },
+      {
+        "name": "soft shell crab",
+        "mention_count": 1,
+        "sentiment": 1.0,
+        "category": "appetizer",
+        "related_reviews": [
+          {
+            "review_index": 1,
+            "review_text": "Food was amazing. Worth every penny. Service was attentive and friendly. I would recommend this place to anyone who loves seafood. Soft Shell crab was to die for.",
+            "sentiment_context": "Soft Shell crab was to die for"
+          }
+        ]
+      },
+      {
+        "name": "sable fish",
+        "mention_count": 1,
+        "sentiment": 1.0,
+        "category": "entree",
+        "related_reviews": [
+          {
+            "review_index": 3,
+            "review_text": "My first visit to Miku turned into something truly memorable — a special occasion shared with my children, their partners, and dear friends visiting from South Africa and London. We were given a lovely semi-private dining room with a big table for the eight of us, and from our seats we could take in one of the most breathtaking views in Vancouver — overlooking Canada Place and the cruise ship terminal.\n\nThe food was exceptional — fresh, beautifully presented, and easily the best sushi experience I've had in Vancouver and the Lower Mainland. Every dish felt like a little artwork on a plate. I ordered the Sable fish…a superb decision and a masterpiece presentation. The staff were wonderful — attentive without being overbearing, warm yet professional, and genuinely invested in making our day special.\n\nAfter 35 years in Vancouver, Miku has found its way right to the top of my list of favourite dining experiences. It's a place that manages to feel both elegant and comfortable — perfect for a celebration or a romantic meal. And considering the quality, the luncheon was very well priced and worth every single penny.\n\nA heartfelt thank you to management and staff.",
+            "sentiment_context": "I ordered the Sable fish…a superb decision and a masterpiece presentation"
+          }
+        ]
+      }
+    ],
+    "drinks": [
+      {
+        "name": "wine",
+        "mention_count": 2,
+        "sentiment": 0.65,
+        "category": "wine",
+        "related_reviews": [
+          {
+            "review_index": 14,
+            "review_text": "Good evening,\n\nI made a reservation at your restaurant today through OpenTable for 9:00 p.m. I arrived about five minutes early and waited at the reception for at least another seven to ten minutes before anyone came to assist me. When I mentioned that I had a reservation through OpenTable for a table, I was asked if I would mind sitting at the bar instead. I politely reiterated that I had specifically chosen a table in order to have a pleasant dining experience.\n\nEventually, I was shown to a table, where I waited another ten minutes before the waitress came over with the menu and wine list. I explained that, since it was my first time at the restaurant, I would like to start by ordering the appetizers, and then choose the wines accordingly, depending on how the dishes paired.\n\nAbout ten minutes after my delicious first course had arrived, and after I had selected the first sparkling wine to pair with it, the waitress informed me that I should choose my second course right away, as the kitchen was about to close and only desserts would soon be available. I pointed out that I had made my reservation for 9:00 p.m., and yet I was being told this at 9:30 p.m.\n\nI explained that this was not the kind of experience I was expecting—especially from a restaurant recommended by the Michelin Guide. She replied, somewhat curtly, that she didn't make the rules but that the kitchen closed at 9:30 p.m. I asked to speak with the manager, who, after I explained the situation, told me it had been a communication mistake and assured me that my dining experience would be properly taken care of.\n\nI ordered a second appetizer and, after tasting it, selected a wine to pair with it, which took another ten minutes to arrive. At this point, it is important to note that the waitstaff seemed lost and disorganized; they did not make eye contact with guests, and we had to constantly gesture to get their attention. This is a basic expectation of good service and was completely lacking.\n\nFinally, f",
+            "sentiment_context": "selected a wine to pair with it"
+          },
+          {
+            "review_index": 0,
+            "review_text": "Have been here multiple times since 2011, and each has been better than the last.\n\nMy partner and I had supper with a friend from overseas, and indulged in the 7 course Chef's tasting menu, including a variety of seafood, sashimi, sushi, smoked duck, and Wagyu, with a lovely seasonal desert. Portions, were small but after the 7 course, we were satiated. \n\nAdd a bottle of wine (you can get a BC wine selection or pick from an excellent wine list).\n\nExtraordinary.",
+            "sentiment_context": "Add a bottle of wine (you can get a BC wine selection or pick from an excellent wine list)"
+          }
+        ]
+      },
+      {
+        "name": "sparkling wine",
+        "mention_count": 1,
+        "sentiment": 0.6,
+        "category": "wine",
+        "related_reviews": [
+          {
+            "review_index": 14,
+            "review_text": "Good evening,\n\nI made a reservation at your restaurant today through OpenTable for 9:00 p.m. I arrived about five minutes early and waited at the reception for at least another seven to ten minutes before anyone came to assist me. When I mentioned that I had a reservation through OpenTable for a table, I was asked if I would mind sitting at the bar instead. I politely reiterated that I had specifically chosen a table in order to have a pleasant dining experience.\n\nEventually, I was shown to a table, where I waited another ten minutes before the waitress came over with the menu and wine list. I explained that, since it was my first time at the restaurant, I would like to start by ordering the appetizers, and then choose the wines accordingly, depending on how the dishes paired.\n\nAbout ten minutes after my delicious first course had arrived, and after I had selected the first sparkling wine to pair with it, the waitress informed me that I should choose my second course right away, as the kitchen was about to close and only desserts would soon be available. I pointed out that I had made my reservation for 9:00 p.m., and yet I was being told this at 9:30 p.m.\n\nI explained that this was not the kind of experience I was expecting—especially from a restaurant recommended by the Michelin Guide. She replied, somewhat curtly, that she didn't make the rules but that the kitchen closed at 9:30 p.m. I asked to speak with the manager, who, after I explained the situation, told me it had been a communication mistake and assured me that my dining experience would be properly taken care of.\n\nI ordered a second appetizer and, after tasting it, selected a wine to pair with it, which took another ten minutes to arrive. At this point, it is important to note that the waitstaff seemed lost and disorganized; they did not make eye contact with guests, and we had to constantly gesture to get their attention. This is a basic expectation of good service and was completely lacking.\n\nFinally, f",
+            "sentiment_context": "after I had selected the first sparkling wine to pair with it"
+          }
+        ]
+      },
+      {
+        "name": "wine pairing",
+        "mention_count": 1,
+        "sentiment": 0.8,
+        "category": "wine",
+        "related_reviews": [
+          {
+            "review_index": 0,
+            "review_text": "Was there to celebrate my husband's birthday. We were seated a little after we arrived and we already knew what we wanted to order. We went with the Miku omakase menu along with the wine pairing. The food was delicious along with the great wine selection for the pairing; it really goes well with the courses that we had. The staff were very friendly. I would definitely recommend this place and would come back if I'm in Vancouver next time.",
+            "sentiment_context": "the great wine selection for the pairing; it really goes well with the courses that we had"
+          }
+        ]
+      },
+      {
+        "name": "bc wine selection",
+        "mention_count": 1,
+        "sentiment": 0.8,
+        "category": "wine",
+        "related_reviews": [
+          {
+            "review_index": 0,
+            "review_text": "Have been here multiple times since 2011, and each has been better than the last.\n\nMy partner and I had supper with a friend from overseas, and indulged in the 7 course Chef's tasting menu, including a variety of seafood, sashimi, sushi, smoked duck, and Wagyu, with a lovely seasonal desert. Portions, were small but after the 7 course, we were satiated. \n\nAdd a bottle of wine (you can get a BC wine selection or pick from an excellent wine list).\n\nExtraordinary.",
+            "sentiment_context": "you can get a BC wine selection or pick from an excellent wine list"
+          }
+        ]
+      }
+    ],
+    "total_extracted": 33
+  },
+  "aspect_analysis": {
+    "aspects": [
+      {
+        "name": "service quality",
+        "sentiment": 0.8,
+        "mention_count": 6,
+        "description": "overall quality of service from staff members",
+        "related_reviews": [
+          {
+            "review_index": 0,
+            "review_text": "A-MA-ZING sushi and sashimi!!!!\nGreat service (look fo Charlotte if she's working)",
+            "sentiment_context": "Great service"
+          },
+          {
+            "review_index": 2,
+            "review_text": "In total, it's a cozy and great area. Niko served us and he was literally experienced and well behaviours.\nThe only problem is I requested for an ocean view table by 24 hrs reservation in advance however got a table behind the huge column with a wall view.",
+            "sentiment_context": "he was literally experienced and well behaviours"
+          },
+          {
+            "review_index": 3,
+            "review_text": "Excellent job! Super nice stuff and the food is amazing. Highly recommended. I've been here several times and every time I come to Vancouver, I'll make sure I go here.",
+            "sentiment_context": "Super nice stuff"
+          },
+          {
+            "review_index": 6,
+            "review_text": "The price compares to service we received wasn't worth it. The food tasted mid also.",
+            "sentiment_context": "service we received wasn't worth it"
+          },
+          {
+            "review_index": 7,
+            "review_text": "We had an amazing experience!  Andy was perfect on assisting us and explaining each dish from Omakase prepared by the Chef.  The food was prepared perfectly and the service was splendid.  We can't wait to go back.",
+            "sentiment_context": "the service was splendid"
+          },
+          {
+            "review_index": 9,
+            "review_text": "Outstanding night out! Service and food were superb. And as weird as it sounds for a sushi restaurant, I HIGHLY recommend the lamb chops. (Sadly forgot to take a picture of them.)",
+            "sentiment_context": "Service and food were superb"
+          }
+        ]
+      },
+      {
+        "name": "sushi quality",
+        "sentiment": 0.9,
+        "mention_count": 4,
+        "description": "quality and taste of sushi and sashimi offerings",
+        "related_reviews": [
+          {
+            "review_index": 0,
+            "review_text": "A-MA-ZING sushi and sashimi!!!!\nGreat service (look fo Charlotte if she's working)",
+            "sentiment_context": "A-MA-ZING sushi and sashimi!!!!"
+          },
+          {
+            "review_index": 8,
+            "review_text": "We've been many times - the sushi and lamb chops were outstanding , as always.  However the potatoes accompanying the lamb looked beautiful but were cold as ice.  The Brussel sprout chips  were giant Brussel sprouts not cooked through- the best part is the crispy chips and there were very few- unlike any time I have had them in the past.  The bar service was mediocre - again unlike the table service experienced in the past.",
+            "sentiment_context": "the sushi and lamb chops were outstanding"
+          },
+          {
+            "review_index": 9,
+            "review_text": "Outstanding night out! Service and food were superb. And as weird as it sounds for a sushi restaurant, I HIGHLY recommend the lamb chops. (Sadly forgot to take a picture of them.)",
+            "sentiment_context": "as weird as it sounds for a sushi restaurant"
+          },
+          {
+            "review_index": 13,
+            "review_text": "Absolutely fantastic spot for a catch up with a friend. Of course the sushi shines but the mushroom risotto is also incredible.",
+            "sentiment_context": "the sushi shines"
+          }
+        ]
+      },
+      {
+        "name": "lamb chops",
+        "sentiment": 1.0,
+        "mention_count": 2,
+        "description": "specific dish - lamb chops quality and preparation",
+        "related_reviews": [
+          {
+            "review_index": 8,
+            "review_text": "We've been many times - the sushi and lamb chops were outstanding , as always.  However the potatoes accompanying the lamb looked beautiful but were cold as ice.  The Brussel sprout chips  were giant Brussel sprouts not cooked through- the best part is the crispy chips and there were very few- unlike any time I have had them in the past.  The bar service was mediocre - again unlike the table service experienced in the past.",
+            "sentiment_context": "the sushi and lamb chops were outstanding"
+          },
+          {
+            "review_index": 9,
+            "review_text": "Outstanding night out! Service and food were superb. And as weird as it sounds for a sushi restaurant, I HIGHLY recommend the lamb chops. (Sadly forgot to take a picture of them.)",
+            "sentiment_context": "I HIGHLY recommend the lamb chops"
+          }
+        ]
+      },
+      {
+        "name": "ambience",
+        "sentiment": 0.8,
+        "mention_count": 2,
+        "description": "restaurant atmosphere and overall dining environment",
+        "related_reviews": [
+          {
+            "review_index": 2,
+            "review_text": "In total, it's a cozy and great area. Niko served us and he was literally experienced and well behaviours.\nThe only problem is I requested for an ocean view table by 24 hrs reservation in advance however got a table behind the huge column with a wall view.",
+            "sentiment_context": "it's a cozy and great area"
+          },
+          {
+            "review_index": 5,
+            "review_text": "The food was very tasty. The place was hopping and everyone was having a great time. Ambience was excellent. Great place for any kind of celebration.",
+            "sentiment_context": "Ambience was excellent"
+          }
+        ]
+      },
+      {
+        "name": "seating arrangement",
+        "sentiment": -0.5,
+        "mention_count": 2,
+        "description": "table placement and seating experience",
+        "related_reviews": [
+          {
+            "review_index": 2,
+            "review_text": "In total, it's a cozy and great area. Niko served us and he was literally experienced and well behaviours.\nThe only problem is I requested for an ocean view table by 24 hrs reservation in advance however got a table behind the huge column with a wall view.",
+            "sentiment_context": "got a table behind the huge column with a wall view"
+          },
+          {
+            "review_index": 4,
+            "review_text": "We sat at the bar and had a great experience. We had the kaiseki and loved every portion.",
+            "sentiment_context": "We sat at the bar and had a great experience"
+          }
+        ]
+      },
+      {
+        "name": "bar service",
+        "sentiment": 0.1,
+        "mention_count": 2,
+        "description": "service quality specifically at the bar area",
+        "related_reviews": [
+          {
+            "review_index": 8,
+            "review_text": "We've been many times - the sushi and lamb chops were outstanding , as always.  However the potatoes accompanying the lamb looked beautiful but were cold as ice.  The Brussel sprout chips  were giant Brussel sprouts not cooked through- the best part is the crispy chips and there were very few- unlike any time I have had them in the past.  The bar service was mediocre - again unlike the table service experienced in the past.",
+            "sentiment_context": "The bar service was mediocre"
+          },
+          {
+            "review_index": 12,
+            "review_text": "Fantastic bartenders, tasty food. We always eat here when visiting Vancouver.",
+            "sentiment_context": "Fantastic bartenders"
+          }
+        ]
+      },
+      {
+        "name": "aburi selection",
+        "sentiment": 0.8,
+        "mention_count": 1,
+        "description": "flame-seared sushi offerings specific to japanese cuisine",
+        "related_reviews": [
+          {
+            "review_index": 1,
+            "review_text": "Miku is my fav resto to go! Enjoy the cooked food & aburi selection.",
+            "sentiment_context": "Enjoy the cooked food & aburi selection"
+          }
+        ]
+      },
+      {
+        "name": "kaiseki",
+        "sentiment": 0.9,
+        "mention_count": 1,
+        "description": "traditional japanese multi-course dining experience",
+        "related_reviews": [
+          {
+            "review_index": 4,
+            "review_text": "We sat at the bar and had a great experience. We had the kaiseki and loved every portion.",
+            "sentiment_context": "We had the kaiseki and loved every portion"
+          }
+        ]
+      },
+      {
+        "name": "omakase",
+        "sentiment": 1.0,
+        "mention_count": 1,
+        "description": "chef's choice tasting menu with detailed explanations",
+        "related_reviews": [
+          {
+            "review_index": 7,
+            "review_text": "We had an amazing experience!  Andy was perfect on assisting us and explaining each dish from Omakase prepared by the Chef.  The food was prepared perfectly and the service was splendid.  We can't wait to go back.",
+            "sentiment_context": "explaining each dish from Omakase prepared by the Chef"
+          }
+        ]
+      },
+      {
+        "name": "value for money",
+        "sentiment": -0.8,
+        "mention_count": 1,
+        "description": "pricing relative to service and food quality received",
+        "related_reviews": [
+          {
+            "review_index": 6,
+            "review_text": "The price compares to service we received wasn't worth it. The food tasted mid also.",
+            "sentiment_context": "The price compares to service we received wasn't worth it"
+          }
+        ]
+      },
+      {
+        "name": "side dishes",
+        "sentiment": -0.7,
+        "mention_count": 1,
+        "description": "quality and preparation of accompanying dishes",
+        "related_reviews": [
+          {
+            "review_index": 8,
+            "review_text": "We've been many times - the sushi and lamb chops were outstanding , as always.  However the potatoes accompanying the lamb looked beautiful but were cold as ice.  The Brussel sprout chips  were giant Brussel sprouts not cooked through- the best part is the crispy chips and there were very few- unlike any time I have had them in the past.  The bar service was mediocre - again unlike the table service experienced in the past.",
+            "sentiment_context": "potatoes accompanying the lamb looked beautiful but were cold as ice. The Brussel sprout chips were giant Brussel sprouts not cooked through"
+          }
+        ]
+      },
+      {
+        "name": "mushroom risotto",
+        "sentiment": 1.0,
+        "mention_count": 1,
+        "description": "specific non-japanese dish offering quality",
+        "related_reviews": [
+          {
+            "review_index": 13,
+            "review_text": "Absolutely fantastic spot for a catch up with a friend. Of course the sushi shines but the mushroom risotto is also incredible.",
+            "sentiment_context": "the mushroom risotto is also incredible"
+          }
+        ]
+      }
+    ],
+    "total_aspects": 12
+  },
+  "insights": {
+    "chef": {
+      "summary": "Your sushi and signature dishes are receiving exceptional praise, with customers consistently highlighting the quality and freshness of your sushi/sashimi offerings. However, there are critical execution issues with side dishes and some entrees that need immediate attention to maintain Miku's Michelin-starred reputation.",
+      "strengths": [
+        "Sushi and sashimi consistently receive outstanding reviews (0.9 sentiment, 15 mentions) with customers describing them as 'A-MA-ZING' and 'excellent'",
+        "Signature aburi sushi is a standout success with customers specifically seeking it out and praising its 'exceptional flavor and texture'",
+        "Lamb chops achieve perfect sentiment (1.0) with customers highly recommending this unexpected dish for a sushi restaurant",
+        "Lobster ceviche is performing exceptionally well (0.9 sentiment) and being mentioned as customers' favorite dish",
+        "Soft shell crab and mushroom risotto receive perfect scores, showing successful menu diversification beyond traditional Japanese items",
+        "Tasting menus (Kaiseki, Omakase) are well-received with customers loving 'every portion' and praising food preparation"
+      ],
+      "concerns": [
+        "Side dishes showing serious execution problems - potatoes served 'cold as ice' and Brussels sprout chips 'not cooked through'",
+        "Sablefish receiving negative feedback (-0.6 sentiment) with customers reporting it 'lacked flavour'",
+        "Matcha opera cake failing significantly (-0.7 sentiment) with complaints of 'odd texture' and feeling 'stale'",
+        "Sashimi portion inconsistency with complaints that 'slices were too thin'",
+        "Temperature control issues evident in multiple dishes (cold potatoes, potentially stale cake)"
+      ],
+      "recommendations": [
+        {
+          "priority": "high",
+          "action": "Implement immediate temperature checks and holding procedures for all side dishes, especially potatoes and Brussels sprouts",
+          "reason": "Temperature issues are damaging the reputation of otherwise outstanding main dishes",
+          "evidence": "Multiple complaints about cold potatoes and undercooked Brussels sprouts from repeat customers"
+        },
+        {
+          "priority": "high",
+          "action": "Review and reformulate the sablefish preparation and seasoning profile",
+          "reason": "A signature fish dish receiving negative feedback contradicts the restaurant's seafood excellence reputation",
+          "evidence": "Customer specifically mentioned sablefish 'lacked flavour' in an otherwise positive Kaiseki experience"
+        },
+        {
+          "priority": "high",
+          "action": "Redesign or remove the matcha opera cake - consider replacing with a dessert that better represents your strengths",
+          "reason": "Dessert is the final impression and current offering is actively harming customer experience",
+          "evidence": "Described as 'odd texture' and 'felt stale' - only dessert receiving negative feedback"
+        },
+        {
+          "priority": "medium",
+          "action": "Standardize sashimi cutting thickness across all prep stations",
+          "reason": "Consistency in signature items is crucial for maintaining quality reputation",
+          "evidence": "Customer complaint about sashimi slices being 'too thin' suggests inconsistent knife work"
+        },
+        {
+          "priority": "medium",
+          "action": "Capitalize on lamb chops success by featuring them more prominently or developing similar fusion offerings",
+          "reason": "Perfect sentiment score shows successful innovation beyond traditional Japanese cuisine",
+          "evidence": "Customers 'HIGHLY recommend' and call them 'outstanding' - unexpected hit for sushi restaurant"
+        }
+      ]
+    },
+    "manager": {
+      "summary": "Miku Restaurant shows strong overall customer satisfaction (73% positive sentiment) with exceptional service quality and staff performance being key differentiators. However, operational inconsistencies in reservation management, seating arrangements, and service timing are creating friction points that could impact the restaurant's Michelin-rated reputation.",
+      "strengths": [
+        "Exceptional staff performance with specific team members receiving recognition (Charlotte and Andy mentioned by name for outstanding service)",
+        "Strong service quality scoring 0.8 sentiment across 6 mentions, with customers praising attentive and professional staff",
+        "Excellent ambience and atmosphere (0.8 sentiment) creating memorable dining experiences for special occasions",
+        "Effective bar service operations with bartenders receiving specific praise for quality service",
+        "Strong customer loyalty evidenced by repeat visitors since 2011 and customers specifically returning when visiting Vancouver"
+      ],
+      "concerns": [
+        "Reservation and seating management failures - customers not receiving requested ocean view tables despite 24-hour advance notice",
+        "Inconsistent service timing with kitchen closure communication issues (9:30 PM closure not properly communicated for 9:00 PM reservations)",
+        "Service quality inconsistency between bar and table service, with bar service rated as 'mediocre' compared to excellent table service",
+        "Value perception issues with customers questioning if pricing matches service quality received",
+        "Operational inefficiencies in reception area with 7-10 minute wait times before assistance",
+        "Staff coordination problems with waitstaff appearing 'lost and disorganized' and lacking eye contact with guests"
+      ],
+      "recommendations": [
+        {
+          "priority": "high",
+          "action": "Implement comprehensive reservation management training and system review to ensure seating requests are properly tracked and fulfilled",
+          "reason": "Seating arrangement failures are directly impacting customer satisfaction despite advance planning",
+          "evidence": "Customer specifically requested ocean view 24 hours in advance but received table behind column with wall view"
+        },
+        {
+          "priority": "high",
+          "action": "Establish clear kitchen closure communication protocols and staff training on managing late reservations",
+          "reason": "Poor timing communication is creating negative experiences for customers with confirmed reservations",
+          "evidence": "Customer with 9:00 PM reservation told at 9:30 PM that kitchen was closing, requiring manager intervention"
+        },
+        {
+          "priority": "medium",
+          "action": "Standardize service training across all areas, particularly focusing on bar service consistency and staff coordination",
+          "reason": "Service quality varies significantly between different areas of the restaurant",
+          "evidence": "Bar service rated as 'mediocre' while table service praised; staff described as 'disorganized' in some instances"
+        },
+        {
+          "priority": "medium",
+          "action": "Review and optimize reception/hostess procedures to reduce initial wait times and improve first impressions",
+          "reason": "Long wait times at entry create negative first impressions that can impact entire dining experience",
+          "evidence": "Customer waited 7-10 minutes at reception before receiving assistance"
+        },
+        {
+          "priority": "low",
+          "action": "Consider reinstating small hospitality touches like complimentary chocolates at hostess stand",
+          "reason": "Former amenities are missed by loyal customers and could enhance value perception",
+          "evidence": "Long-time customer specifically mentioned missing 'the old days of them offering the little chocolates at the hostess stand'"
+        }
+      ]
+    }
+  },
+  "summary": {
+    "total_steps": 12,
+    "completed_steps": 12,
+    "successful_steps": 12,
+    "failed_steps": 0,
+    "execution_time": "1.20s",
+    "success": true
+  }
+}

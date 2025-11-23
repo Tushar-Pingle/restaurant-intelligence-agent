@@ -22,7 +22,8 @@ from src.agent.executor import AgentExecutor
 from src.agent.insights_generator import InsightsGenerator
 from src.agent.menu_discovery import MenuDiscovery
 from src.agent.aspect_discovery import AspectDiscovery
-from src.agent.unified_analyzer import UnifiedReviewAnalyzer  # NEW!
+from src.agent.unified_analyzer import UnifiedReviewAnalyzer
+from src.agent.summary_generator import add_summaries_to_analysis
 
 # Import MCP tools
 from src.mcp_integrations.save_report import save_json_report_direct, list_saved_reports_direct
@@ -108,6 +109,9 @@ class RestaurantAnalysisAgent:
         Main entry point - complete restaurant analysis with MCP tools.
         OPTIMIZED: Uses unified analyzer for single-pass extraction
         """
+        # CLEAR STATE BEFORE STARTING NEW ANALYSIS
+        self.clear_state()
+        
         self._log_reasoning(f"Starting analysis for: {restaurant_name}")
         
         # Store for later use
@@ -126,7 +130,7 @@ class RestaurantAnalysisAgent:
         )
         self.execution_results = execution_results
         
-        # OPTIMIZED: Single-pass menu & aspect discovery
+        # Phase 3+4: UNIFIED analysis (menu + aspects in single pass)
         if reviews:
             self._log_reasoning("Phase 3+4: UNIFIED analysis (menu + aspects in single pass)...")
             
@@ -143,17 +147,29 @@ class RestaurantAnalysisAgent:
             aspect_count = len(self.aspect_analysis.get('aspects', []))
             
             self._log_reasoning(f"✅ Discovered {food_count} food + {drink_count} drinks + {aspect_count} aspects")
-            self._log_reasoning(f"💰 Saved ~{len(reviews) // 15} API calls vs. old method!")
+            self._log_reasoning(f"💰 Saved ~{len(reviews) // 20} API calls vs. old method!")
             
-            # MCP TOOL: Index reviews for Q&A
-            self._log_reasoning("MCP Tool: Indexing reviews for Q&A...")
+            # Phase 5: Generate summaries for UI dropdowns
+            self._log_reasoning("Phase 5: Generating AI summaries for UI...")
+            self.menu_analysis, self.aspect_analysis = add_summaries_to_analysis(
+                menu_data=self.menu_analysis,
+                aspect_data=self.aspect_analysis,
+                client=self.client,
+                restaurant_name=restaurant_name,
+                model=self.model
+            )
+            self._log_reasoning("✅ Summaries added to all items and aspects")
+            
+            # Phase 6: MCP TOOL - Index reviews for Q&A
+            self._log_reasoning("Phase 6: MCP Tool - Indexing reviews for Q&A...")
             index_result = index_reviews_direct(restaurant_name, reviews)
             self._log_reasoning(f"✅ {index_result}")
         else:
             self.menu_analysis = {"food_items": [], "drinks": [], "total_extracted": 0}
             self.aspect_analysis = {"aspects": [], "total_aspects": 0}
         
-        # Generate insights
+        # Phase 7: Generate business insights
+        self._log_reasoning("Phase 7: Generating business insights...")
         analysis_data = {
             'restaurant_name': restaurant_name,
             'execution_results': execution_results['results'],
@@ -171,6 +187,18 @@ class RestaurantAnalysisAgent:
         )
         
         self.generated_insights = {'chef': chef_insights, 'manager': manager_insights}
+        
+        # Phase 8: AUTO-EXPORT analysis to files
+        self._log_reasoning("Phase 8: Exporting analysis to files...")
+        self.export_analysis('outputs')
+        
+        # Phase 9: AUTO-SAVE report
+        self._log_reasoning("Phase 9: Saving analysis report...")
+        self.save_analysis_report('reports')
+        
+        # Phase 10: AUTO-GENERATE visualizations
+        self._log_reasoning("Phase 10: Generating visualizations...")
+        self.generate_visualizations()
         
         self._log_reasoning("✅ Analysis complete!")
         
@@ -196,7 +224,6 @@ class RestaurantAnalysisAgent:
     
     def save_analysis_report(self, output_dir: str = "reports") -> str:
         """MCP TOOL: Save complete analysis report."""
-        self._log_reasoning("MCP Tool: Saving analysis report...")
         
         complete_analysis = {
             "restaurant": self.restaurant_name,
@@ -208,13 +235,11 @@ class RestaurantAnalysisAgent:
         }
         
         filepath = save_json_report_direct(self.restaurant_name, complete_analysis, output_dir)
-        self._log_reasoning(f"✅ Report saved to: {filepath}")
         
         return filepath
     
     def generate_visualizations(self) -> Dict[str, str]:
         """MCP TOOL: Generate all visualizations."""
-        self._log_reasoning("MCP Tool: Generating visualizations...")
         
         charts = {}
         
@@ -226,7 +251,6 @@ class RestaurantAnalysisAgent:
                 "outputs/menu_sentiment.png"
             )
             charts['menu'] = menu_chart
-            self._log_reasoning(f"✅ Menu chart: {menu_chart}")
         
         # Aspect comparison chart
         if self.aspect_analysis.get('aspects'):
@@ -240,7 +264,6 @@ class RestaurantAnalysisAgent:
                 "Aspect Sentiment Comparison"
             )
             charts['aspects'] = aspect_chart
-            self._log_reasoning(f"✅ Aspect chart: {aspect_chart}")
         
         return charts
     
@@ -320,6 +343,7 @@ class RestaurantAnalysisAgent:
             json.dump(self.generated_insights, f, indent=2, ensure_ascii=False)
         saved_files['insights'] = insights_path
         
+        # These files are legacy - summaries are now in menu_analysis.json and aspect_analysis.json
         menu_summaries_path = os.path.join(output_dir, "summaries_menu.json")
         with open(menu_summaries_path, 'w', encoding='utf-8') as f:
             json.dump(self.menu_summaries, f, indent=2, ensure_ascii=False)
@@ -347,7 +371,7 @@ class RestaurantAnalysisAgent:
         return plan
     
     def clear_state(self) -> None:
-        """Clear agent state."""
+        """Clear agent state before new analysis."""
         self.current_plan = []
         self.reasoning_log = []
         self.execution_results = {}

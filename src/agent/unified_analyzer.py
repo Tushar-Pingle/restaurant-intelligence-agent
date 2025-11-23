@@ -34,7 +34,7 @@ class UnifiedReviewAnalyzer:
         self,
         reviews: List[str],
         restaurant_name: str = "the restaurant",
-        batch_size: int = 15
+        batch_size: int = 20
     ) -> Dict[str, Any]:
         """
         Single-pass analysis of all reviews.

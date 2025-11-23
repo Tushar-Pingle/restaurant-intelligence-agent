@@ -1,70 +1,476 @@
 {
   "aspects": [
     {
-      "name": "freshness",
-      "sentiment": 1.0,
-      "mention_count": 1,
-      "description": "quality and freshness of ingredients, especially fish",
+      "name": "service quality",
+      "mention_count": 20,
+      "sentiment": 0.825,
+      "description": "Overall server performance and attentiveness",
       "related_reviews": [
         {
           "review_index": 0,
-          "review_text": "Salmon sushi was incredible! So fresh.",
-          "sentiment_context": "So fresh"
-        }
-      ]
-    },
-    {
-      "name": "sushi quality",
-      "sentiment": 1.0,
-      "mention_count": 1,
-      "description": "quality and taste of sushi dishes",
-      "related_reviews": [
+          "review_text": "Amazing as always. Our server was excellent! Always love coming here.",
+          "sentiment_context": "Our server was excellent!"
+        },
+        {
+          "review_index": 2,
+          "review_text": "i loveee this restaurant!! will always come back!! server jocelyn was awesome!",
+          "sentiment_context": "server jocelyn was awesome!"
+        },
+        {
+          "review_index": 6,
+          "review_text": "Entertained business visitors. Service and food were wonderful.",
+          "sentiment_context": "Service... were wonderful"
+        },
+        {
+          "review_index": 7,
+          "review_text": "Great restaurant in a lovely old building. The food is incredibly good, and the interior decoration is fresh, crisp and beautiful. Service is quick and professional. A lively, busy vibe that invites a return visit!",
+          "sentiment_context": "Service is quick and professional"
+        },
+        {
+          "review_index": 9,
+          "review_text": "Incredible as always ! Our server Oscar was particularly wonderful, and every single dish was nothing short of stunning.",
+          "sentiment_context": "Our server Oscar was particularly wonderful"
+        },
+        {
+          "review_index": 12,
+          "review_text": "Food (pizza margherita) was a bit salty maybe for our taste and some are burnt, chicken with maple is good, however, they can't accommodate modifications. Drink was not bad either. What's bad is, we were never asked if everything was okay. Not a single time did they come and ask even for a water refill. Worse was the table next to us was very well taken care of. We did see how many times the server went there. And never to our table except for one time when he got dirty plate and at the same time asked us if we are ready to pay (gosh, AGAIN didn't even try to ask if everything went well) which made us feel more UNWELCOME. I'm not sure if because we are asian or what. Cos the other table are not asian like us. We still tipped despite of this terrible experience because (there's one that was good to us was the one who served the food, he's a friendly fellow), which we probably shouldn't. Don't think we're gonna come back.",
+          "sentiment_context": "we were never asked if everything was okay... made us feel more UNWELCOME"
+        },
+        {
+          "review_index": 16,
+          "review_text": "The food came out fast, was hot, and our server was wonderful! Dessert delicious and drinks great, as always. Highly recommend",
+          "sentiment_context": "our server was wonderful!"
+        },
+        {
+          "review_index": 19,
+          "review_text": "Broccolini and meatballs were fantastic. Service was excellent",
+          "sentiment_context": "Service was excellent"
+        },
         {
           "review_index": 0,
-          "review_text": "Salmon sushi was incredible! So fresh.",
-          "sentiment_context": "Salmon sushi was incredible"
+          "review_text": "An outstanding evening. Service was fantastic, with a great atmosphere making it perfect. Thank you to Elana for a wonderful experience.",
+          "sentiment_context": "Service was fantastic"
+        },
+        {
+          "review_index": 1,
+          "review_text": "It's never bad there.  Ever.  Service was 5 star.  Selection is great….with the cauliflower hummus stole the show for us.  One dish (pasta) was a bit salty to fully enjoy, and the beef and fish dishes were great.  I'll be going back…again…and again.",
+          "sentiment_context": "Service was 5 star"
+        },
+        {
+          "review_index": 2,
+          "review_text": "Everything was amazing as usual. The service was impeccable, food divine and always love sitting upstairs in that gorgeous room.",
+          "sentiment_context": "The service was impeccable"
+        },
+        {
+          "review_index": 3,
+          "review_text": "We hosted my husband's birthday party here. The whole experience from making reservations to the food and service of the night was spectacular. We could not have been happier; our server was very helpful, attentive and the food quality was beyond our expectations.",
+          "sentiment_context": "service of the night was spectacular. our server was very helpful, attentive"
+        },
+        {
+          "review_index": 4,
+          "review_text": "Great food and service , had pizza and rigatoni and both were very delicious and we will be coming back again soon! :)",
+          "sentiment_context": "Great food and service"
+        },
+        {
+          "review_index": 5,
+          "review_text": "The food and service were excellent! Thanks especially to Remy, Francis, and Josh. We will definitely come back :) Highly recommend this restaurant!",
+          "sentiment_context": "The food and service were excellent"
+        },
+        {
+          "review_index": 7,
+          "review_text": "Overall, our first tine dining there was great. The only minor issue is the music was a bit loud where we were seated and was hard to make conversations. Food and service were topnotch!",
+          "sentiment_context": "Food and service were topnotch"
+        },
+        {
+          "review_index": 8,
+          "review_text": "Amazing food, great service and ambience. We enjoyed everything we ordered and our waitress was very attentive and friendly.",
+          "sentiment_context": "great service and our waitress was very attentive and friendly"
+        },
+        {
+          "review_index": 9,
+          "review_text": "Wonderful time, always fantastic food, service and atmosphere.",
+          "sentiment_context": "always fantastic food, service"
+        },
+        {
+          "review_index": 11,
+          "review_text": "Celebrated our anniversary at Nightingale, we loved the ambiance, the food and the service ! Will definitely return!",
+          "sentiment_context": "we loved the service"
+        },
+        {
+          "review_index": 12,
+          "review_text": "We ve had great experiences here but last night we felt the service was rushed and we were given our check before we asked for it while still enjoying our wine. The food was amazing but it came out at all different times so it was awkward as not everyone was eating everything.  Will probably come back just for drinks and appies at the bar, but not full meals.",
+          "sentiment_context": "we felt the service was rushed and we were given our check before we asked for it"
+        },
+        {
+          "review_index": 14,
+          "review_text": "We had a really great meal with delicious appetizers, entrees, and drinks. Service was outstanding.",
+          "sentiment_context": "Service was outstanding"
+        },
+        {
+          "review_index": 16,
+          "review_text": "Went for the first time after having done Hawksworths many times in the past. This was a rocking place, great vibes, Energetic, and busy. Very well staffed and service was exceptional. The food came quickly and was very well presented . Great place to go for a group dinner and sharing the plates.",
+          "sentiment_context": "Very well staffed and service was exceptional"
+        },
+        {
+          "review_index": 18,
+          "review_text": "During our short vacation to Vancouver we visited this spot twice. It was just that good. Every single dish we ate was spectacular. And the staff was so knowledgeable and kind.",
+          "sentiment_context": "the staff was so knowledgeable and kind"
+        },
+        {
+          "review_index": 19,
+          "review_text": "One of the most flavorful meals I have ever eaten. The service was beyond outstanding.",
+          "sentiment_context": "The service was beyond outstanding"
         }
-      ]
+      ],
+      "summary": "The service quality is positively received by customers, mentioned in 20 review(s). Customers noted: 'Our server was excellent!...'"
     },
     {
-      "name": "service speed",
-      "sentiment": -1.0,
-      "mention_count": 1,
-      "description": "how quickly service and food delivery occurs",
+      "name": "food quality",
+      "mention_count": 19,
+      "sentiment": 0.8500000000000001,
+      "description": "Taste, preparation and overall quality of dishes",
       "related_reviews": [
         {
           "review_index": 1,
-          "review_text": "Service speed slow - waited 25 minutes.",
-          "sentiment_context": "Service speed slow - waited 25 minutes"
-        }
-      ]
-    },
-    {
-      "name": "sake pairing",
-      "sentiment": 1.0,
-      "mention_count": 1,
-      "description": "quality and appropriateness of sake selections with food",
-      "related_reviews": [
+          "review_text": "We had Great time! The food hit the mark the drinks were fabulous.",
+          "sentiment_context": "The food hit the mark"
+        },
+        {
+          "review_index": 3,
+          "review_text": "Everything the server recommended was on point. Me and my friend had a great time, since the food was jus the right size to share.",
+          "sentiment_context": "Everything the server recommended was on point"
+        },
+        {
+          "review_index": 6,
+          "review_text": "Entertained business visitors. Service and food were wonderful.",
+          "sentiment_context": "food were wonderful"
+        },
+        {
+          "review_index": 7,
+          "review_text": "Great restaurant in a lovely old building. The food is incredibly good, and the interior decoration is fresh, crisp and beautiful. Service is quick and professional. A lively, busy vibe that invites a return visit!",
+          "sentiment_context": "The food is incredibly good"
+        },
+        {
+          "review_index": 11,
+          "review_text": "Some of the best food I've ever had. The entrees are designed to be shared and it makes for an amazing experience.",
+          "sentiment_context": "Some of the best food I've ever had"
+        },
+        {
+          "review_index": 13,
+          "review_text": "Amazing food and the chefs table is a great date activity",
+          "sentiment_context": "Amazing food"
+        },
+        {
+          "review_index": 15,
+          "review_text": "Service was incredible, read us really well. Food was tasty for the most part, though some things may have been over seasoned or overly complicated. But for the most part, we were really delighted. The venue was gorgeous, casual and elegant at the same time.",
+          "sentiment_context": "Food was tasty for the most part, though some things may have been over seasoned or overly complicated"
+        },
+        {
+          "review_index": 16,
+          "review_text": "The food came out fast, was hot, and our server was wonderful! Dessert delicious and drinks great, as always. Highly recommend",
+          "sentiment_context": "The food came out fast, was hot"
+        },
+        {
+          "review_index": 17,
+          "review_text": "The food was delicious and the service impeccable. We'll be back.",
+          "sentiment_context": "The food was delicious"
+        },
         {
           "review_index": 2,
-          "review_text": "Hot sake paired perfectly.",
-          "sentiment_context": "Hot sake paired perfectly"
+          "review_text": "Everything was amazing as usual. The service was impeccable, food divine and always love sitting upstairs in that gorgeous room.",
+          "sentiment_context": "food divine"
+        },
+        {
+          "review_index": 3,
+          "review_text": "We hosted my husband's birthday party here. The whole experience from making reservations to the food and service of the night was spectacular. We could not have been happier; our server was very helpful, attentive and the food quality was beyond our expectations.",
+          "sentiment_context": "the food quality was beyond our expectations"
+        },
+        {
+          "review_index": 4,
+          "review_text": "Great food and service , had pizza and rigatoni and both were very delicious and we will be coming back again soon! :)",
+          "sentiment_context": "Great food"
+        },
+        {
+          "review_index": 5,
+          "review_text": "The food and service were excellent! Thanks especially to Remy, Francis, and Josh. We will definitely come back :) Highly recommend this restaurant!",
+          "sentiment_context": "The food and service were excellent"
+        },
+        {
+          "review_index": 6,
+          "review_text": "Everything we ordered was so delicious!  My fave was the brick pressed chicken. Very loud though so hard to hear conversation.",
+          "sentiment_context": "Everything we ordered was so delicious"
+        },
+        {
+          "review_index": 7,
+          "review_text": "Overall, our first tine dining there was great. The only minor issue is the music was a bit loud where we were seated and was hard to make conversations. Food and service were topnotch!",
+          "sentiment_context": "Food and service were topnotch"
+        },
+        {
+          "review_index": 8,
+          "review_text": "Amazing food, great service and ambience. We enjoyed everything we ordered and our waitress was very attentive and friendly.",
+          "sentiment_context": "Amazing food"
+        },
+        {
+          "review_index": 9,
+          "review_text": "Wonderful time, always fantastic food, service and atmosphere.",
+          "sentiment_context": "always fantastic food"
+        },
+        {
+          "review_index": 12,
+          "review_text": "We ve had great experiences here but last night we felt the service was rushed and we were given our check before we asked for it while still enjoying our wine. The food was amazing but it came out at all different times so it was awkward as not everyone was eating everything.  Will probably come back just for drinks and appies at the bar, but not full meals.",
+          "sentiment_context": "The food was amazing"
+        },
+        {
+          "review_index": 15,
+          "review_text": "Amazing experience all around!  Phenomenal food. Great value for your $, and fun atmosphere!",
+          "sentiment_context": "Phenomenal food"
+        },
+        {
+          "review_index": 16,
+          "review_text": "Went for the first time after having done Hawksworths many times in the past. This was a rocking place, great vibes, Energetic, and busy. Very well staffed and service was exceptional. The food came quickly and was very well presented . Great place to go for a group dinner and sharing the plates.",
+          "sentiment_context": "The food came quickly and was very well presented"
+        },
+        {
+          "review_index": 18,
+          "review_text": "During our short vacation to Vancouver we visited this spot twice. It was just that good. Every single dish we ate was spectacular. And the staff was so knowledgeable and kind.",
+          "sentiment_context": "Every single dish we ate was spectacular"
+        },
+        {
+          "review_index": 19,
+          "review_text": "One of the most flavorful meals I have ever eaten. The service was beyond outstanding.",
+          "sentiment_context": "One of the most flavorful meals I have ever eaten"
         }
-      ]
+      ],
+      "summary": "The food quality is positively received by customers, mentioned in 19 review(s). Customers noted: 'The food hit the mark...'"
     },
     {
-      "name": "presentation",
-      "sentiment": 1.0,
-      "mention_count": 1,
-      "description": "visual appeal and plating of dishes",
+      "name": "atmosphere",
+      "mention_count": 6,
+      "sentiment": 0.8,
+      "description": "Overall ambience, energy, and dining environment",
+      "related_reviews": [
+        {
+          "review_index": 0,
+          "review_text": "An outstanding evening. Service was fantastic, with a great atmosphere making it perfect. Thank you to Elana for a wonderful experience.",
+          "sentiment_context": "great atmosphere making it perfect"
+        },
+        {
+          "review_index": 8,
+          "review_text": "Amazing food, great service and ambience. We enjoyed everything we ordered and our waitress was very attentive and friendly.",
+          "sentiment_context": "great service and ambience"
+        },
+        {
+          "review_index": 9,
+          "review_text": "Wonderful time, always fantastic food, service and atmosphere.",
+          "sentiment_context": "always fantastic atmosphere"
+        },
+        {
+          "review_index": 10,
+          "review_text": "Had a great solo evening at the bar. Cocktails, food, ambience are all top notch. Great happy hour, too. Will be a regular spot when in Vancouver.",
+          "sentiment_context": "ambience are all top notch"
+        },
+        {
+          "review_index": 11,
+          "review_text": "Celebrated our anniversary at Nightingale, we loved the ambiance, the food and the service ! Will definitely return!",
+          "sentiment_context": "we loved the ambiance"
+        },
+        {
+          "review_index": 15,
+          "review_text": "Amazing experience all around!  Phenomenal food. Great value for your $, and fun atmosphere!",
+          "sentiment_context": "fun atmosphere"
+        }
+      ],
+      "summary": "The atmosphere is positively received by customers, mentioned in 6 review(s). Customers noted: 'great atmosphere making it perfect...'"
+    },
+    {
+      "name": "portion size",
+      "mention_count": 3,
+      "sentiment": 0.55,
+      "description": "Size and shareability of dishes",
       "related_reviews": [
         {
           "review_index": 3,
-          "review_text": "Presentation stunning!",
-          "sentiment_context": "Presentation stunning"
+          "review_text": "Everything the server recommended was on point. Me and my friend had a great time, since the food was jus the right size to share.",
+          "sentiment_context": "the food was jus the right size to share"
+        },
+        {
+          "review_index": 11,
+          "review_text": "Some of the best food I've ever had. The entrees are designed to be shared and it makes for an amazing experience.",
+          "sentiment_context": "The entrees are designed to be shared and it makes for an amazing experience"
+        },
+        {
+          "review_index": 13,
+          "review_text": "The Japanese yam is delicious but unfortunately, every time I come back , this plate keeps getting smaller",
+          "sentiment_context": "every time I come back , this plate keeps getting smaller"
         }
-      ]
+      ],
+      "summary": "The portion size is positively received by customers, mentioned in 3 review(s). Customers noted: 'the food was jus the right size to share...'"
+    },
+    {
+      "name": "ambience",
+      "mention_count": 2,
+      "sentiment": 0.9,
+      "description": "Restaurant atmosphere and interior design",
+      "related_reviews": [
+        {
+          "review_index": 7,
+          "review_text": "Great restaurant in a lovely old building. The food is incredibly good, and the interior decoration is fresh, crisp and beautiful. Service is quick and professional. A lively, busy vibe that invites a return visit!",
+          "sentiment_context": "interior decoration is fresh, crisp and beautiful. A lively, busy vibe"
+        },
+        {
+          "review_index": 15,
+          "review_text": "Service was incredible, read us really well. Food was tasty for the most part, though some things may have been over seasoned or overly complicated. But for the most part, we were really delighted. The venue was gorgeous, casual and elegant at the same time.",
+          "sentiment_context": "The venue was gorgeous, casual and elegant at the same time"
+        }
+      ],
+      "summary": "The ambience is positively received by customers, mentioned in 2 review(s). Customers noted: 'interior decoration is fresh, crisp and beautiful. A lively, busy vibe...'"
+    },
+    {
+      "name": "menu flexibility",
+      "mention_count": 2,
+      "sentiment": 0.2,
+      "description": "Ability to modify dishes or accommodate dietary restrictions",
+      "related_reviews": [
+        {
+          "review_index": 10,
+          "review_text": "Disclosure: The restaurant has a very strict policy around modifications of dishes, they refuse to modify any dish. We understood this before we came in.\nOne of our party has an allergy to chilli, peppers and paprika, and we asked for a breakdown of what dishes she could have...the server (fantastic) quickly had this done and returned with a marked up menu. There were very few dishes that remained that were ok for her.\nMany of the dishes here come with a drizzle, a sauce or a dressing, which contain the allergy ingredient(s). We asked whether these sauces or sprinkles could be left to the side in a separate dish, but this was refused, meaning that she could only order 2 of the salads, and a couple of other dishes, most of which were not to her taste.\nWe feel that this complete lack of any flexibility (putting a sauce on the side rather than all over the dish is not a crazy modification, and is not normally an issue in other restaurants!) is very over the top and shows an unyielding arrogance, sadly, as it means that the vast majority of dishes aren't even orderable. (In a home style dining experience, you want to share lots of dishes between you all normally right!).\nBecause of the stress caused by this, we will not be returning to the Nightingale in future, and unless you are happy to not have any freedom to enable you to have more than an apple salad and a weird attempt at a lasagne, you should avoid it too!\n(The servers were excellent throughout and this is no reflection on them at all).",
+          "sentiment_context": "they refuse to modify any dish... complete lack of any flexibility... shows an unyielding arrogance"
+        },
+        {
+          "review_index": 12,
+          "review_text": "Food (pizza margherita) was a bit salty maybe for our taste and some are burnt, chicken with maple is good, however, they can't accommodate modifications. Drink was not bad either. What's bad is, we were never asked if everything was okay. Not a single time did they come and ask even for a water refill. Worse was the table next to us was very well taken care of. We did see how many times the server went there. And never to our table except for one time when he got dirty plate and at the same time asked us if we are ready to pay (gosh, AGAIN didn't even try to ask if everything went well) which made us feel more UNWELCOME. I'm not sure if because we are asian or what. Cos the other table are not asian like us. We still tipped despite of this terrible experience because (there's one that was good to us was the one who served the food, he's a friendly fellow), which we probably shouldn't. Don't think we're gonna come back.",
+          "sentiment_context": "they can't accommodate modifications"
+        }
+      ],
+      "summary": "The menu flexibility is received mixed feedback by customers, mentioned in 2 review(s). Customers noted: 'they refuse to modify any dish... complete lack of any flexibility... shows an unyielding arrogance...'"
+    },
+    {
+      "name": "service speed",
+      "mention_count": 2,
+      "sentiment": 0.8,
+      "description": "Speed of food delivery and service timing",
+      "related_reviews": [
+        {
+          "review_index": 7,
+          "review_text": "Great restaurant in a lovely old building. The food is incredibly good, and the interior decoration is fresh, crisp and beautiful. Service is quick and professional. A lively, busy vibe that invites a return visit!",
+          "sentiment_context": "Service is quick"
+        },
+        {
+          "review_index": 16,
+          "review_text": "The food came out fast, was hot, and our server was wonderful! Dessert delicious and drinks great, as always. Highly recommend",
+          "sentiment_context": "The food came out fast"
+        }
+      ],
+      "summary": "The service speed is positively received by customers, mentioned in 2 review(s). Customers noted: 'Service is quick...'"
+    },
+    {
+      "name": "noise level",
+      "mention_count": 2,
+      "sentiment": 0.2,
+      "description": "Volume of music and overall noise in the restaurant",
+      "related_reviews": [
+        {
+          "review_index": 6,
+          "review_text": "Everything we ordered was so delicious!  My fave was the brick pressed chicken. Very loud though so hard to hear conversation.",
+          "sentiment_context": "Very loud though so hard to hear conversation"
+        },
+        {
+          "review_index": 7,
+          "review_text": "Overall, our first tine dining there was great. The only minor issue is the music was a bit loud where we were seated and was hard to make conversations. Food and service were topnotch!",
+          "sentiment_context": "the music was a bit loud where we were seated and was hard to make conversations"
+        }
+      ],
+      "summary": "The noise level is received mixed feedback by customers, mentioned in 2 review(s). Customers noted: 'Very loud though so hard to hear conversation...'"
+    },
+    {
+      "name": "service timing",
+      "mention_count": 2,
+      "sentiment": 0.4,
+      "description": "Timing and pacing of service delivery",
+      "related_reviews": [
+        {
+          "review_index": 12,
+          "review_text": "We ve had great experiences here but last night we felt the service was rushed and we were given our check before we asked for it while still enjoying our wine. The food was amazing but it came out at all different times so it was awkward as not everyone was eating everything.  Will probably come back just for drinks and appies at the bar, but not full meals.",
+          "sentiment_context": "the service was rushed and we were given our check before we asked for it while still enjoying our wine. it came out at all different times so it was awkward"
+        },
+        {
+          "review_index": 16,
+          "review_text": "Went for the first time after having done Hawksworths many times in the past. This was a rocking place, great vibes, Energetic, and busy. Very well staffed and service was exceptional. The food came quickly and was very well presented . Great place to go for a group dinner and sharing the plates.",
+          "sentiment_context": "The food came quickly"
+        }
+      ],
+      "summary": "The service timing is positively received by customers, mentioned in 2 review(s). Customers noted: 'the service was rushed and we were given our check before we asked for it while still enjoying our w...'"
+    },
+    {
+      "name": "seating",
+      "mention_count": 1,
+      "sentiment": 0.3,
+      "description": "Table placement and seating arrangements",
+      "related_reviews": [
+        {
+          "review_index": 5,
+          "review_text": "4th time visiting Nightingale. Celebrating my daughter's 24th Bday, made a reso 3 weeks in advance and did not appreciate the \"booth\" upstairs we were seated? Also did not appreciate no refills for my Sprite as I was the only one not drinking!",
+          "sentiment_context": "did not appreciate the \"booth\" upstairs we were seated"
+        }
+      ],
+      "summary": "The seating is received mixed feedback by customers, mentioned in 1 review(s). Customers noted: 'did not appreciate the \"booth\" upstairs we were seated...'"
+    },
+    {
+      "name": "staff quality",
+      "mention_count": 1,
+      "sentiment": 0.9,
+      "description": "Overall staff performance and friendliness",
+      "related_reviews": [
+        {
+          "review_index": 4,
+          "review_text": "A must do when in Vancouver. Excellent small plate. Great staff and an amazing wine list",
+          "sentiment_context": "Great staff"
+        }
+      ],
+      "summary": "The staff quality is positively received by customers, mentioned in 1 review(s). Customers noted: 'Great staff...'"
+    },
+    {
+      "name": "value",
+      "mention_count": 1,
+      "sentiment": 0.8,
+      "description": "Price-to-quality ratio and overall value for money",
+      "related_reviews": [
+        {
+          "review_index": 15,
+          "review_text": "Amazing experience all around!  Phenomenal food. Great value for your $, and fun atmosphere!",
+          "sentiment_context": "Great value for your $"
+        }
+      ],
+      "summary": "The value is positively received by customers, mentioned in 1 review(s). Customers noted: 'Great value for your $...'"
+    },
+    {
+      "name": "menu selection",
+      "mention_count": 1,
+      "sentiment": 0.8,
+      "description": "Variety and options available on the menu",
+      "related_reviews": [
+        {
+          "review_index": 1,
+          "review_text": "It's never bad there.  Ever.  Service was 5 star.  Selection is great….with the cauliflower hummus stole the show for us.  One dish (pasta) was a bit salty to fully enjoy, and the beef and fish dishes were great.  I'll be going back…again…and again.",
+          "sentiment_context": "Selection is great"
+        }
+      ],
+      "summary": "The menu selection is positively received by customers, mentioned in 1 review(s). Customers noted: 'Selection is great...'"
+    },
+    {
+      "name": "presentation",
+      "mention_count": 1,
+      "sentiment": 0.9,
+      "description": "Visual presentation and plating of food",
+      "related_reviews": [
+        {
+          "review_index": 16,
+          "review_text": "Went for the first time after having done Hawksworths many times in the past. This was a rocking place, great vibes, Energetic, and busy. Very well staffed and service was exceptional. The food came quickly and was very well presented . Great place to go for a group dinner and sharing the plates.",
+          "sentiment_context": "was very well presented"
+        }
+      ],
+      "summary": "The presentation is positively received by customers, mentioned in 1 review(s). Customers noted: 'was very well presented...'"
     }
   ],
-  "total_aspects": 5
+  "total_aspects": 14
 }
