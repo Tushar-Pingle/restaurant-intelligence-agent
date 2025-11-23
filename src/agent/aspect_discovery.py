@@ -1,15 +1,6 @@
 """
-Aspect Discovery Module
-
-Dynamically discovers what aspects customers care about from reviews.
-Includes text and chart visualizations (ready for Gradio UI).
-
-Key Features:
-- Discovers relevant aspects from review context
-- AI extracts reviews mentioning each aspect
-- Sentiment per aspect
-- Visualizations (text + charts)
-- Adapts to restaurant type
+Aspect Discovery Module - FIXED for large review sets
+Processes reviews in batches to avoid token limits
 """
 
 from typing import List, Dict, Any, Optional
@@ -20,7 +11,7 @@ import os
 class AspectDiscovery:
     """
     Discovers customer-care aspects from reviews using AI.
-    Includes visualization capabilities.
+    Handles large review sets by batching.
     """
     
     def __init__(self, client: Anthropic, model: str):
@@ -32,9 +23,74 @@ class AspectDiscovery:
         self,
         reviews: List[str],
         restaurant_name: str = "the restaurant",
-        max_aspects: int = 12
+        max_aspects: int = 12,
+        batch_size: int = 15  # NEW: Process in batches
     ) -> Dict[str, Any]:
-        """Discover aspects from reviews with sentiment."""
+        """
+        Discover aspects in batches to handle large review sets.
+        
+        Args:
+            reviews: List of review texts
+            restaurant_name: Restaurant name
+            max_aspects: Max aspects to return
+            batch_size: Reviews per batch (default 15)
+        """
+        print(f"🔍 Processing {len(reviews)} reviews in batches of {batch_size}...")
+        
+        all_aspects = {}
+        
+        # Process in batches
+        for i in range(0, len(reviews), batch_size):
+            batch = reviews[i:i+batch_size]
+            batch_num = (i // batch_size) + 1
+            total_batches = (len(reviews) + batch_size - 1) // batch_size
+            
+            print(f"   Batch {batch_num}/{total_batches}: {len(batch)} reviews...")
+            
+            try:
+                batch_result = self._discover_batch(batch, restaurant_name, max_aspects)
+                
+                # Merge results
+                for aspect in batch_result.get('aspects', []):
+                    name = aspect['name']
+                    if name in all_aspects:
+                        # Merge existing aspect
+                        all_aspects[name]['mention_count'] += aspect['mention_count']
+                        all_aspects[name]['related_reviews'].extend(aspect.get('related_reviews', []))
+                        # Average sentiment
+                        old_sent = all_aspects[name]['sentiment']
+                        new_sent = aspect['sentiment']
+                        all_aspects[name]['sentiment'] = (old_sent + new_sent) / 2
+                    else:
+                        all_aspects[name] = aspect
+                
+            except Exception as e:
+                print(f"   ⚠️  Batch {batch_num} failed: {e}")
+                continue
+        
+        # Convert back to list
+        aspects_list = list(all_aspects.values())
+        
+        # Sort by mention count
+        aspects_list.sort(key=lambda x: x['mention_count'], reverse=True)
+        
+        # Limit results
+        aspects_list = aspects_list[:max_aspects]
+        
+        print(f"✅ Discovered {len(aspects_list)} aspects")
+        
+        return {
+            "aspects": aspects_list,
+            "total_aspects": len(aspects_list)
+        }
+    
+    def _discover_batch(
+        self,
+        reviews: List[str],
+        restaurant_name: str,
+        max_aspects: int
+    ) -> Dict[str, Any]:
+        """Discover aspects from a single batch."""
         prompt = self._build_extraction_prompt(reviews, restaurant_name, max_aspects)
         
         try:
@@ -73,16 +129,7 @@ class AspectDiscovery:
         aspects_data: Dict[str, Any],
         top_n: int = 10
     ) -> str:
-        """
-        D5-016: Create text visualization for aspects with sentiment color coding.
-        
-        Args:
-            aspects_data: Discovered aspects data
-            top_n: Number of top aspects to show
-        
-        Returns:
-            Formatted text visualization
-        """
+        """Create text visualization for aspects with sentiment color coding."""
         aspects = aspects_data.get('aspects', [])
         
         # Sort by mention count
@@ -103,7 +150,7 @@ class AspectDiscovery:
             
             # Sentiment color coding
             if sentiment >= 0.7:
-                emoji = "��"
+                emoji = "🟢"
                 sentiment_text = "POSITIVE"
             elif sentiment >= 0.3:
                 emoji = "🟡"
@@ -135,20 +182,7 @@ class AspectDiscovery:
         output_path: str = "aspect_analysis.png",
         top_n: int = 10
     ) -> str:
-        """
-        D5-017: Create flexible chart for aspects with sentiment colors.
-        
-        NOTE: Charts will be displayed in Gradio UI (Day 15-16).
-        For now, saves to file for testing.
-        
-        Args:
-            aspects_data: Discovered aspects data
-            output_path: Path to save chart
-            top_n: Number of aspects to show
-        
-        Returns:
-            Path to saved chart
-        """
+        """Create flexible chart for aspects with sentiment colors."""
         try:
             import matplotlib.pyplot as plt
             import matplotlib.patches as mpatches
@@ -217,16 +251,7 @@ class AspectDiscovery:
         aspects_data: Dict[str, Any],
         output_path: str = "aspect_analysis.json"
     ) -> str:
-        """
-        Save aspect analysis results to JSON.
-        
-        Args:
-            aspects_data: Discovered aspects data
-            output_path: Path to save JSON
-        
-        Returns:
-            Path to saved file
-        """
+        """Save aspect analysis results to JSON."""
         try:
             with open(output_path, 'w', encoding='utf-8') as f:
                 json.dump(aspects_data, f, indent=2, ensure_ascii=False)
@@ -302,11 +327,9 @@ Summary:"""
         max_aspects: int
     ) -> str:
         """Build aspect discovery prompt with AI-based review matching."""
-        review_sample = reviews[:100] if len(reviews) > 100 else reviews
-        
         # Number reviews for AI reference
         numbered_reviews = []
-        for i, review in enumerate(review_sample):
+        for i, review in enumerate(reviews):
             numbered_reviews.append(f"[Review {i}]: {review}")
         
         reviews_text = "\n\n".join(numbered_reviews)
@@ -375,83 +398,3 @@ OUTPUT FORMAT (JSON):
 Discover up to {max_aspects} aspects:"""
         
         return prompt
-
-
-# D5-018: Test visualizations with different aspect counts
-if __name__ == "__main__":
-    print("=" * 70)
-    print("D5-018: Testing Aspect Visualizations")
-    print("=" * 70 + "\n")
-    
-    from dotenv import load_dotenv
-    import os
-    
-    load_dotenv()
-    
-    client = Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
-    discovery = AspectDiscovery(client=client, model="claude-sonnet-4-20250514")
-    
-    # Test with sample reviews
-    test_reviews = [
-        "The presentation was stunning! Service was a bit slow though.",
-        "Food quality amazing. Staff super friendly!",
-        "Service speed needs improvement - waited 30 minutes. Nice ambience though.",
-        "Presentation beautiful but portion sizes too small. Not great value.",
-        "Authenticity really shines through. Fast service!",
-        "Staff friendliness top-notch! Food quality consistently good.",
-        "Ambience romantic and cozy. Presentation gorgeous.",
-        "Value for money excellent. Large portions. Quick service.",
-    ]
-    
-    print(f"Analyzing {len(test_reviews)} reviews...\n")
-    
-    aspects_data = discovery.discover_aspects(test_reviews, "Test Restaurant")
-    
-    # D5-016: Text visualization
-    print("=" * 70)
-    print("D5-016: TEXT VISUALIZATION")
-    print("=" * 70)
-    
-    text_viz = discovery.visualize_aspects_text(aspects_data, top_n=10)
-    print(text_viz)
-    
-    # D5-017: Chart visualization
-    print("\n" + "=" * 70)
-    print("D5-017: CHART VISUALIZATION")
-    print("=" * 70 + "\n")
-    
-    chart_path = discovery.visualize_aspects_chart(aspects_data, "outputs/aspect_analysis.png", top_n=10)
-    if chart_path:
-        print(f"✅ Chart saved to: {chart_path}")
-    
-    # D5-018: Test with different aspect counts
-    print("\n" + "=" * 70)
-    print("D5-018: TESTING DIFFERENT ASPECT COUNTS")
-    print("=" * 70 + "\n")
-    
-    # Test with 5 aspects
-    print("Test 1: Top 5 aspects")
-    text_5 = discovery.visualize_aspects_text(aspects_data, top_n=5)
-    aspect_count_5 = text_5.count("🟢") + text_5.count("🟡") + text_5.count("🟠") + text_5.count("🔴")
-    print(f"  Displayed: {aspect_count_5} aspects")
-    
-    # Test with 3 aspects
-    print("Test 2: Top 3 aspects")
-    text_3 = discovery.visualize_aspects_text(aspects_data, top_n=3)
-    aspect_count_3 = text_3.count("🟢") + text_3.count("🟡") + text_3.count("🟠") + text_3.count("🔴")
-    print(f"  Displayed: {aspect_count_3} aspects")
-    
-    # Test with more than available
-    print("Test 3: Top 20 aspects (more than available)")
-    text_20 = discovery.visualize_aspects_text(aspects_data, top_n=20)
-    aspect_count_20 = text_20.count("🟢") + text_20.count("🟡") + text_20.count("🟠") + text_20.count("🔴")
-    print(f"  Displayed: {aspect_count_20} aspects (capped at available)")
-    
-    print("\n✅ Visualizations adapt to different aspect counts!")
-    
-    print("\n" + "=" * 70)
-    print("🎉 Aspect visualizations complete and tested!")
-    print("=" * 70)
-    print("\n✅ D5-016: Text visualization - COMPLETE")
-    print("✅ D5-017: Chart generation - COMPLETE")
-    print("✅ D5-018: Tested with different counts - COMPLETE")

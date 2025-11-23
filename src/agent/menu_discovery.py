@@ -1,27 +1,26 @@
 """
-Menu Discovery Module
-
-Dynamically discovers menu items and drinks from restaurant reviews.
-Generates summaries per item using AI (no keywords!).
-
-Key Features:
-- Extracts food items AND drinks
-- AI extracts reviews mentioning each item
-- Sentiment per item
-- Generates item-level summaries
-- Visualizations (text + charts)
+Menu Discovery Module - FIXED for large review sets
+Processes reviews in batches with retry logic
 """
 
 from typing import List, Dict, Any, Optional
 from anthropic import Anthropic
 import json
 import os
+import sys
+
+# Add project root
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+from src.agent.api_utils import call_claude_with_retry
 
 
 class MenuDiscovery:
     """
     Discovers menu items and drinks from reviews using AI.
-    Generates item-level summaries.
+    Handles large review sets by batching.
     """
     
     def __init__(self, client: Anthropic, model: str):
@@ -33,24 +32,85 @@ class MenuDiscovery:
         self,
         reviews: List[str],
         restaurant_name: str = "the restaurant",
-        max_items: int = 50
+        max_items: int = 50,
+        batch_size: int = 15
     ) -> Dict[str, Any]:
-        """
-        Extract menu items and drinks from reviews with sentiment.
-        AI identifies which reviews mention each item.
+        """Extract menu items in batches to handle large review sets."""
+        print(f"🔍 Processing {len(reviews)} reviews in batches of {batch_size}...")
         
-        Args:
-            reviews: List of review texts
-            restaurant_name: Restaurant name for context
-            max_items: Maximum items to return
+        all_food_items = {}
+        all_drinks = {}
         
-        Returns:
-            Dictionary with food_items and drinks (with related reviews)
-        """
+        # Process in batches
+        for i in range(0, len(reviews), batch_size):
+            batch = reviews[i:i+batch_size]
+            batch_num = (i // batch_size) + 1
+            total_batches = (len(reviews) + batch_size - 1) // batch_size
+            
+            print(f"   Batch {batch_num}/{total_batches}: {len(batch)} reviews...")
+            
+            try:
+                batch_result = self._extract_batch(batch, restaurant_name, max_items)
+                
+                # Merge results
+                for item in batch_result.get('food_items', []):
+                    name = item['name']
+                    if name in all_food_items:
+                        all_food_items[name]['mention_count'] += item['mention_count']
+                        all_food_items[name]['related_reviews'].extend(item.get('related_reviews', []))
+                        old_sent = all_food_items[name]['sentiment']
+                        new_sent = item['sentiment']
+                        all_food_items[name]['sentiment'] = (old_sent + new_sent) / 2
+                    else:
+                        all_food_items[name] = item
+                
+                for drink in batch_result.get('drinks', []):
+                    name = drink['name']
+                    if name in all_drinks:
+                        all_drinks[name]['mention_count'] += drink['mention_count']
+                        all_drinks[name]['related_reviews'].extend(drink.get('related_reviews', []))
+                        old_sent = all_drinks[name]['sentiment']
+                        new_sent = drink['sentiment']
+                        all_drinks[name]['sentiment'] = (old_sent + new_sent) / 2
+                    else:
+                        all_drinks[name] = drink
+                
+            except Exception as e:
+                print(f"   ⚠️  Batch {batch_num} failed: {e}")
+                continue
+        
+        # Convert back to lists
+        food_items_list = list(all_food_items.values())
+        drinks_list = list(all_drinks.values())
+        
+        # Sort by mention count
+        food_items_list.sort(key=lambda x: x['mention_count'], reverse=True)
+        drinks_list.sort(key=lambda x: x['mention_count'], reverse=True)
+        
+        # Limit results
+        food_items_list = food_items_list[:max_items]
+        drinks_list = drinks_list[:max_items]
+        
+        print(f"✅ Discovered {len(food_items_list)} food items + {len(drinks_list)} drinks")
+        
+        return {
+            "food_items": food_items_list,
+            "drinks": drinks_list,
+            "total_extracted": len(food_items_list) + len(drinks_list)
+        }
+    
+    def _extract_batch(
+        self,
+        reviews: List[str],
+        restaurant_name: str,
+        max_items: int
+    ) -> Dict[str, Any]:
+        """Extract from a single batch with retry logic."""
         prompt = self._build_extraction_prompt(reviews, restaurant_name, max_items)
         
         try:
-            response = self.client.messages.create(
+            response = call_claude_with_retry(
+                client=self.client,
                 model=self.model,
                 max_tokens=4000,
                 temperature=0.3,
@@ -89,16 +149,7 @@ class MenuDiscovery:
         item: Dict[str, Any],
         restaurant_name: str = "the restaurant"
     ) -> str:
-        """
-        Generate a 2-3 sentence summary for a specific menu item.
-        
-        Args:
-            item: Item data with related reviews
-            restaurant_name: Restaurant name
-        
-        Returns:
-            Summary text for this item (2-3 sentences)
-        """
+        """Generate 2-3 sentence summary for a menu item."""
         item_name = item.get('name', 'unknown')
         sentiment = item.get('sentiment', 0)
         related_reviews = item.get('related_reviews', [])
@@ -106,7 +157,6 @@ class MenuDiscovery:
         if not related_reviews:
             return f"No specific feedback found for {item_name}."
         
-        # Prepare reviews for summary
         review_texts = [r.get('review_text', '') for r in related_reviews[:10]]
         reviews_combined = "\n\n".join(review_texts)
         
@@ -127,7 +177,8 @@ Create a 2-3 sentence summary of what customers say about {item_name}.
 Summary:"""
         
         try:
-            response = self.client.messages.create(
+            response = call_claude_with_retry(
+                client=self.client,
                 model=self.model,
                 max_tokens=200,
                 temperature=0.4,
@@ -153,178 +204,15 @@ Summary:"""
         else:
             return "Very Negative"
     
-    def visualize_items_text(
-        self,
-        items_data: Dict[str, Any],
-        top_n: int = 10
-    ) -> str:
-        """Create text visualization with sentiment color coding."""
-        food_items = items_data.get('food_items', [])
-        drinks = items_data.get('drinks', [])
-        
-        food_sorted = sorted(food_items, key=lambda x: x.get('mention_count', 0), reverse=True)
-        drinks_sorted = sorted(drinks, key=lambda x: x.get('mention_count', 0), reverse=True)
-        
-        output = []
-        output.append("=" * 70)
-        output.append("TOP MENU ITEMS (with sentiment)")
-        output.append("=" * 70)
-        
-        output.append(f"\n🍽️  FOOD ITEMS (Top {min(top_n, len(food_sorted))}):")
-        output.append("-" * 70)
-        
-        for item in food_sorted[:top_n]:
-            name = item.get('name', 'unknown')
-            sentiment = item.get('sentiment', 0)
-            mentions = item.get('mention_count', 0)
-            
-            if sentiment >= 0.7:
-                emoji = "🟢"
-                sentiment_text = "POSITIVE"
-            elif sentiment >= 0.3:
-                emoji = "🟡"
-                sentiment_text = "MIXED"
-            elif sentiment >= 0:
-                emoji = "��"
-                sentiment_text = "NEUTRAL"
-            else:
-                emoji = "🔴"
-                sentiment_text = "NEGATIVE"
-            
-            bar_length = int((mentions / max([i.get('mention_count', 1) for i in food_sorted[:top_n]])) * 20)
-            bar = "█" * bar_length + "░" * (20 - bar_length)
-            
-            output.append(f"{emoji} {name:25} [{sentiment:+.2f}] {sentiment_text:8} {bar} {mentions} mentions")
-        
-        if drinks_sorted:
-            output.append(f"\n🍹 DRINKS (Top {min(top_n, len(drinks_sorted))}):")
-            output.append("-" * 70)
-            
-            for drink in drinks_sorted[:top_n]:
-                name = drink.get('name', 'unknown')
-                sentiment = drink.get('sentiment', 0)
-                mentions = drink.get('mention_count', 0)
-                
-                if sentiment >= 0.7:
-                    emoji = "🟢"
-                    sentiment_text = "POSITIVE"
-                elif sentiment >= 0.3:
-                    emoji = "🟡"
-                    sentiment_text = "MIXED"
-                elif sentiment >= 0:
-                    emoji = "🟠"
-                    sentiment_text = "NEUTRAL"
-                else:
-                    emoji = "🔴"
-                    sentiment_text = "NEGATIVE"
-                
-                if drinks_sorted[:top_n]:
-                    max_mentions = max([d.get('mention_count', 1) for d in drinks_sorted[:top_n]])
-                    bar_length = int((mentions / max_mentions) * 20)
-                else:
-                    bar_length = 0
-                bar = "█" * bar_length + "░" * (20 - bar_length)
-                
-                output.append(f"{emoji} {name:25} [{sentiment:+.2f}] {sentiment_text:8} {bar} {mentions} mentions")
-        
-        output.append("=" * 70)
-        
-        return "\n".join(output)
-    
-    def visualize_items_chart(
-        self,
-        items_data: Dict[str, Any],
-        output_path: str = "menu_analysis.png",
-        top_n: int = 10
-    ) -> str:
-        """Create chart visualization with sentiment colors."""
-        try:
-            import matplotlib.pyplot as plt
-            import matplotlib.patches as mpatches
-            
-            food_items = items_data.get('food_items', [])
-            food_sorted = sorted(food_items, key=lambda x: x.get('mention_count', 0), reverse=True)[:top_n]
-            
-            if not food_sorted:
-                return None
-            
-            names = [item.get('name', 'unknown')[:20] for item in food_sorted]
-            mentions = [item.get('mention_count', 0) for item in food_sorted]
-            sentiments = [item.get('sentiment', 0) for item in food_sorted]
-            
-            colors = []
-            for sentiment in sentiments:
-                if sentiment >= 0.7:
-                    colors.append('#4CAF50')
-                elif sentiment >= 0.3:
-                    colors.append('#FFC107')
-                elif sentiment >= 0:
-                    colors.append('#FF9800')
-                else:
-                    colors.append('#F44336')
-            
-            fig, ax = plt.subplots(figsize=(12, 8))
-            bars = ax.barh(names, mentions, color=colors)
-            
-            ax.set_xlabel('Number of Mentions', fontsize=12)
-            ax.set_ylabel('Menu Items', fontsize=12)
-            ax.set_title('Top Menu Items by Mentions (Color = Sentiment)', fontsize=14, fontweight='bold')
-            
-            for i, (bar, sentiment) in enumerate(zip(bars, sentiments)):
-                width = bar.get_width()
-                ax.text(width + 0.5, bar.get_y() + bar.get_height()/2, 
-                       f'{sentiment:+.2f}',
-                       ha='left', va='center', fontsize=10)
-            
-            green_patch = mpatches.Patch(color='#4CAF50', label='Positive (≥0.7)')
-            yellow_patch = mpatches.Patch(color='#FFC107', label='Mixed (0.3-0.7)')
-            orange_patch = mpatches.Patch(color='#FF9800', label='Neutral (0-0.3)')
-            red_patch = mpatches.Patch(color='#F44336', label='Negative (<0)')
-            ax.legend(handles=[green_patch, yellow_patch, orange_patch, red_patch], 
-                     loc='lower right')
-            
-            plt.tight_layout()
-            plt.savefig(output_path, dpi=300, bbox_inches='tight')
-            plt.close()
-            
-            return output_path
-            
-        except ImportError:
-            print("⚠️  matplotlib not installed - skipping chart")
-            return None
-        except Exception as e:
-            print(f"❌ Error creating chart: {e}")
-            return None
-    
-    def save_results(
-        self,
-        items_data: Dict[str, Any],
-        output_path: str = "menu_analysis.json"
-    ) -> str:
-        """Save menu analysis results to JSON."""
-        try:
-            with open(output_path, 'w', encoding='utf-8') as f:
-                json.dump(items_data, f, indent=2, ensure_ascii=False)
-            
-            print(f"✅ Menu analysis saved to: {output_path}")
-            return output_path
-            
-        except Exception as e:
-            print(f"❌ Error saving results: {e}")
-            return None
-    
     def _build_extraction_prompt(
         self,
         reviews: List[str],
         restaurant_name: str,
         max_items: int
     ) -> str:
-        """Build menu extraction prompt with AI-based review matching."""
-        review_sample = reviews[:100] if len(reviews) > 100 else reviews
-        
-        # Number reviews for AI reference
+        """Build menu extraction prompt."""
         numbered_reviews = []
-        for i, review in enumerate(review_sample):
+        for i, review in enumerate(reviews):
             numbered_reviews.append(f"[Review {i}]: {review}")
         
         reviews_text = "\n\n".join(numbered_reviews)
@@ -351,16 +239,14 @@ CRITICAL RULES:
 
 3. FOOD vs DRINKS:
    - Separate food from drinks
-   - Differentiate drink types
 
-4. REVIEW EXTRACTION (CRITICAL!):
+4. REVIEW EXTRACTION:
    - For EACH item, identify which reviews mention it
-   - Use review numbers: [Review 0], [Review 1], etc.
+   - Use review numbers
    - Include full review text
-   - This enables item-level summaries!
 
 5. FILTER NOISE:
-   - ❌ Skip: "food", "meal", "delicious"
+   - ❌ Skip: "food", "meal"
    - ✅ Only: SPECIFIC menu items
 
 OUTPUT FORMAT (JSON):
@@ -369,13 +255,13 @@ OUTPUT FORMAT (JSON):
     {{
       "name": "item name in lowercase",
       "mention_count": number,
-      "sentiment": float (-1.0 to 1.0),
+      "sentiment": float,
       "category": "appetizer/entree/dessert/etc",
       "related_reviews": [
         {{
           "review_index": 0,
           "review_text": "full review text",
-          "sentiment_context": "specific quote about this item"
+          "sentiment_context": "quote"
         }}
       ]
     }}
@@ -384,40 +270,6 @@ OUTPUT FORMAT (JSON):
   "total_extracted": total_count
 }}
 
-Extract ALL items with their related reviews (up to {max_items} items):"""
+Extract ALL items (up to {max_items}):"""
         
         return prompt
-
-
-if __name__ == "__main__":
-    print("Testing menu discovery with item summaries...\n")
-    
-    from dotenv import load_dotenv
-    load_dotenv()
-    
-    client = Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
-    discovery = MenuDiscovery(client=client, model="claude-sonnet-4-20250514")
-    
-    test_reviews = [
-        "The salmon sushi was incredible! So fresh and melts in your mouth.",
-        "Miso soup was authentic but a bit too salty for my taste.",
-        "Tempura was disappointing - way too oily and heavy.",
-        "The spicy tuna roll is amazing! Best I've ever had.",
-        "Hot sake paired perfectly with the meal. Great selection.",
-    ]
-    
-    result = discovery.extract_menu_items(test_reviews, "Test Restaurant")
-    
-    print("=" * 70)
-    print("ITEM SUMMARIES TEST")
-    print("=" * 70 + "\n")
-    
-    for item in result.get('food_items', [])[:3]:
-        name = item.get('name', 'unknown')
-        sentiment = item.get('sentiment', 0)
-        
-        print(f"📋 {name.upper()} (sentiment: {sentiment:+.2f})")
-        print("-" * 70)
-        
-        summary = discovery.generate_item_summary(item, "Test Restaurant")
-        print(f"{summary}\n")
