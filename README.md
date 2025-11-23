@@ -604,7 +604,7 @@ MIT License - See LICENSE file for details
 
 Built for Anthropic MCP 1st Birthday Hackathon 2025
 
-Connect: [GitHub](https://github.com/YOUR_USERNAME) | [LinkedIn](https://linkedin.com/in/YOUR_PROFILE)
+Connect: [GitHub](https://github.com/Tushar-Pingle/) | [LinkedIn](https://www.linkedin.com/in/tushar-pingle/)
 
 ---
 
