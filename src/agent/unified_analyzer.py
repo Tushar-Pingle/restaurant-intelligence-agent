@@ -61,7 +61,7 @@ class UnifiedReviewAnalyzer:
             print(f"   Batch {batch_num}/{total_batches}: {len(batch)} reviews...")
             
             try:
-                batch_result = self._analyze_batch(batch, restaurant_name)
+                batch_result = self._analyze_batch(batch, restaurant_name, start_index=i)
                 
                 # Merge menu items
                 for item in batch_result.get('food_items', []):
@@ -128,16 +128,17 @@ class UnifiedReviewAnalyzer:
     def _analyze_batch(
         self,
         reviews: List[str],
-        restaurant_name: str
+        restaurant_name: str,
+        start_index: int = 0
     ) -> Dict[str, Any]:
         """Analyze a single batch - extract EVERYTHING in one call."""
-        prompt = self._build_unified_prompt(reviews, restaurant_name)
+        prompt = self._build_unified_prompt(reviews, restaurant_name, start_index)
         
         try:
             response = call_claude_with_retry(
                 client=self.client,
                 model=self.model,
-                max_tokens=6000,  # Larger since we're getting more data
+                max_tokens=4000,  # Reduced since we're not returning full text
                 temperature=0.3,
                 messages=[{"role": "user", "content": prompt}]
             )
@@ -145,17 +146,92 @@ class UnifiedReviewAnalyzer:
             result_text = response.content[0].text
             result_text = result_text.replace('```json', '').replace('```', '').strip()
             
-            data = json.loads(result_text)
+            # Parse JSON
+            try:
+                data = json.loads(result_text)
+            except json.JSONDecodeError as e:
+                print(f"   ⚠️  JSON parse error: {e}")
+                return {"food_items": [], "drinks": [], "aspects": []}
+            
+            # Post-process: Add full review text back using indices
+            data = self._map_reviews_to_items(data, reviews, start_index)
             data = self._normalize_data(data)
             
             return data
             
-        except json.JSONDecodeError as e:
-            print(f"❌ JSON parse error: {e}")
-            return {"food_items": [], "drinks": [], "aspects": []}
         except Exception as e:
             print(f"❌ Extraction error: {e}")
             return {"food_items": [], "drinks": [], "aspects": []}
+    
+    def _map_reviews_to_items(
+        self,
+        data: Dict[str, Any],
+        reviews: List[str],
+        start_index: int
+    ) -> Dict[str, Any]:
+        """
+        Map review indices back to full review text.
+        
+        Claude returns just indices to avoid JSON breaking.
+        We add the full text back here.
+        """
+        # Process food items
+        for item in data.get('food_items', []):
+            review_indices = item.get('related_reviews', [])
+            if isinstance(review_indices, list) and review_indices:
+                # If it's already in full format, skip
+                if isinstance(review_indices[0], dict):
+                    continue
+                
+                # Map indices to full reviews
+                full_reviews = []
+                for idx in review_indices:
+                    if isinstance(idx, int) and 0 <= idx < len(reviews):
+                        full_reviews.append({
+                            "review_index": start_index + idx,
+                            "review_text": reviews[idx],
+                            "sentiment_context": reviews[idx][:200]  # First 200 chars as context
+                        })
+                
+                item['related_reviews'] = full_reviews
+        
+        # Process drinks
+        for drink in data.get('drinks', []):
+            review_indices = drink.get('related_reviews', [])
+            if isinstance(review_indices, list) and review_indices:
+                if isinstance(review_indices[0], dict):
+                    continue
+                
+                full_reviews = []
+                for idx in review_indices:
+                    if isinstance(idx, int) and 0 <= idx < len(reviews):
+                        full_reviews.append({
+                            "review_index": start_index + idx,
+                            "review_text": reviews[idx],
+                            "sentiment_context": reviews[idx][:200]
+                        })
+                
+                drink['related_reviews'] = full_reviews
+        
+        # Process aspects
+        for aspect in data.get('aspects', []):
+            review_indices = aspect.get('related_reviews', [])
+            if isinstance(review_indices, list) and review_indices:
+                if isinstance(review_indices[0], dict):
+                    continue
+                
+                full_reviews = []
+                for idx in review_indices:
+                    if isinstance(idx, int) and 0 <= idx < len(reviews):
+                        full_reviews.append({
+                            "review_index": start_index + idx,
+                            "review_text": reviews[idx],
+                            "sentiment_context": reviews[idx][:200]
+                        })
+                
+                aspect['related_reviews'] = full_reviews
+        
+        return data
     
     def _normalize_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize all names to lowercase."""
@@ -176,7 +252,8 @@ class UnifiedReviewAnalyzer:
     def _build_unified_prompt(
         self,
         reviews: List[str],
-        restaurant_name: str
+        restaurant_name: str,
+        start_index: int
     ) -> str:
         """Build unified extraction prompt."""
         numbered_reviews = []
@@ -211,11 +288,11 @@ RULES:
 - Calculate sentiment per aspect
 
 **REVIEW LINKING:**
-- For EACH item/aspect, list which reviews mention it
-- Use review numbers: [Review 0], [Review 1]
-- Include full review text
+- For EACH item/aspect, list which review NUMBERS mention it
+- Use ONLY the review index numbers: 0, 1, 2, etc.
+- DO NOT include review text in your response (saves tokens and prevents JSON errors)
 
-OUTPUT (JSON):
+OUTPUT (JSON) - IMPORTANT: Return ONLY review indices, NOT full text:
 {{
   "food_items": [
     {{
@@ -223,26 +300,34 @@ OUTPUT (JSON):
       "mention_count": 2,
       "sentiment": 0.9,
       "category": "sushi",
-      "related_reviews": [
-        {{
-          "review_index": 0,
-          "review_text": "full text",
-          "sentiment_context": "quote"
-        }}
-      ]
+      "related_reviews": [0, 5]
     }}
   ],
-  "drinks": [...same structure...],
+  "drinks": [
+    {{
+      "name": "sake",
+      "mention_count": 1,
+      "sentiment": 0.8,
+      "category": "alcohol",
+      "related_reviews": [3]
+    }}
+  ],
   "aspects": [
     {{
       "name": "service speed",
       "mention_count": 3,
       "sentiment": 0.6,
-      "description": "brief desc",
-      "related_reviews": [...]
+      "description": "How quickly food arrives",
+      "related_reviews": [1, 2, 7]
     }}
   ]
 }}
+
+CRITICAL: 
+- related_reviews should be an array of NUMBERS ONLY: [0, 1, 5]
+- DO NOT include review text or quotes
+- This prevents JSON parsing errors and saves tokens
+- Output ONLY valid JSON, no other text
 
 Extract everything:"""
         

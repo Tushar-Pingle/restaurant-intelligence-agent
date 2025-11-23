@@ -6,6 +6,7 @@ import pandas as pd
 from src.scrapers.opentable_scraper import scrape_opentable
 from src.data_processing import process_reviews
 from src.agent.base_agent import RestaurantAnalysisAgent
+from src.data_processing import clean_reviews_for_ai
 
 print("=" * 80)
 print("🔥 COMPLETE PIPELINE: Scraper → Agent → Analysis")
@@ -13,8 +14,8 @@ print("=" * 80 + "\n")
 
 # Step 1: Scrape reviews
 print("📥 Step 1: Scraping OpenTable...")
-url = "https://www.opentable.ca/r/miku-restaurant-vancouver"
-restaurant_name = "Miku Restaurant"
+url = "https://www.opentable.ca/r/nightingale-vancouver?originId=a3c30a8e-25aa-43b9-9f09-9f0980f22365&corrid=a3c30a8e-25aa-43b9-9f09-9f0980f22365&avt=eyJ2IjoyLCJtIjoxLCJwIjowLCJzIjoxLCJuIjowfQ"
+restaurant_name = "Nightingale"
 
 scraper_result = scrape_opentable(url, max_reviews=50, headless=True)
 
@@ -31,7 +32,8 @@ print(f"✅ Processed {len(df)} reviews into DataFrame\n")
 
 # Step 3: Convert to format agents expect (List[str])
 print("🔄 Step 3: Converting to agent format...")
-review_texts = df['review_text'].dropna().tolist()  # ← Key conversion!
+review_texts = df['review_text'].dropna().tolist()
+review_texts = clean_reviews_for_ai(review_texts, verbose=True)
 print(f"✅ Converted to {len(review_texts)} review texts\n")
 
 # Step 4: Initialize agent
