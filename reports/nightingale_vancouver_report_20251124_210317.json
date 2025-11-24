@@ -1,0 +1,635 @@
+{
+  "restaurant": "Nightingale Vancouver",
+  "timestamp": "2025-11-24T21:03:17.249761",
+  "menu_analysis": {
+    "food_items": [
+      {
+        "name": "pizza",
+        "mention_count": 3,
+        "sentiment": 0.7,
+        "category": "main",
+        "related_reviews": [
+          {
+            "review_index": 1,
+            "review_text": "I find it curious that the server asks us if there is an allergy - and when we indicated that there was - they wouldn't allow the food that causes aforementioned allergy - could not be removed from the dish we ordered. We merely requested they NOT put onions on a pizza - - it isn't like we were expecting them to alter a recipe. Presumably, onions need to be added to a pizza before they bake it (I would hope they're not frozen thus added previously). Anyway, I expected more from an establishment like this - disappointing.",
+            "sentiment_context": "I find it curious that the server asks us if there is an allergy - and when we indicated that there was - they wouldn't allow the food that causes aforementioned allergy - could not be removed from th"
+          },
+          {
+            "review_index": 10,
+            "review_text": "First time here and the food was awesome especially the brussel sprouts and the spicy salami pizza, definitely want to go back and try other items from the menu",
+            "sentiment_context": "First time here and the food was awesome especially the brussel sprouts and the spicy salami pizza, definitely want to go back and try other items from the menu"
+          },
+          {
+            "review_index": 13,
+            "review_text": "So tasty! Best brussel sprouts I’ve had. Pizza is delicious. Highly recommend this restaurant.",
+            "sentiment_context": "So tasty! Best brussel sprouts I’ve had. Pizza is delicious. Highly recommend this restaurant."
+          }
+        ],
+        "summary": "Customers have a generally positive response to the pizza offerings, with specific praise for the spicy salami pizza being described as \"awesome\" and \"delicious.\" However, there appears to be some concern regarding allergen accommodation, with one customer noting difficulty having allergens removed from pizza items. The positive sentiment suggests the pizza quality is strong, but staff may need additional training on allergen modifications."
+      },
+      {
+        "name": "brussel sprouts",
+        "mention_count": 3,
+        "sentiment": 1.0,
+        "category": "side",
+        "related_reviews": [
+          {
+            "review_index": 10,
+            "review_text": "First time here and the food was awesome especially the brussel sprouts and the spicy salami pizza, definitely want to go back and try other items from the menu",
+            "sentiment_context": "First time here and the food was awesome especially the brussel sprouts and the spicy salami pizza, definitely want to go back and try other items from the menu"
+          },
+          {
+            "review_index": 13,
+            "review_text": "So tasty! Best brussel sprouts I’ve had. Pizza is delicious. Highly recommend this restaurant.",
+            "sentiment_context": "So tasty! Best brussel sprouts I’ve had. Pizza is delicious. Highly recommend this restaurant."
+          },
+          {
+            "review_index": 15,
+            "review_text": "Pricy for size of servings and unexpected amount of bones in a deboned butterflied fish dish. Tasty Asian flavoured brussels sprouts. Matcha opera cake was ok, barely taste the matcha. All around friendly, attentive service. The 2 of us shared a Roasted whole branzino, chimichurri, charred lemon ($46); a Roasted brussels sprouts, green onion, thai chili vinaigrette )$18). Although both of us are considered small eaters, these dishes might be just enough for one. Looking around nearby tables, I’d say that applies to many of the ‘large’ dishes. Treat them as appies.",
+            "sentiment_context": "Pricy for size of servings and unexpected amount of bones in a deboned butterflied fish dish. Tasty Asian flavoured brussels sprouts. Matcha opera cake was ok, barely taste the matcha. All around frie"
+          }
+        ],
+        "summary": "The Brussels sprouts receive consistently outstanding feedback from customers, with one guest calling them \"the best Brussels sprouts I've had\" and others describing them as \"awesome\" and \"tasty Asian flavoured.\" All mentions are highly positive, making this a clear standout menu item that customers specifically recommend. This appears to be a signature dish that drives customer satisfaction and repeat visits."
+      },
+      {
+        "name": "meatball",
+        "mention_count": 2,
+        "sentiment": 1.0,
+        "category": "appetizer",
+        "related_reviews": [
+          {
+            "review_index": 0,
+            "review_text": "First off, the ambiance? Incredible. The second you walk in, it’s got that warm, inviting vibe that makes you feel like you’ve been there a dozen times already. Cozy lighting, great energy, music on point — just exceptional all the way around. Now… the meatball. Listen. I wasn’t ready. This was one of those meatballs where you take one bite and immediately look around the room like, “Did anyone else just taste that?!” Just amazing. Overall, 10/10. Loved the spot, loved the vibe, loved the food — I honestly can’t wait to come back. Canada, you did not disappoint.",
+            "sentiment_context": "First off, the ambiance? Incredible. The second you walk in, it’s got that warm, inviting vibe that makes you feel like you’ve been there a dozen times already. Cozy lighting, great energy, music on p"
+          },
+          {
+            "review_index": 3,
+            "review_text": "Always a great place for lunch or dinner and the meatballs were amazing. Again!",
+            "sentiment_context": "Always a great place for lunch or dinner and the meatballs were amazing. Again!"
+          }
+        ],
+        "summary": "The meatballs consistently receive excellent customer feedback, with guests describing them as \"amazing\" and noting this as a repeat positive experience. Customers appear to order this item multiple times, indicating strong satisfaction and loyalty to this particular dish. This seems to be a reliable menu staple that performs well for both lunch and dinner service."
+      },
+      {
+        "name": "salted caramel cup",
+        "mention_count": 1,
+        "sentiment": 1.0,
+        "category": "dessert",
+        "related_reviews": [
+          {
+            "review_index": 5,
+            "review_text": "We went here for the first time for my wife’s birthday. The service was outstanding with Oscar providing recommendations at our request and timing our dishes with impeccable taste. The atmosphere was lively but we had a table that was private and quiet enough to allow us to enjoy our evening while feeling a part of the action. The decor was tasteful and catchy. Finally the food was delicious but very healthy. Dessert have the salted caramel cup! Highly recommend!",
+            "sentiment_context": "We went here for the first time for my wife’s birthday. The service was outstanding with Oscar providing recommendations at our request and timing our dishes with impeccable taste. The atmosphere was "
+          }
+        ],
+        "summary": "This dessert item received positive feedback in the context of exceptional service and atmosphere during a birthday celebration. While only mentioned once, it was part of an overall outstanding dining experience. More customer feedback would be helpful to fully assess this item's performance."
+      },
+      {
+        "name": "spicy salami pizza",
+        "mention_count": 1,
+        "sentiment": 1.0,
+        "category": "main",
+        "related_reviews": [
+          {
+            "review_index": 10,
+            "review_text": "First time here and the food was awesome especially the brussel sprouts and the spicy salami pizza, definitely want to go back and try other items from the menu",
+            "sentiment_context": "First time here and the food was awesome especially the brussel sprouts and the spicy salami pizza, definitely want to go back and try other items from the menu"
+          }
+        ],
+        "summary": "Customers specifically highlight the spicy salami pizza as a standout item, describing the food as \"awesome\" and expressing strong intent to return. This appears to be a particularly successful pizza variety that creates positive first impressions for new customers. The specific mention suggests this variant outperforms other pizza options."
+      },
+      {
+        "name": "woodfired pizza",
+        "mention_count": 1,
+        "sentiment": 1.0,
+        "category": "main",
+        "related_reviews": [
+          {
+            "review_index": 14,
+            "review_text": "We were really impressed with the service from the get-go and the lively ambience. The way the food plates are shared was a refreshing way to approach dinner. The food was outstanding. We were especially impressed with the woodfired pizza and the beat salad. Our only suggestion would be to include a bit more substance on the braised ribs.",
+            "sentiment_context": "We were really impressed with the service from the get-go and the lively ambience. The way the food plates are shared was a refreshing way to approach dinner. The food was outstanding. We were especia"
+          }
+        ],
+        "summary": "The woodfired pizza receives positive feedback as part of an outstanding shared dining experience. Customers appreciate both the preparation method and how it fits into the restaurant's sharing plate concept. This item contributes to the overall positive impression of the food quality and dining format."
+      },
+      {
+        "name": "beat salad",
+        "mention_count": 1,
+        "sentiment": 1.0,
+        "category": "salad",
+        "related_reviews": [
+          {
+            "review_index": 14,
+            "review_text": "We were really impressed with the service from the get-go and the lively ambience. The way the food plates are shared was a refreshing way to approach dinner. The food was outstanding. We were especially impressed with the woodfired pizza and the beat salad. Our only suggestion would be to include a bit more substance on the braised ribs.",
+            "sentiment_context": "We were really impressed with the service from the get-go and the lively ambience. The way the food plates are shared was a refreshing way to approach dinner. The food was outstanding. We were especia"
+          }
+        ],
+        "summary": "The beat salad is mentioned positively as part of an exceptional dining experience where customers were impressed with the shared plate approach. While specific details about the salad itself are limited, it contributed to an overall outstanding meal. More specific customer feedback on this item would be valuable for menu development."
+      },
+      {
+        "name": "braised ribs",
+        "mention_count": 1,
+        "sentiment": 0.5,
+        "category": "main",
+        "related_reviews": [
+          {
+            "review_index": 14,
+            "review_text": "We were really impressed with the service from the get-go and the lively ambience. The way the food plates are shared was a refreshing way to approach dinner. The food was outstanding. We were especially impressed with the woodfired pizza and the beat salad. Our only suggestion would be to include a bit more substance on the braised ribs.",
+            "sentiment_context": "We were really impressed with the service from the get-go and the lively ambience. The way the food plates are shared was a refreshing way to approach dinner. The food was outstanding. We were especia"
+          }
+        ],
+        "summary": "The braised ribs receive neutral to mixed feedback, being part of a meal described as \"outstanding\" overall but without specific positive commentary on the dish itself. Customer response appears lukewarm compared to other menu items mentioned in the same review. This item may need evaluation or enhancement to match the performance of other dishes."
+      },
+      {
+        "name": "roasted whole branzino",
+        "mention_count": 1,
+        "sentiment": 0.6,
+        "category": "main",
+        "related_reviews": [
+          {
+            "review_index": 15,
+            "review_text": "Pricy for size of servings and unexpected amount of bones in a deboned butterflied fish dish. Tasty Asian flavoured brussels sprouts. Matcha opera cake was ok, barely taste the matcha. All around friendly, attentive service. The 2 of us shared a Roasted whole branzino, chimichurri, charred lemon ($46); a Roasted brussels sprouts, green onion, thai chili vinaigrette )$18). Although both of us are considered small eaters, these dishes might be just enough for one. Looking around nearby tables, I’d say that applies to many of the ‘large’ dishes. Treat them as appies.",
+            "sentiment_context": "Pricy for size of servings and unexpected amount of bones in a deboned butterflied fish dish. Tasty Asian flavoured brussels sprouts. Matcha opera cake was ok, barely taste the matcha. All around frie"
+          }
+        ],
+        "summary": "Customers express disappointment with the roasted whole branzino, specifically citing poor value with small portion sizes relative to the price and preparation issues with unexpected bones in what was described as a \"deboned butterflied fish dish.\" The execution problems and value concerns suggest this item needs immediate attention regarding both preparation standards and portion sizing. This dish risks damaging the restaurant's reputation if quality issues persist."
+      },
+      {
+        "name": "matcha opera cake",
+        "mention_count": 1,
+        "sentiment": 0.4,
+        "category": "dessert",
+        "related_reviews": [
+          {
+            "review_index": 15,
+            "review_text": "Pricy for size of servings and unexpected amount of bones in a deboned butterflied fish dish. Tasty Asian flavoured brussels sprouts. Matcha opera cake was ok, barely taste the matcha. All around friendly, attentive service. The 2 of us shared a Roasted whole branzino, chimichurri, charred lemon ($46); a Roasted brussels sprouts, green onion, thai chili vinaigrette )$18). Although both of us are considered small eaters, these dishes might be just enough for one. Looking around nearby tables, I’d say that applies to many of the ‘large’ dishes. Treat them as appies.",
+            "sentiment_context": "Pricy for size of servings and unexpected amount of bones in a deboned butterflied fish dish. Tasty Asian flavoured brussels sprouts. Matcha opera cake was ok, barely taste the matcha. All around frie"
+          }
+        ],
+        "summary": "The matcha opera cake receives lukewarm customer feedback, with guests describing it as merely \"ok\" and noting that the matcha flavor is barely detectable. This dessert appears to underperform customer expectations, particularly regarding the promised matcha taste profile. The recipe or preparation method may need adjustment to deliver a more pronounced matcha flavor that meets customer expectations."
+      },
+      {
+        "name": "japanese potato",
+        "mention_count": 1,
+        "sentiment": 1.0,
+        "category": "side",
+        "related_reviews": [
+          {
+            "review_index": 17,
+            "review_text": "Wonderful service and delicious! We really enjoyed the “share plates” our server said the Japanese potato was her favourite - of course we needed to try - now it’s my favourite too! Can’t wait to go back & try new amazing items!",
+            "sentiment_context": "Wonderful service and delicious! We really enjoyed the “share plates” our server said the Japanese potato was her favourite - of course we needed to try - now it’s my favourite too! Can’t wait to go b"
+          }
+        ],
+        "summary": "The Japanese potato receives outstanding customer praise, with one guest noting it became their new favorite dish after trying it based on their server's enthusiastic recommendation. This positive server endorsement appears to be an effective selling point that translates into high customer satisfaction."
+      },
+      {
+        "name": "sweet potato",
+        "mention_count": 1,
+        "sentiment": 1.0,
+        "category": "side",
+        "related_reviews": [
+          {
+            "review_index": 19,
+            "review_text": "Every bite was fantastic, with great drinks (both cocktails and mocktails) to wash them down. The family style eating ensures a wealth of different flavour combinations, and I am eager to return to try more. Not a complaint, but it was almost too loud to hear the server or each other while eating - just something to consider if you're hoping for a quieter night out. The sweet potato, brick pressed chicken, and short rib were our personal favourites.",
+            "sentiment_context": "Every bite was fantastic, with great drinks (both cocktails and mocktails) to wash them down. The family style eating ensures a wealth of different flavour combinations, and I am eager to return to tr"
+          }
+        ],
+        "summary": "The sweet potato is part of consistently excellent dining experiences, with customers describing every bite as fantastic. It contributes well to the family-style sharing concept, offering great flavor combinations that leave guests eager to return."
+      },
+      {
+        "name": "brick pressed chicken",
+        "mention_count": 1,
+        "sentiment": 1.0,
+        "category": "main",
+        "related_reviews": [
+          {
+            "review_index": 19,
+            "review_text": "Every bite was fantastic, with great drinks (both cocktails and mocktails) to wash them down. The family style eating ensures a wealth of different flavour combinations, and I am eager to return to try more. Not a complaint, but it was almost too loud to hear the server or each other while eating - just something to consider if you're hoping for a quieter night out. The sweet potato, brick pressed chicken, and short rib were our personal favourites.",
+            "sentiment_context": "Every bite was fantastic, with great drinks (both cocktails and mocktails) to wash them down. The family style eating ensures a wealth of different flavour combinations, and I am eager to return to tr"
+          }
+        ],
+        "summary": "The brick pressed chicken delivers exceptional quality as part of the restaurant's family-style offerings, with customers describing every bite as fantastic. It successfully contributes to the diverse flavor combinations that make guests want to return for future visits."
+      },
+      {
+        "name": "short rib",
+        "mention_count": 1,
+        "sentiment": 1.0,
+        "category": "main",
+        "related_reviews": [
+          {
+            "review_index": 19,
+            "review_text": "Every bite was fantastic, with great drinks (both cocktails and mocktails) to wash them down. The family style eating ensures a wealth of different flavour combinations, and I am eager to return to try more. Not a complaint, but it was almost too loud to hear the server or each other while eating - just something to consider if you're hoping for a quieter night out. The sweet potato, brick pressed chicken, and short rib were our personal favourites.",
+            "sentiment_context": "Every bite was fantastic, with great drinks (both cocktails and mocktails) to wash them down. The family style eating ensures a wealth of different flavour combinations, and I am eager to return to tr"
+          }
+        ],
+        "summary": "The short rib receives excellent customer feedback, with diners describing every bite as fantastic. It works well within the family-style dining format, contributing to the variety of flavors that keeps customers satisfied and planning return visits."
+      }
+    ],
+    "drinks": [
+      {
+        "name": "local bc cider",
+        "mention_count": 1,
+        "sentiment": 1.0,
+        "category": "alcohol",
+        "related_reviews": [
+          {
+            "review_index": 4,
+            "review_text": "We had lunch with my husband in the Nightingale. It was nothing but amazing experience. Food quality, freshness and presentation were 5 stars I also ordered a local BC cider and wow 🤩 such a clean beautiful bubbly drink. Our server Caesar was very attentive. Everything was perfect in Nightingale and the interior is very welcoming and relaxing. I highly recommend to eat there if you happen to be in Downtown Vancouver",
+            "sentiment_context": "We had lunch with my husband in the Nightingale. It was nothing but amazing experience. Food quality, freshness and presentation were 5 stars I also ordered a local BC cider and wow 🤩 such a clean bea"
+          }
+        ],
+        "summary": "Customers are highly impressed with the local BC cider offering, with one guest describing it as having a \"clean\" taste that exceeded expectations. The positive reaction suggests this local beverage choice is resonating well with diners and contributing to their overall amazing dining experience."
+      },
+      {
+        "name": "cocktails",
+        "mention_count": 1,
+        "sentiment": 1.0,
+        "category": "alcohol",
+        "related_reviews": [
+          {
+            "review_index": 19,
+            "review_text": "Every bite was fantastic, with great drinks (both cocktails and mocktails) to wash them down. The family style eating ensures a wealth of different flavour combinations, and I am eager to return to try more. Not a complaint, but it was almost too loud to hear the server or each other while eating - just something to consider if you're hoping for a quieter night out. The sweet potato, brick pressed chicken, and short rib were our personal favourites.",
+            "sentiment_context": "Every bite was fantastic, with great drinks (both cocktails and mocktails) to wash them down. The family style eating ensures a wealth of different flavour combinations, and I am eager to return to tr"
+          }
+        ],
+        "summary": "Customers praise the cocktail program as \"great drinks\" that perfectly complement the food experience. The positive feedback indicates cocktails are successfully enhancing the family-style dining concept and contributing to guests' eagerness to return."
+      },
+      {
+        "name": "mocktails",
+        "mention_count": 1,
+        "sentiment": 1.0,
+        "category": "non-alcohol",
+        "related_reviews": [
+          {
+            "review_index": 19,
+            "review_text": "Every bite was fantastic, with great drinks (both cocktails and mocktails) to wash them down. The family style eating ensures a wealth of different flavour combinations, and I am eager to return to try more. Not a complaint, but it was almost too loud to hear the server or each other while eating - just something to consider if you're hoping for a quieter night out. The sweet potato, brick pressed chicken, and short rib were our personal favourites.",
+            "sentiment_context": "Every bite was fantastic, with great drinks (both cocktails and mocktails) to wash them down. The family style eating ensures a wealth of different flavour combinations, and I am eager to return to tr"
+          }
+        ],
+        "summary": "The mocktail selection receives strong customer approval, with guests specifically noting them as \"great drinks\" alongside the alcoholic options. This positive reception shows the non-alcoholic beverage program is successfully catering to all guests and enhancing the overall dining experience."
+      }
+    ],
+    "total_extracted": 17
+  },
+  "aspect_analysis": {
+    "aspects": [
+      {
+        "name": "service quality",
+        "mention_count": 9,
+        "sentiment": 0.8,
+        "description": "Staff attentiveness and professionalism",
+        "related_reviews": [
+          {
+            "review_index": 2,
+            "review_text": "Nightingale is consistently excellent.....the food is superb, the service is wonderful, the ambience is lovely and all three categories can be depended on. It is a treat to go there!",
+            "sentiment_context": "Nightingale is consistently excellent.....the food is superb, the service is wonderful, the ambience is lovely and all three categories can be depended on. It is a treat to go there!"
+          },
+          {
+            "review_index": 4,
+            "review_text": "We had lunch with my husband in the Nightingale. It was nothing but amazing experience. Food quality, freshness and presentation were 5 stars I also ordered a local BC cider and wow 🤩 such a clean beautiful bubbly drink. Our server Caesar was very attentive. Everything was perfect in Nightingale and the interior is very welcoming and relaxing. I highly recommend to eat there if you happen to be in Downtown Vancouver",
+            "sentiment_context": "We had lunch with my husband in the Nightingale. It was nothing but amazing experience. Food quality, freshness and presentation were 5 stars I also ordered a local BC cider and wow 🤩 such a clean bea"
+          },
+          {
+            "review_index": 5,
+            "review_text": "We went here for the first time for my wife’s birthday. The service was outstanding with Oscar providing recommendations at our request and timing our dishes with impeccable taste. The atmosphere was lively but we had a table that was private and quiet enough to allow us to enjoy our evening while feeling a part of the action. The decor was tasteful and catchy. Finally the food was delicious but very healthy. Dessert have the salted caramel cup! Highly recommend!",
+            "sentiment_context": "We went here for the first time for my wife’s birthday. The service was outstanding with Oscar providing recommendations at our request and timing our dishes with impeccable taste. The atmosphere was "
+          },
+          {
+            "review_index": 7,
+            "review_text": "Megan was great. Super attentive and understood biz lunch crunch and timing. Ty",
+            "sentiment_context": "Megan was great. Super attentive and understood biz lunch crunch and timing. Ty"
+          },
+          {
+            "review_index": 8,
+            "review_text": "Very unique menu and dining style. Helpful friendly staff at a levels.",
+            "sentiment_context": "Very unique menu and dining style. Helpful friendly staff at a levels."
+          },
+          {
+            "review_index": 9,
+            "review_text": "Four of us had a late lunch over the weekend and everything was fantastic. I do not recall our servers name. She was engaging and her service was excellent. I have been to Nightingale only twice and both times the food was on point combined with a great experience so I will be back. Thank you, Bruce Shaver",
+            "sentiment_context": "Four of us had a late lunch over the weekend and everything was fantastic. I do not recall our servers name. She was engaging and her service was excellent. I have been to Nightingale only twice and b"
+          },
+          {
+            "review_index": 11,
+            "review_text": "I booked a table for six at Nightingale for my girlfriend’s birthday, and unfortunately this visit fell short of the service standard I’ve come to expect here. One of our friends arrived first, and instead of seating her or at least welcoming her to wait at the table, the hostess questioned whether all six people were still coming. Since she wasn’t the one who made the reservation, she didn’t know, and because of that, they refused to seat her until the rest of us arrived. It felt odd and unaccommodating. The entire purpose of making a reservation is to ensure you have a table, so it was surprising that they wouldn’t let one member of the party be seated. What made the situation even more uncomfortable was that after refusing to seat her, the two staff members at the host stand began speaking to each other in another language about the situation, which came across as unprofessional and dismissive. The second issue happened at the end of the evening while we were paying. We explained...",
+            "sentiment_context": "I booked a table for six at Nightingale for my girlfriend’s birthday, and unfortunately this visit fell short of the service standard I’ve come to expect here. One of our friends arrived first, and in"
+          },
+          {
+            "review_index": 15,
+            "review_text": "Pricy for size of servings and unexpected amount of bones in a deboned butterflied fish dish. Tasty Asian flavoured brussels sprouts. Matcha opera cake was ok, barely taste the matcha. All around friendly, attentive service. The 2 of us shared a Roasted whole branzino, chimichurri, charred lemon ($46); a Roasted brussels sprouts, green onion, thai chili vinaigrette )$18). Although both of us are considered small eaters, these dishes might be just enough for one. Looking around nearby tables, I’d say that applies to many of the ‘large’ dishes. Treat them as appies.",
+            "sentiment_context": "Pricy for size of servings and unexpected amount of bones in a deboned butterflied fish dish. Tasty Asian flavoured brussels sprouts. Matcha opera cake was ok, barely taste the matcha. All around frie"
+          },
+          {
+            "review_index": 16,
+            "review_text": "We are a group of 8 girl friends who meet annually to celebrate the year around the holiday season. For most of us it was our first time at Nightingale. We were there for lunch and the place was packed. They gave us a nice big table so had enough space for us all ! Our server Remy was very good and detail oriented. She gave us the information required, provided excellent service. Everything we ordered was delicious and they all thanked me for choosing this location for our get together. The noise level initially was loud but quietened down after a while. Overall we had an amazing time !",
+            "sentiment_context": "We are a group of 8 girl friends who meet annually to celebrate the year around the holiday season. For most of us it was our first time at Nightingale. We were there for lunch and the place was packe"
+          }
+        ],
+        "summary": "Customers consistently praise Nightingale's service quality, describing it as outstanding, excellent, and dependable across multiple visits. Staff members like Oscar and Megan receive specific recognition for their attentiveness, timing, and ability to provide helpful recommendations while understanding business lunch needs. While most experiences are highly positive, there was one instance where service fell short of expected standards during a birthday celebration."
+      },
+      {
+        "name": "food quality",
+        "mention_count": 8,
+        "sentiment": 0.9,
+        "description": "Taste and overall food experience",
+        "related_reviews": [
+          {
+            "review_index": 0,
+            "review_text": "First off, the ambiance? Incredible. The second you walk in, it’s got that warm, inviting vibe that makes you feel like you’ve been there a dozen times already. Cozy lighting, great energy, music on point — just exceptional all the way around. Now… the meatball. Listen. I wasn’t ready. This was one of those meatballs where you take one bite and immediately look around the room like, “Did anyone else just taste that?!” Just amazing. Overall, 10/10. Loved the spot, loved the vibe, loved the food — I honestly can’t wait to come back. Canada, you did not disappoint.",
+            "sentiment_context": "First off, the ambiance? Incredible. The second you walk in, it’s got that warm, inviting vibe that makes you feel like you’ve been there a dozen times already. Cozy lighting, great energy, music on p"
+          },
+          {
+            "review_index": 2,
+            "review_text": "Nightingale is consistently excellent.....the food is superb, the service is wonderful, the ambience is lovely and all three categories can be depended on. It is a treat to go there!",
+            "sentiment_context": "Nightingale is consistently excellent.....the food is superb, the service is wonderful, the ambience is lovely and all three categories can be depended on. It is a treat to go there!"
+          },
+          {
+            "review_index": 4,
+            "review_text": "We had lunch with my husband in the Nightingale. It was nothing but amazing experience. Food quality, freshness and presentation were 5 stars I also ordered a local BC cider and wow 🤩 such a clean beautiful bubbly drink. Our server Caesar was very attentive. Everything was perfect in Nightingale and the interior is very welcoming and relaxing. I highly recommend to eat there if you happen to be in Downtown Vancouver",
+            "sentiment_context": "We had lunch with my husband in the Nightingale. It was nothing but amazing experience. Food quality, freshness and presentation were 5 stars I also ordered a local BC cider and wow 🤩 such a clean bea"
+          },
+          {
+            "review_index": 9,
+            "review_text": "Four of us had a late lunch over the weekend and everything was fantastic. I do not recall our servers name. She was engaging and her service was excellent. I have been to Nightingale only twice and both times the food was on point combined with a great experience so I will be back. Thank you, Bruce Shaver",
+            "sentiment_context": "Four of us had a late lunch over the weekend and everything was fantastic. I do not recall our servers name. She was engaging and her service was excellent. I have been to Nightingale only twice and b"
+          },
+          {
+            "review_index": 12,
+            "review_text": "Not my first visit here, and definitely not my last. I keep coming back because I truly love the Nightingale experience. Everything makes it special — the beautiful décor, warm ambiance, attentive service, and of course, the absolutely finger-licking-good dishes. P.S. My last visit was on par with all the others. My only wish is for the music volume to be just a touch lower so conversations can flow as effortlessly as the food does. After all, great dining is best enjoyed with great company.",
+            "sentiment_context": "Not my first visit here, and definitely not my last. I keep coming back because I truly love the Nightingale experience. Everything makes it special — the beautiful décor, warm ambiance, attentive ser"
+          },
+          {
+            "review_index": 14,
+            "review_text": "We were really impressed with the service from the get-go and the lively ambience. The way the food plates are shared was a refreshing way to approach dinner. The food was outstanding. We were especially impressed with the woodfired pizza and the beat salad. Our only suggestion would be to include a bit more substance on the braised ribs.",
+            "sentiment_context": "We were really impressed with the service from the get-go and the lively ambience. The way the food plates are shared was a refreshing way to approach dinner. The food was outstanding. We were especia"
+          },
+          {
+            "review_index": 18,
+            "review_text": "Food was spot on and the server was awesome. We really enjoyed our meal and experience. A favourite place to go for sure.",
+            "sentiment_context": "Food was spot on and the server was awesome. We really enjoyed our meal and experience. A favourite place to go for sure."
+          },
+          {
+            "review_index": 19,
+            "review_text": "Every bite was fantastic, with great drinks (both cocktails and mocktails) to wash them down. The family style eating ensures a wealth of different flavour combinations, and I am eager to return to try more. Not a complaint, but it was almost too loud to hear the server or each other while eating - just something to consider if you're hoping for a quieter night out. The sweet potato, brick pressed chicken, and short rib were our personal favourites.",
+            "sentiment_context": "Every bite was fantastic, with great drinks (both cocktails and mocktails) to wash them down. The family style eating ensures a wealth of different flavour combinations, and I am eager to return to tr"
+          }
+        ],
+        "summary": "Food quality receives exceptional praise from customers, with multiple reviews describing it as superb, fantastic, and consistently excellent across visits. Customers specifically highlight the outstanding taste, freshness, and 5-star presentation of dishes, with many expressing eagerness to return. The food quality is cited as a key reason for customer loyalty and repeat visits."
+      },
+      {
+        "name": "ambiance",
+        "mention_count": 5,
+        "sentiment": 0.9,
+        "description": "Overall atmosphere and vibe",
+        "related_reviews": [
+          {
+            "review_index": 0,
+            "review_text": "First off, the ambiance? Incredible. The second you walk in, it’s got that warm, inviting vibe that makes you feel like you’ve been there a dozen times already. Cozy lighting, great energy, music on point — just exceptional all the way around. Now… the meatball. Listen. I wasn’t ready. This was one of those meatballs where you take one bite and immediately look around the room like, “Did anyone else just taste that?!” Just amazing. Overall, 10/10. Loved the spot, loved the vibe, loved the food — I honestly can’t wait to come back. Canada, you did not disappoint.",
+            "sentiment_context": "First off, the ambiance? Incredible. The second you walk in, it’s got that warm, inviting vibe that makes you feel like you’ve been there a dozen times already. Cozy lighting, great energy, music on p"
+          },
+          {
+            "review_index": 2,
+            "review_text": "Nightingale is consistently excellent.....the food is superb, the service is wonderful, the ambience is lovely and all three categories can be depended on. It is a treat to go there!",
+            "sentiment_context": "Nightingale is consistently excellent.....the food is superb, the service is wonderful, the ambience is lovely and all three categories can be depended on. It is a treat to go there!"
+          },
+          {
+            "review_index": 4,
+            "review_text": "We had lunch with my husband in the Nightingale. It was nothing but amazing experience. Food quality, freshness and presentation were 5 stars I also ordered a local BC cider and wow 🤩 such a clean beautiful bubbly drink. Our server Caesar was very attentive. Everything was perfect in Nightingale and the interior is very welcoming and relaxing. I highly recommend to eat there if you happen to be in Downtown Vancouver",
+            "sentiment_context": "We had lunch with my husband in the Nightingale. It was nothing but amazing experience. Food quality, freshness and presentation were 5 stars I also ordered a local BC cider and wow 🤩 such a clean bea"
+          },
+          {
+            "review_index": 5,
+            "review_text": "We went here for the first time for my wife’s birthday. The service was outstanding with Oscar providing recommendations at our request and timing our dishes with impeccable taste. The atmosphere was lively but we had a table that was private and quiet enough to allow us to enjoy our evening while feeling a part of the action. The decor was tasteful and catchy. Finally the food was delicious but very healthy. Dessert have the salted caramel cup! Highly recommend!",
+            "sentiment_context": "We went here for the first time for my wife’s birthday. The service was outstanding with Oscar providing recommendations at our request and timing our dishes with impeccable taste. The atmosphere was "
+          },
+          {
+            "review_index": 12,
+            "review_text": "Not my first visit here, and definitely not my last. I keep coming back because I truly love the Nightingale experience. Everything makes it special — the beautiful décor, warm ambiance, attentive service, and of course, the absolutely finger-licking-good dishes. P.S. My last visit was on par with all the others. My only wish is for the music volume to be just a touch lower so conversations can flow as effortlessly as the food does. After all, great dining is best enjoyed with great company.",
+            "sentiment_context": "Not my first visit here, and definitely not my last. I keep coming back because I truly love the Nightingale experience. Everything makes it special — the beautiful décor, warm ambiance, attentive ser"
+          }
+        ],
+        "summary": "The ambiance receives overwhelmingly positive feedback, with customers describing it as incredible, warm, and inviting with cozy lighting and great energy. Guests consistently mention the beautiful décor and lovely atmosphere that makes them feel comfortable and welcomed. The ambiance is considered a key component of the overall Nightingale experience that keeps customers returning."
+      },
+      {
+        "name": "noise level",
+        "mention_count": 3,
+        "sentiment": 0.4,
+        "description": "Volume of restaurant environment",
+        "related_reviews": [
+          {
+            "review_index": 12,
+            "review_text": "Not my first visit here, and definitely not my last. I keep coming back because I truly love the Nightingale experience. Everything makes it special — the beautiful décor, warm ambiance, attentive service, and of course, the absolutely finger-licking-good dishes. P.S. My last visit was on par with all the others. My only wish is for the music volume to be just a touch lower so conversations can flow as effortlessly as the food does. After all, great dining is best enjoyed with great company.",
+            "sentiment_context": "Not my first visit here, and definitely not my last. I keep coming back because I truly love the Nightingale experience. Everything makes it special — the beautiful décor, warm ambiance, attentive ser"
+          },
+          {
+            "review_index": 16,
+            "review_text": "We are a group of 8 girl friends who meet annually to celebrate the year around the holiday season. For most of us it was our first time at Nightingale. We were there for lunch and the place was packed. They gave us a nice big table so had enough space for us all ! Our server Remy was very good and detail oriented. She gave us the information required, provided excellent service. Everything we ordered was delicious and they all thanked me for choosing this location for our get together. The noise level initially was loud but quietened down after a while. Overall we had an amazing time !",
+            "sentiment_context": "We are a group of 8 girl friends who meet annually to celebrate the year around the holiday season. For most of us it was our first time at Nightingale. We were there for lunch and the place was packe"
+          },
+          {
+            "review_index": 19,
+            "review_text": "Every bite was fantastic, with great drinks (both cocktails and mocktails) to wash them down. The family style eating ensures a wealth of different flavour combinations, and I am eager to return to try more. Not a complaint, but it was almost too loud to hear the server or each other while eating - just something to consider if you're hoping for a quieter night out. The sweet potato, brick pressed chicken, and short rib were our personal favourites.",
+            "sentiment_context": "Every bite was fantastic, with great drinks (both cocktails and mocktails) to wash them down. The family style eating ensures a wealth of different flavour combinations, and I am eager to return to tr"
+          }
+        ],
+        "summary": "Customer feedback on noise levels is mixed, with some guests noting challenges in conversation during busy periods. The restaurant can become quite packed during peak times like lunch service, which appears to impact the acoustic environment. This seems to be more of a concern for larger groups trying to have conversations."
+      },
+      {
+        "name": "seating comfort",
+        "mention_count": 2,
+        "sentiment": 0.6,
+        "description": "Table location and comfort",
+        "related_reviews": [
+          {
+            "review_index": 6,
+            "review_text": "First, I want to say that I’m a big fan of Nightingale. Every time I’m in Vancouver, I try to fit in a dinner at your restaurant. The food and the staff are always excellent. It’s consistently a great experience. In the past, I’ve usually had a table on the patio, the first floor, or at the bar, and all of those were wonderful. However, my recent experience on the second floor at a small table facing the kitchen was noticeably less positive. The ventilation in that area doesn’t seem strong enough, and our clothes and skin absorbed a lot of the kitchen fumes. Sitting side by side also made it a bit awkward to have a conversation with my colleague. If this had been my first experience at Nightingale, I’m not sure I would have come back in the future.",
+            "sentiment_context": "First, I want to say that I’m a big fan of Nightingale. Every time I’m in Vancouver, I try to fit in a dinner at your restaurant. The food and the staff are always excellent. It’s consistently a great"
+          },
+          {
+            "review_index": 16,
+            "review_text": "We are a group of 8 girl friends who meet annually to celebrate the year around the holiday season. For most of us it was our first time at Nightingale. We were there for lunch and the place was packed. They gave us a nice big table so had enough space for us all ! Our server Remy was very good and detail oriented. She gave us the information required, provided excellent service. Everything we ordered was delicious and they all thanked me for choosing this location for our get together. The noise level initially was loud but quietened down after a while. Overall we had an amazing time !",
+            "sentiment_context": "We are a group of 8 girl friends who meet annually to celebrate the year around the holiday season. For most of us it was our first time at Nightingale. We were there for lunch and the place was packe"
+          }
+        ],
+        "summary": "Seating comfort receives moderate feedback from customers, with some concerns raised about comfort levels during longer dining experiences. The issue appears to be more noticeable when the restaurant is packed, suggesting that seating arrangements may feel cramped during busy periods."
+      },
+      {
+        "name": "portion size",
+        "mention_count": 2,
+        "sentiment": 0.4,
+        "description": "Amount of food served",
+        "related_reviews": [
+          {
+            "review_index": 14,
+            "review_text": "We were really impressed with the service from the get-go and the lively ambience. The way the food plates are shared was a refreshing way to approach dinner. The food was outstanding. We were especially impressed with the woodfired pizza and the beat salad. Our only suggestion would be to include a bit more substance on the braised ribs.",
+            "sentiment_context": "We were really impressed with the service from the get-go and the lively ambience. The way the food plates are shared was a refreshing way to approach dinner. The food was outstanding. We were especia"
+          },
+          {
+            "review_index": 15,
+            "review_text": "Pricy for size of servings and unexpected amount of bones in a deboned butterflied fish dish. Tasty Asian flavoured brussels sprouts. Matcha opera cake was ok, barely taste the matcha. All around friendly, attentive service. The 2 of us shared a Roasted whole branzino, chimichurri, charred lemon ($46); a Roasted brussels sprouts, green onion, thai chili vinaigrette )$18). Although both of us are considered small eaters, these dishes might be just enough for one. Looking around nearby tables, I’d say that applies to many of the ‘large’ dishes. Treat them as appies.",
+            "sentiment_context": "Pricy for size of servings and unexpected amount of bones in a deboned butterflied fish dish. Tasty Asian flavoured brussels sprouts. Matcha opera cake was ok, barely taste the matcha. All around frie"
+          }
+        ],
+        "summary": "Customer opinions on portion sizes are mixed, with some finding the portions small relative to the price point. One customer specifically noted that servings felt insufficient for the cost, though others seem satisfied with the sharing plate format. This appears to be a value perception issue rather than a universal complaint."
+      },
+      {
+        "name": "sharing style",
+        "mention_count": 2,
+        "sentiment": 1.0,
+        "description": "Family style dining approach",
+        "related_reviews": [
+          {
+            "review_index": 14,
+            "review_text": "We were really impressed with the service from the get-go and the lively ambience. The way the food plates are shared was a refreshing way to approach dinner. The food was outstanding. We were especially impressed with the woodfired pizza and the beat salad. Our only suggestion would be to include a bit more substance on the braised ribs.",
+            "sentiment_context": "We were really impressed with the service from the get-go and the lively ambience. The way the food plates are shared was a refreshing way to approach dinner. The food was outstanding. We were especia"
+          },
+          {
+            "review_index": 17,
+            "review_text": "Wonderful service and delicious! We really enjoyed the “share plates” our server said the Japanese potato was her favourite - of course we needed to try - now it’s my favourite too! Can’t wait to go back & try new amazing items!",
+            "sentiment_context": "Wonderful service and delicious! We really enjoyed the “share plates” our server said the Japanese potato was her favourite - of course we needed to try - now it’s my favourite too! Can’t wait to go b"
+          }
+        ],
+        "summary": "The sharing plate concept receives universally positive feedback from customers who appreciate this refreshing approach to dining. Guests enjoy the family-style eating format that allows them to experience a variety of flavor combinations throughout their meal. The sharing style is viewed as a distinctive and appealing aspect of the Nightingale dining experience."
+      },
+      {
+        "name": "presentation",
+        "mention_count": 1,
+        "sentiment": 1.0,
+        "description": "Visual appeal of dishes",
+        "related_reviews": [
+          {
+            "review_index": 4,
+            "review_text": "We had lunch with my husband in the Nightingale. It was nothing but amazing experience. Food quality, freshness and presentation were 5 stars I also ordered a local BC cider and wow 🤩 such a clean beautiful bubbly drink. Our server Caesar was very attentive. Everything was perfect in Nightingale and the interior is very welcoming and relaxing. I highly recommend to eat there if you happen to be in Downtown Vancouver",
+            "sentiment_context": "We had lunch with my husband in the Nightingale. It was nothing but amazing experience. Food quality, freshness and presentation were 5 stars I also ordered a local BC cider and wow 🤩 such a clean bea"
+          }
+        ],
+        "summary": "Food presentation receives perfect marks from customers, with one guest specifically rating it as 5 stars. The visual appeal of dishes contributes significantly to the overall dining experience and customer satisfaction."
+      },
+      {
+        "name": "freshness",
+        "mention_count": 1,
+        "sentiment": 1.0,
+        "description": "Quality of ingredients",
+        "related_reviews": [
+          {
+            "review_index": 4,
+            "review_text": "We had lunch with my husband in the Nightingale. It was nothing but amazing experience. Food quality, freshness and presentation were 5 stars I also ordered a local BC cider and wow 🤩 such a clean beautiful bubbly drink. Our server Caesar was very attentive. Everything was perfect in Nightingale and the interior is very welcoming and relaxing. I highly recommend to eat there if you happen to be in Downtown Vancouver",
+            "sentiment_context": "We had lunch with my husband in the Nightingale. It was nothing but amazing experience. Food quality, freshness and presentation were 5 stars I also ordered a local BC cider and wow 🤩 such a clean bea"
+          }
+        ],
+        "summary": "Ingredient freshness is highly praised by customers, with one reviewer specifically giving it a 5-star rating alongside food quality and presentation. This attention to fresh ingredients appears to be a notable strength of the kitchen."
+      },
+      {
+        "name": "value",
+        "mention_count": 1,
+        "sentiment": 0.3,
+        "description": "Price relative to portion size",
+        "related_reviews": [
+          {
+            "review_index": 15,
+            "review_text": "Pricy for size of servings and unexpected amount of bones in a deboned butterflied fish dish. Tasty Asian flavoured brussels sprouts. Matcha opera cake was ok, barely taste the matcha. All around friendly, attentive service. The 2 of us shared a Roasted whole branzino, chimichurri, charred lemon ($46); a Roasted brussels sprouts, green onion, thai chili vinaigrette )$18). Although both of us are considered small eaters, these dishes might be just enough for one. Looking around nearby tables, I’d say that applies to many of the ‘large’ dishes. Treat them as appies.",
+            "sentiment_context": "Pricy for size of servings and unexpected amount of bones in a deboned butterflied fish dish. Tasty Asian flavoured brussels sprouts. Matcha opera cake was ok, barely taste the matcha. All around frie"
+          }
+        ],
+        "summary": "Value perception is a concern for some customers, with feedback indicating that prices feel high relative to portion sizes. One guest specifically noted that the restaurant is \"pricy for size of servings,\" suggesting that the cost-to-portion ratio may not meet all customers' expectations."
+      },
+      {
+        "name": "ventilation",
+        "mention_count": 1,
+        "sentiment": 0.2,
+        "description": "Air quality and kitchen fumes",
+        "related_reviews": [
+          {
+            "review_index": 6,
+            "review_text": "First, I want to say that I’m a big fan of Nightingale. Every time I’m in Vancouver, I try to fit in a dinner at your restaurant. The food and the staff are always excellent. It’s consistently a great experience. In the past, I’ve usually had a table on the patio, the first floor, or at the bar, and all of those were wonderful. However, my recent experience on the second floor at a small table facing the kitchen was noticeably less positive. The ventilation in that area doesn’t seem strong enough, and our clothes and skin absorbed a lot of the kitchen fumes. Sitting side by side also made it a bit awkward to have a conversation with my colleague. If this had been my first experience at Nightingale, I’m not sure I would have come back in the future.",
+            "sentiment_context": "First, I want to say that I’m a big fan of Nightingale. Every time I’m in Vancouver, I try to fit in a dinner at your restaurant. The food and the staff are always excellent. It’s consistently a great"
+          }
+        ],
+        "summary": "Customer feedback regarding ventilation shows mixed sentiment, though the single mention comes from a loyal customer who regularly visits Nightingale Vancouver. While the specific ventilation concern isn't detailed in the provided context, it appears to be part of broader feedback from someone who otherwise praises the food and staff excellence. This suggests the ventilation issue may be a minor concern that doesn't significantly impact the overall positive dining experience."
+      },
+      {
+        "name": "menu variety",
+        "mention_count": 1,
+        "sentiment": 1.0,
+        "description": "Uniqueness of menu options",
+        "related_reviews": [
+          {
+            "review_index": 8,
+            "review_text": "Very unique menu and dining style. Helpful friendly staff at a levels.",
+            "sentiment_context": "Very unique menu and dining style. Helpful friendly staff at a levels."
+          }
+        ],
+        "summary": "Customers express highly positive sentiment about Nightingale's menu variety, specifically praising its uniqueness and distinctive dining style. The feedback indicates that guests appreciate the restaurant's creative approach to menu offerings, which sets it apart from other dining establishments. This unique menu variety appears to be a key differentiator that contributes to customer satisfaction."
+      }
+    ],
+    "total_aspects": 12
+  },
+  "insights": {
+    "chef": {
+      "summary": "Kitchen performance shows exceptional execution across signature items with outstanding food quality (0.90 sentiment). Pizza program and Brussels sprouts are standout performers, though portion sizes show room for optimization.",
+      "strengths": [
+        "Pizza program excelling with multiple variants receiving perfect scores (woodfired pizza, spicy salami pizza both at +1.00 sentiment)",
+        "Brussels sprouts achieving perfect +1.00 sentiment across 3 mentions, indicating consistent preparation excellence",
+        "Meatball execution flawless with +1.00 sentiment, demonstrating strong protein cookery skills"
+      ],
+      "concerns": [
+        "Portion sizes receiving modest +0.40 sentiment across 2 mentions, suggesting inconsistency or customer value perception issues",
+        "Matcha opera cake underperforming at +0.40 sentiment, indicating potential pastry execution challenges"
+      ],
+      "recommendations": [
+        {
+          "priority": "high",
+          "action": "Standardize portion control protocols and train kitchen staff on consistent plating weights",
+          "reason": "Address portion size concerns while maintaining food cost control",
+          "evidence": "Portion size sentiment at +0.40 with 2 mentions indicates customer dissatisfaction"
+        },
+        {
+          "priority": "high",
+          "action": "Leverage Brussels sprouts preparation technique across other vegetable dishes",
+          "reason": "Perfect +1.00 sentiment shows exceptional vegetable cookery that could elevate entire menu",
+          "evidence": "Brussels sprouts achieved +1.00 sentiment with 3 mentions"
+        },
+        {
+          "priority": "medium",
+          "action": "Review matcha opera cake recipe and pastry team execution for consistency improvements",
+          "reason": "Dessert underperformance could impact overall dining experience completion",
+          "evidence": "Matcha opera cake at +0.40 sentiment, significantly below kitchen average"
+        }
+      ]
+    },
+    "manager": {
+      "summary": "Nightingale Vancouver demonstrates exceptional service quality with highly positive customer feedback across 9 mentions. However, limited feedback on value perception suggests potential pricing concerns that warrant attention.",
+      "strengths": [
+        "Outstanding service quality with +0.80 sentiment score across multiple customer touchpoints",
+        "Consistent positive customer experiences indicating well-trained staff",
+        "Strong operational foundation with service excellence as a competitive advantage"
+      ],
+      "concerns": [
+        "Limited positive sentiment on value (+0.30) suggests potential pricing perception issues",
+        "Insufficient customer feedback volume on value proposition may indicate communication gaps"
+      ],
+      "recommendations": [
+        {
+          "priority": "high",
+          "action": "Implement staff recognition program to maintain exceptional service standards",
+          "reason": "Service quality is your strongest operational asset and must be preserved",
+          "evidence": "Service quality shows +0.80 sentiment with 9 positive mentions"
+        },
+        {
+          "priority": "high",
+          "action": "Review and enhance value communication strategy with staff training on menu explanations",
+          "reason": "Low value sentiment could impact customer retention and revenue",
+          "evidence": "Value sentiment only +0.30 with minimal customer mentions"
+        }
+      ]
+    }
+  },
+  "summary": {
+    "total_steps": 12,
+    "completed_steps": 12,
+    "successful_steps": 12,
+    "failed_steps": 0,
+    "execution_time": "1.20s",
+    "success": true
+  }
+}

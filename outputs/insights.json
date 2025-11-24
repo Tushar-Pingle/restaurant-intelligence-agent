@@ -1,35 +1,59 @@
 {
   "chef": {
-    "summary": "Unable to generate chef insights at this time.",
+    "summary": "Kitchen performance shows exceptional execution across signature items with outstanding food quality (0.90 sentiment). Pizza program and Brussels sprouts are standout performers, though portion sizes show room for optimization.",
     "strengths": [
-      "Analysis data available for review"
+      "Pizza program excelling with multiple variants receiving perfect scores (woodfired pizza, spicy salami pizza both at +1.00 sentiment)",
+      "Brussels sprouts achieving perfect +1.00 sentiment across 3 mentions, indicating consistent preparation excellence",
+      "Meatball execution flawless with +1.00 sentiment, demonstrating strong protein cookery skills"
     ],
     "concerns": [
-      "Insight generation encountered an error"
+      "Portion sizes receiving modest +0.40 sentiment across 2 mentions, suggesting inconsistency or customer value perception issues",
+      "Matcha opera cake underperforming at +0.40 sentiment, indicating potential pastry execution challenges"
     ],
     "recommendations": [
       {
         "priority": "high",
-        "action": "Retry insight generation",
-        "reason": "Complete analysis requires insights",
-        "evidence": "System error"
+        "action": "Standardize portion control protocols and train kitchen staff on consistent plating weights",
+        "reason": "Address portion size concerns while maintaining food cost control",
+        "evidence": "Portion size sentiment at +0.40 with 2 mentions indicates customer dissatisfaction"
+      },
+      {
+        "priority": "high",
+        "action": "Leverage Brussels sprouts preparation technique across other vegetable dishes",
+        "reason": "Perfect +1.00 sentiment shows exceptional vegetable cookery that could elevate entire menu",
+        "evidence": "Brussels sprouts achieved +1.00 sentiment with 3 mentions"
+      },
+      {
+        "priority": "medium",
+        "action": "Review matcha opera cake recipe and pastry team execution for consistency improvements",
+        "reason": "Dessert underperformance could impact overall dining experience completion",
+        "evidence": "Matcha opera cake at +0.40 sentiment, significantly below kitchen average"
       }
     ]
   },
   "manager": {
-    "summary": "Unable to generate manager insights at this time.",
+    "summary": "Nightingale Vancouver demonstrates exceptional service quality with highly positive customer feedback across 9 mentions. However, limited feedback on value perception suggests potential pricing concerns that warrant attention.",
     "strengths": [
-      "Analysis data available for review"
+      "Outstanding service quality with +0.80 sentiment score across multiple customer touchpoints",
+      "Consistent positive customer experiences indicating well-trained staff",
+      "Strong operational foundation with service excellence as a competitive advantage"
     ],
     "concerns": [
-      "Insight generation encountered an error"
+      "Limited positive sentiment on value (+0.30) suggests potential pricing perception issues",
+      "Insufficient customer feedback volume on value proposition may indicate communication gaps"
     ],
     "recommendations": [
       {
         "priority": "high",
-        "action": "Retry insight generation",
-        "reason": "Complete analysis requires insights",
-        "evidence": "System error"
+        "action": "Implement staff recognition program to maintain exceptional service standards",
+        "reason": "Service quality is your strongest operational asset and must be preserved",
+        "evidence": "Service quality shows +0.80 sentiment with 9 positive mentions"
+      },
+      {
+        "priority": "high",
+        "action": "Review and enhance value communication strategy with staff training on menu explanations",
+        "reason": "Low value sentiment could impact customer retention and revenue",
+        "evidence": "Value sentiment only +0.30 with minimal customer mentions"
       }
     ]
   }

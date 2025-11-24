@@ -451,7 +451,7 @@ Each menu item and aspect includes:
 
 ---
 
-## 🎯 Current Status (Day 12 Complete)
+## 🎯 Current Status (Day 15 Complete)
 
 ### ✅ **COMPLETED**
 - [x] Production-ready OpenTable scraper with error handling
@@ -465,20 +465,36 @@ Each menu item and aspect includes:
 - [x] Complete end-to-end pipeline
 - [x] Batch processing for 1000+ reviews
 - [x] Comprehensive error handling and retry logic
-
-### 🚧 **IN PROGRESS** (Days 13-15)
-- [ ] Gradio 6 UI for interactive analysis
-  - File upload for reviews (CSV/JSON)
-  - Real-time analysis progress
-  - Interactive charts (aspect/menu sentiment)
-  - Side-by-side Chef/Manager views
+- [x] **Gradio 6 UI for interactive analysis** ⭐ NEW
+  - Real-time analysis progress with yield-based updates
+  - Interactive charts (menu/aspect sentiment)
+  - Three-tab layout: Chef Insights, Manager Insights, Q&A
+  - Drill-down dropdowns for menu items and aspects
   - Mobile-responsive design
+  - Context persistence with gr.State()
+- [x] **Q&A System (RAG)** ⭐ NEW
+  - Keyword-based review search (searches all indexed reviews)
+  - Natural language questions over review data
+  - Cites specific review numbers in answers
+  - Works with 20-1000+ reviews
+- [x] **Insights Formatting** ⭐ NEW
+  - Clean bullet points (no JSON artifacts)
+  - Handles lists, dicts, and mixed formats
+  - Extracts action items from recommendations
+- [x] **Rate Limit Management** ⭐ NEW
+  - 15-second delay between chef and manager insights
+  - Successfully handles 100+ reviews with no 429 errors
+  - Tested with 20 and 100 reviews ✅
+
+### 🚧 **IN PROGRESS** (Days 16-17)
+- [ ] Modal backend deployment (API endpoints for faster processing)
+- [ ] HuggingFace Space frontend deployment
 - [ ] Anomaly detection (spike in negative reviews)
 - [ ] Comparison mode (restaurant vs. competitors)
 
-### ⏳ **PLANNED** (Days 16-17)
+### ⏳ **PLANNED** (Days 18-19)
 - [ ] Demo video (3 minutes)
-  - Show: upload → agent planning → analysis → insights → MCP actions
+  - Show: upload → agent planning → analysis → insights → Q&A
 - [ ] Social media post (Twitter/LinkedIn)
   - Compelling story about real-world impact
 - [ ] Final hackathon submission

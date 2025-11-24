@@ -6,6 +6,7 @@ Reduces API calls by 66% by extracting menu+aspects in single pass
 import os
 import sys
 import json
+import time
 from typing import List, Dict, Any, Optional, Callable
 from datetime import datetime
 from anthropic import Anthropic
@@ -170,6 +171,9 @@ class RestaurantAnalysisAgent:
         
         # Phase 7: Generate business insights
         self._log_reasoning("Phase 7: Generating business insights...")
+        self._log_reasoning("⏳ Waiting 30s to avoid rate limits...")
+        time.sleep(30)
+        
         analysis_data = {
             'restaurant_name': restaurant_name,
             'execution_results': execution_results['results'],
@@ -182,6 +186,9 @@ class RestaurantAnalysisAgent:
             analysis_data=analysis_data, role='chef', restaurant_name=restaurant_name
         )
         
+        self._log_reasoning("⏳ Waiting 30s before generating manager insights to avoid rate limits...")
+        time.sleep(30)
+
         manager_insights = self.insights_generator.generate_insights(
             analysis_data=analysis_data, role='manager', restaurant_name=restaurant_name
         )
