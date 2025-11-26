@@ -1,560 +1,734 @@
 """
-Gradio 6 Interface for Restaurant Intelligence Agent
-Hackathon Submission: MCP-1st-Birthday Track 2 - Productivity
+Restaurant Intelligence Agent - Enhanced Gradio 6 Interface
+Professional UI with cards, plain English summaries, polished layout
+
+Hackathon: Anthropic MCP 1st Birthday - Track 2 (Productivity)
+Author: Tushar Pingle
 """
 
 import gradio as gr
-from gradio import State
 import os
-import sys
-import json
 import ast
-import re
+import requests
+from typing import Optional, Tuple, List
+import tempfile
 
-# Add project root to path
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+# ============================================================================
+# CONFIGURATION
+# ============================================================================
 
-from src.scrapers.opentable_scraper import scrape_opentable
-from src.data_processing import process_reviews, clean_reviews_for_ai
-from src.agent.base_agent import RestaurantAnalysisAgent
+MODAL_API_URL = os.getenv(
+    "MODAL_API_URL",
+    "https://tushar-pingle--restaurant-intelligence-fastapi-app.modal.run"
+)
 
+# ============================================================================
+# SENTIMENT TRANSLATOR - Plain English Summaries
+# ============================================================================
 
-def clean_insight_text(text):
-    """
-    Clean up insight text that may contain list formatting or JSON artifacts.
-    Handles recommendations with priority/action/reason structure.
+def translate_menu_performance(menu_data: dict, restaurant_name: str) -> str:
+    """Convert menu analysis into plain English summary."""
+    food_items = menu_data.get('food_items', [])
+    drinks = menu_data.get('drinks', [])
+    all_items = food_items + drinks
     
-    Args:
-        text: Raw text that might be a list or have brackets/quotes
-        
-    Returns:
-        Clean, formatted text with bullet points
-    """
+    if not all_items:
+        return "No menu items were identified in the reviews."
+    
+    total = len(all_items)
+    positive = [i for i in all_items if i.get('sentiment', 0) > 0.3]
+    neutral = [i for i in all_items if -0.3 <= i.get('sentiment', 0) <= 0.3]
+    negative = [i for i in all_items if i.get('sentiment', 0) < -0.3]
+    
+    pos_pct = round((len(positive) / total) * 100)
+    neu_pct = round((len(neutral) / total) * 100)
+    neg_pct = round((len(negative) / total) * 100)
+    
+    # Top performers and concerns
+    sorted_items = sorted(all_items, key=lambda x: x.get('sentiment', 0), reverse=True)
+    top_3 = [i.get('name', 'Unknown') for i in sorted_items[:3]]
+    bottom_3 = [i.get('name', 'Unknown') for i in sorted_items[-3:] if i.get('sentiment', 0) < 0.3]
+    
+    summary = f"""**📊 Menu Performance Overview for {restaurant_name}**
+
+Customers mentioned **{total} menu items** ({len(food_items)} food, {len(drinks)} drinks).
+
+**Sentiment Breakdown:**
+- 🟢 **{pos_pct}%** received positive feedback ({len(positive)} items)
+- 🟡 **{neu_pct}%** received mixed feedback ({len(neutral)} items)
+- 🔴 **{neg_pct}%** received negative feedback ({len(negative)} items)
+
+**⭐ Top Performers:** {', '.join(top_3) if top_3 else 'N/A'}
+"""
+    
+    if bottom_3:
+        summary += f"\n**⚠️ Needs Attention:** {', '.join(bottom_3)}"
+    
+    summary += "\n\n💡 *Select a menu item from the dropdown below for detailed customer feedback.*"
+    
+    return summary
+
+
+def translate_aspect_performance(aspect_data: dict, restaurant_name: str) -> str:
+    """Convert aspect analysis into plain English summary."""
+    aspects = aspect_data.get('aspects', [])
+    
+    if not aspects:
+        return "No aspects were identified in the reviews."
+    
+    total = len(aspects)
+    positive = [a for a in aspects if a.get('sentiment', 0) > 0.3]
+    neutral = [a for a in aspects if -0.3 <= a.get('sentiment', 0) <= 0.3]
+    negative = [a for a in aspects if a.get('sentiment', 0) < -0.3]
+    
+    pos_pct = round((len(positive) / total) * 100)
+    neu_pct = round((len(neutral) / total) * 100)
+    neg_pct = round((len(negative) / total) * 100)
+    
+    sorted_aspects = sorted(aspects, key=lambda x: x.get('sentiment', 0), reverse=True)
+    strengths = [a.get('name', 'Unknown') for a in sorted_aspects[:3]]
+    concerns = [a.get('name', 'Unknown') for a in sorted_aspects[-3:] if a.get('sentiment', 0) < 0.3]
+    
+    summary = f"""**📊 Operations & Service Overview for {restaurant_name}**
+
+Customers discussed **{total} different aspects** of their experience.
+
+**Sentiment Breakdown:**
+- 🟢 **{pos_pct}%** positive feedback ({len(positive)} aspects)
+- 🟡 **{neu_pct}%** mixed feedback ({len(neutral)} aspects)
+- 🔴 **{neg_pct}%** negative feedback ({len(negative)} aspects)
+
+**💪 Strengths:** {', '.join(strengths) if strengths else 'N/A'}
+"""
+    
+    if concerns:
+        summary += f"\n**⚠️ Areas for Improvement:** {', '.join(concerns)}"
+    
+    summary += "\n\n💡 *Select an aspect from the dropdown below for detailed analysis.*"
+    
+    return summary
+
+
+# ============================================================================
+# UTILITY FUNCTIONS
+# ============================================================================
+
+def clean_insight_text(text) -> str:
+    """Clean up insight text."""
+    if text is None:
+        return "No data available"
+    
     if isinstance(text, list):
-        # Handle list of dicts (recommendations format)
         if text and isinstance(text[0], dict):
-            cleaned_items = []
-            for item in text:
-                if 'action' in item:
-                    cleaned_items.append(item['action'])
-                else:
-                    cleaned_items.append(str(item))
-            return '\n\n'.join(f"• {item}" for item in cleaned_items)
-        # Handle simple list
-        return '\n\n'.join(f"• {item}" for item in text)
+            items = [item.get('action', str(item)) for item in text]
+            return '\n'.join(f"• {item}" for item in items)
+        return '\n'.join(f"• {str(item)}" for item in text)
     
-    elif isinstance(text, str):
+    if isinstance(text, dict):
+        return f"• {text.get('action', str(text))}"
+    
+    if isinstance(text, str):
         text = text.strip()
-        
-        # Handle [{'priority': 'high', 'action': '...'}] style formatting
-        if text.startswith('[{') and text.endswith('}]'):
-            try:
-                # Try to parse as Python list of dicts
-                parsed = ast.literal_eval(text)
-                if isinstance(parsed, list) and parsed and isinstance(parsed[0], dict):
-                    actions = [item.get('action', str(item)) for item in parsed]
-                    return '\n\n'.join(f"• {action}" for action in actions)
-            except:
-                # If parsing fails, try regex extraction
-                try:
-                    actions = re.findall(r"'action':\s*'([^']+)'", text)
-                    if actions:
-                        return '\n\n'.join(f"• {action}" for action in actions)
-                except:
-                    pass
-        
-        # Handle simple list format
-        if text.startswith('[') and text.endswith(']'):
+        if text.startswith('[') or text.startswith('{'):
             try:
                 parsed = ast.literal_eval(text)
-                if isinstance(parsed, list):
-                    # Handle list of dicts
-                    if parsed and isinstance(parsed[0], dict):
-                        actions = [item.get('action', str(item)) for item in parsed]
-                        return '\n\n'.join(f"• {action}" for action in actions)
-                    # Handle simple list
-                    return '\n\n'.join(f"• {item}" for item in parsed)
+                return clean_insight_text(parsed)
             except:
-                # Remove brackets and continue processing
-                text = text.strip('[]')
-        
-        # Clean up quotes and convert comma-separated to bullets
-        text = text.replace('", "', '\n• ').replace("', '", '\n• ').strip('"\'')
-        
-        # If already has bullets, return as is
-        if '\n• ' in text and not text.startswith('• '):
-            text = '• ' + text
-        
-        return text
+                pass
+        return text.strip('"\'[]')
     
     return str(text)
 
 
-def analyze_restaurant_interface(
-    url: str,
-    review_count: int,
-    progress=gr.Progress()
-):
-    """
-    Main analysis function called by Gradio interface.
+def format_insights(insights: dict, role: str) -> str:
+    """Format insights into clean markdown."""
+    if not isinstance(insights, dict):
+        return str(insights)
     
-    Yields progress updates and final results.
-    """
+    emoji = "🍳" if role == "chef" else "👔"
+    title = "Kitchen & Menu" if role == "chef" else "Operations & Service"
+    
+    summary = insights.get('summary', 'Analysis complete.')
+    strengths = clean_insight_text(insights.get('strengths', []))
+    concerns = clean_insight_text(insights.get('concerns', []))
+    recommendations = clean_insight_text(insights.get('recommendations', []))
+    
+    return f"""### {emoji} {title} Insights
+
+**Summary:** {summary}
+
+**✅ Strengths:**
+{strengths}
+
+**⚠️ Concerns:**
+{concerns}
+
+**💡 Recommendations:**
+{recommendations}
+"""
+
+
+def generate_chart(items: list, title: str) -> Optional[str]:
+    """Generate professional dark-themed sentiment chart."""
+    if not items:
+        return None
+    
     try:
-        # Validate URL
-        if not url or "opentable" not in url.lower():
+        import matplotlib
+        matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+        
+        # Dark theme colors (matching Gradio dark mode)
+        BG_COLOR = '#1f2937'       # Dark background
+        TEXT_COLOR = '#e5e7eb'     # Light gray text
+        GRID_COLOR = '#374151'     # Subtle grid
+        POSITIVE = '#10b981'       # Green
+        NEUTRAL = '#f59e0b'        # Amber/Orange
+        NEGATIVE = '#ef4444'       # Red
+        
+        # Sort and limit
+        sorted_items = sorted(items, key=lambda x: x.get('sentiment', 0), reverse=True)[:10]
+        
+        names = [item.get('name', '?')[:20] for item in sorted_items]
+        sentiments = [item.get('sentiment', 0) for item in sorted_items]
+        mentions = [item.get('mention_count', 1) for item in sorted_items]
+        
+        # Colors based on sentiment
+        colors = [POSITIVE if s > 0.3 else NEUTRAL if s > -0.3 else NEGATIVE for s in sentiments]
+        
+        # Create figure with dark background
+        fig, ax = plt.subplots(figsize=(8, max(4, len(names) * 0.45)))
+        fig.patch.set_facecolor(BG_COLOR)
+        ax.set_facecolor(BG_COLOR)
+        
+        y_pos = range(len(names))
+        
+        # Create horizontal bars with rounded edges effect
+        bars = ax.barh(y_pos, sentiments, color=colors, height=0.65, 
+                      edgecolor=BG_COLOR, linewidth=1, alpha=0.9)
+        
+        # Style axes
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels(names, fontsize=10, color=TEXT_COLOR, fontweight='medium')
+        ax.set_xlabel('Sentiment Score', fontsize=10, color=TEXT_COLOR, fontweight='medium')
+        ax.set_title(title, fontsize=13, fontweight='bold', color=TEXT_COLOR, pad=15)
+        
+        # Zero line
+        ax.axvline(x=0, color=GRID_COLOR, linestyle='-', linewidth=1.5, alpha=0.8)
+        ax.set_xlim(-1, 1)
+        
+        # Value labels with background
+        for bar, sent, mention in zip(bars, sentiments, mentions):
+            label = f'{sent:+.2f}'
+            x_pos = bar.get_width() + 0.05 if bar.get_width() >= 0 else bar.get_width() - 0.12
+            ax.text(x_pos, bar.get_y() + bar.get_height()/2, label, 
+                   va='center', ha='left' if bar.get_width() >= 0 else 'right',
+                   fontsize=9, color=TEXT_COLOR, fontweight='bold')
+            
+            # Mention count on the left
+            ax.text(-0.95, bar.get_y() + bar.get_height()/2, f'({mention})', 
+                   va='center', ha='left', fontsize=8, color='#9ca3af', alpha=0.8)
+        
+        # Remove spines
+        for spine in ax.spines.values():
+            spine.set_visible(False)
+        
+        # Subtle grid
+        ax.xaxis.grid(True, color=GRID_COLOR, linestyle='-', linewidth=0.5, alpha=0.5)
+        ax.set_axisbelow(True)
+        
+        # X-axis ticks
+        ax.tick_params(axis='x', colors=TEXT_COLOR, labelsize=9)
+        ax.tick_params(axis='y', colors=TEXT_COLOR, left=False)
+        
+        # Legend with dark background
+        from matplotlib.patches import Patch
+        legend_elements = [
+            Patch(facecolor=POSITIVE, label='Positive', alpha=0.9),
+            Patch(facecolor=NEUTRAL, label='Mixed', alpha=0.9),
+            Patch(facecolor=NEGATIVE, label='Negative', alpha=0.9)
+        ]
+        legend = ax.legend(handles=legend_elements, loc='lower right', fontsize=8,
+                          facecolor=BG_COLOR, edgecolor=GRID_COLOR, labelcolor=TEXT_COLOR)
+        
+        plt.tight_layout()
+        
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
+            plt.savefig(f.name, dpi=120, bbox_inches='tight', 
+                       facecolor=BG_COLOR, edgecolor='none')
+            plt.close(fig)
+            return f.name
+        
+    except Exception as e:
+        print(f"Chart error: {e}")
+        return None
+
+
+def extract_restaurant_name(url: str) -> str:
+    """Extract restaurant name from URL."""
+    try:
+        path = url.split('?')[0].rstrip('/')
+        return path.split('/')[-1].replace('-', ' ').title()
+    except:
+        return "Restaurant"
+
+
+# ============================================================================
+# MAIN ANALYSIS FUNCTION
+# ============================================================================
+
+def analyze_restaurant(url: str, review_count: int):
+    """Main analysis - calls Modal API."""
+    
+    empty = {}
+    default_summary = "Run analysis to see performance overview."
+    default_insight = "Run analysis to see insights."
+    default_detail = "Select an item to see details."
+    empty_dropdown = gr.update(choices=[], value=None)
+    
+    # Validation
+    if not url or not url.strip():
+        return (
+            "❌ **Error:** Please enter an OpenTable restaurant URL.",
+            default_summary, None, default_insight, empty_dropdown, default_detail,
+            default_summary, None, default_insight, empty_dropdown, default_detail,
+            empty
+        )
+    
+    url = url.strip()
+    if "opentable" not in url.lower():
+        return (
+            "❌ **Error:** URL must be from OpenTable (e.g., opentable.com/r/restaurant-name)",
+            default_summary, None, default_insight, empty_dropdown, default_detail,
+            default_summary, None, default_insight, empty_dropdown, default_detail,
+            empty
+        )
+    
+    restaurant_name = extract_restaurant_name(url)
+    
+    try:
+        # Call Modal
+        response = requests.post(
+            f"{MODAL_API_URL}/analyze",
+            json={"url": url, "max_reviews": review_count},
+            timeout=1800
+        )
+        
+        if response.status_code != 200:
             return (
-                "❌ Error: Please enter a valid OpenTable URL",
-                None, "Run analysis to see chef insights", [], 
-                None, "Run analysis to see manager insights", [], 
-                "❌ Invalid URL", ""
+                f"❌ **API Error ({response.status_code}):** {response.text[:200]}",
+                default_summary, None, default_insight, empty_dropdown, default_detail,
+                default_summary, None, default_insight, empty_dropdown, default_detail,
+                empty
             )
         
-        # Phase 1: Scraping
-        progress(0.1, desc="📥 Scraping reviews from OpenTable...")
-        yield (
-            "📥 Scraping reviews from OpenTable...",
-            None, "Run analysis to see chef insights", [], 
-            None, "Run analysis to see manager insights", [], 
-            "⏳ In progress...", ""
+        data = response.json()
+        
+        if not data.get("success"):
+            return (
+                f"❌ **Analysis Failed:** {data.get('error', 'Unknown error')}",
+                default_summary, None, default_insight, empty_dropdown, default_detail,
+                default_summary, None, default_insight, empty_dropdown, default_detail,
+                empty
+            )
+        
+        # Extract data
+        menu = data.get('menu_analysis', {})
+        aspects = data.get('aspect_analysis', {})
+        insights = data.get('insights', {})
+        
+        food_items = menu.get('food_items', [])
+        drinks = menu.get('drinks', [])
+        aspect_list = aspects.get('aspects', [])
+        all_menu = food_items + drinks
+        
+        # State
+        state = {
+            "menu_analysis": menu,
+            "aspect_analysis": aspects,
+            "insights": insights,
+            "restaurant_name": restaurant_name
+        }
+        
+        # Plain English Summaries
+        menu_summary = translate_menu_performance(menu, restaurant_name)
+        aspect_summary = translate_aspect_performance(aspects, restaurant_name)
+        
+        # Insights
+        chef_insights = format_insights(insights.get('chef', {}), 'chef')
+        manager_insights = format_insights(insights.get('manager', {}), 'manager')
+        
+        # Charts
+        chef_chart = generate_chart(all_menu, f"Menu Item Sentiment")
+        manager_chart = generate_chart(aspect_list, f"Aspect Sentiment")
+        
+        # Dropdowns - use gr.update() for Gradio 6
+        chef_choices = [i.get('name', '?') for i in all_menu]
+        manager_choices = [a.get('name', '?') for a in aspect_list]
+        
+        chef_dropdown_update = gr.update(choices=chef_choices, value=None)
+        manager_dropdown_update = gr.update(choices=manager_choices, value=None)
+        
+        # Status
+        status = f"""✅ **Analysis Complete for {restaurant_name}!**
+
+**📊 Summary:**
+• Reviews analyzed: **{review_count}**
+• Menu items found: **{len(all_menu)}** ({len(food_items)} food, {len(drinks)} drinks)
+• Aspects discovered: **{len(aspect_list)}**
+
+👇 **Explore the tabs below for detailed insights!**
+"""
+        
+        return (
+            status,
+            menu_summary, chef_chart, chef_insights, chef_dropdown_update, default_detail,
+            aspect_summary, manager_chart, manager_insights, manager_dropdown_update, default_detail,
+            state
         )
         
-        result = scrape_opentable(url=url, max_reviews=review_count, headless=True)
-        
-        if not result['success']:
-            error_msg = f"❌ Scraping failed: {result.get('error')}"
-            yield (error_msg, None, "", [], None, "", [], error_msg, "")
-            return
-        
-        progress(0.2, desc=f"✅ Scraped {result['total_reviews']} reviews")
-        yield (
-            f"✅ Scraped {result['total_reviews']} reviews\n\n⚙️ Processing data...",
-            None, "Run analysis to see chef insights", [], 
-            None, "Run analysis to see manager insights", [],
-            "⏳ In progress...", ""
+    except requests.exceptions.Timeout:
+        return (
+            "❌ **Timeout:** Request took too long. Try with fewer reviews (20-50).",
+            default_summary, None, default_insight, empty_dropdown, default_detail,
+            default_summary, None, default_insight, empty_dropdown, default_detail,
+            empty
         )
-        
-        # Phase 2: Data Processing
-        df = process_reviews(result)
-        review_texts = df['review_text'].dropna().tolist()
-        review_texts = clean_reviews_for_ai(review_texts, verbose=False)
-        
-        progress(0.3, desc="✅ Data cleaned and ready")
-        yield (
-            f"✅ Scraped {result['total_reviews']} reviews\n✅ Data cleaned and ready\n\n🤖 Running AI analysis...",
-            None, "Run analysis to see chef insights", [], 
-            None, "Run analysis to see manager insights", [],
-            "⏳ In progress...", ""
-        )
-        
-        # Phase 3: AI Analysis
-        # Extract restaurant name from URL more reliably
-        restaurant_name = url.split('/')[-1].split('?')[0].replace('-', ' ').title()
-        
-        print(f"DEBUG: Restaurant name extracted: '{restaurant_name}'")
-        
-        agent = RestaurantAnalysisAgent()
-        
-        progress(0.4, desc="🤖 Analyzing menu items and aspects...")
-        
-        analysis = agent.analyze_restaurant(
-            restaurant_url=url,
-            restaurant_name=restaurant_name,
-            reviews=review_texts
-        )
-        
-        if not analysis['success']:
-            error_msg = f"❌ Analysis failed: {analysis.get('error')}"
-            yield (error_msg, None, "", [], None, "", [], error_msg, "")
-            return
-        
-        progress(0.8, desc="✅ Analysis complete! Preparing results...")
-        
-        # Extract results
-        menu_data = analysis['menu_analysis']
-        aspect_data = analysis['aspect_analysis']
-        insights = analysis['insights']
-        
-        # Prepare chef data
-        food_items = menu_data.get('food_items', [])
-        drinks = menu_data.get('drinks', [])
-        all_menu_items = food_items + drinks
-        
-        chef_dropdown_choices = [item['name'] for item in all_menu_items]
-        
-        # Format chef insights with cleaned text
-        chef_insights_data = insights.get('chef', {})
-        if isinstance(chef_insights_data, dict):
-            summary = clean_insight_text(chef_insights_data.get('summary', 'No summary available'))
-            strengths = clean_insight_text(chef_insights_data.get('strengths', 'No strengths identified'))
-            concerns = clean_insight_text(chef_insights_data.get('concerns', 'No concerns identified'))
-            recommendations = clean_insight_text(chef_insights_data.get('recommendations', 'No recommendations available'))
-            
-            chef_insights_text = f"""## 🍳 Chef Insights
-
-### Summary:
-{summary}
-
-### ✅ Strengths:
-{strengths}
-
-### ⚠️ Concerns:
-{concerns}
-
-### 💡 Recommendations:
-{recommendations}"""
-        else:
-            chef_insights_text = clean_insight_text(str(chef_insights_data))
-        
-        # Prepare manager data
-        aspects = aspect_data.get('aspects', [])
-        manager_dropdown_choices = [aspect['name'] for aspect in aspects]
-        
-        # Format manager insights with cleaned text
-        manager_insights_data = insights.get('manager', {})
-        if isinstance(manager_insights_data, dict):
-            summary = clean_insight_text(manager_insights_data.get('summary', 'No summary available'))
-            strengths = clean_insight_text(manager_insights_data.get('strengths', 'No strengths identified'))
-            concerns = clean_insight_text(manager_insights_data.get('concerns', 'No concerns identified'))
-            recommendations = clean_insight_text(manager_insights_data.get('recommendations', 'No recommendations available'))
-            
-            manager_insights_text = f"""## 👔 Manager Insights
-
-### Summary:
-{summary}
-
-### ✅ Strengths:
-{strengths}
-
-### ⚠️ Concerns:
-{concerns}
-
-### 💡 Recommendations:
-{recommendations}"""
-        else:
-            manager_insights_text = clean_insight_text(str(manager_insights_data))
-        
-        # Get chart paths
-        chef_chart_path = "outputs/menu_sentiment.png" if os.path.exists("outputs/menu_sentiment.png") else None
-        manager_chart_path = "outputs/aspect_comparison.png" if os.path.exists("outputs/aspect_comparison.png") else None
-        
-        progress(1.0, desc="✅ Complete!")
-        
-        final_progress = f"""✅ Analysis Complete!
-
-📊 Results:
-- Menu items found: {len(all_menu_items)}
-- Aspects discovered: {len(aspects)}
-- Chef insights: ✅
-- Manager insights: ✅
-
-👉 Check the tabs below for detailed results!"""
-        
-        # Ensure restaurant_name is a clean string for Q&A context
-        restaurant_context_value = str(restaurant_name).strip()
-        
-        print(f"DEBUG: About to yield restaurant_context: '{restaurant_context_value}'")
-        
-        yield (
-            final_progress,
-            chef_chart_path,
-            chef_insights_text,
-            gr.update(choices=chef_dropdown_choices, value=None),
-            manager_chart_path,
-            manager_insights_text,
-            gr.update(choices=manager_dropdown_choices, value=None),
-            "✅ Analysis complete!",
-            restaurant_context_value  # Clean string for Q&A
-        )
-        
     except Exception as e:
-        error_msg = f"❌ Error: {str(e)}"
-        import traceback
-        print(f"DEBUG: Exception occurred:")
-        print(traceback.format_exc())
-        yield (error_msg, None, "", [], None, "", [], error_msg, "")
+        return (
+            f"❌ **Error:** {str(e)}",
+            default_summary, None, default_insight, empty_dropdown, default_detail,
+            default_summary, None, default_insight, empty_dropdown, default_detail,
+            empty
+        )
 
 
-def get_menu_item_summary(item_name: str) -> str:
-    """Get summary for selected menu item."""
+# ============================================================================
+# DRILL-DOWN FUNCTIONS
+# ============================================================================
+
+def get_item_detail(item_name: str, state: dict) -> str:
     if not item_name:
-        return "Please select a menu item"
+        return "👆 **Select a menu item** from the dropdown to see detailed customer feedback."
+    if not state:
+        return "⚠️ Please analyze a restaurant first."
     
-    try:
-        # Load menu data
-        with open('outputs/menu_analysis.json', 'r') as f:
-            menu_data = json.load(f)
-        
-        # Search in food items and drinks
-        all_items = menu_data.get('food_items', []) + menu_data.get('drinks', [])
-        
-        for item in all_items:
-            if item.get('name', '').lower() == item_name.lower():
-                summary = item.get('summary', 'No summary available')
-                sentiment = item.get('sentiment', 0)
-                mentions = item.get('mention_count', 0)
-                
-                sentiment_emoji = "🟢" if sentiment > 0.3 else "🟡" if sentiment > -0.3 else "🔴"
-                
-                result = f"""## {item_name.title()}
+    menu = state.get("menu_analysis", {})
+    for item in menu.get('food_items', []) + menu.get('drinks', []):
+        if item.get('name', '').lower() == item_name.lower():
+            s = item.get('sentiment', 0)
+            emoji = "🟢" if s > 0.3 else "🟡" if s > -0.3 else "🔴"
+            label = "Positive" if s > 0.3 else "Mixed" if s > -0.3 else "Negative"
+            
+            result = f"""### {item_name.title()} {emoji}
 
-{sentiment_emoji} **Sentiment:** {sentiment:+.2f} | **Mentions:** {mentions}
+**Sentiment:** {s:+.2f} ({label}) | **Mentions:** {item.get('mention_count', 0)}
 
-### Customer Feedback Summary:
-{summary}
+---
 
-### Sample Reviews:
+**What customers say:**
+{item.get('summary', 'No summary available.')}
+
+---
+
+**Sample reviews:**
 """
-                # Add sample reviews
-                reviews = item.get('related_reviews', [])[:3]
-                for i, review in enumerate(reviews, 1):
-                    result += f"\n{i}. \"{review.get('review_text', '')[:200]}...\"\n"
-                
-                return result
-        
-        return f"No data found for '{item_name}'"
-        
-    except Exception as e:
-        return f"Error loading summary: {str(e)}"
+            for i, r in enumerate(item.get('related_reviews', [])[:3], 1):
+                text = r.get('review_text', str(r))[:180] if isinstance(r, dict) else str(r)[:180]
+                result += f"\n> {i}. \"{text}...\"\n"
+            return result
+    
+    return f"No data found for '{item_name}'"
 
 
-def get_aspect_summary(aspect_name: str) -> str:
-    """Get summary for selected aspect."""
+def get_aspect_detail(aspect_name: str, state: dict) -> str:
     if not aspect_name:
-        return "Please select an aspect"
+        return "👆 **Select an aspect** from the dropdown to see detailed analysis."
+    if not state:
+        return "⚠️ Please analyze a restaurant first."
     
-    try:
-        # Load aspect data
-        with open('outputs/aspect_analysis.json', 'r') as f:
-            aspect_data = json.load(f)
-        
-        aspects = aspect_data.get('aspects', [])
-        
-        for aspect in aspects:
-            if aspect.get('name', '').lower() == aspect_name.lower():
-                summary = aspect.get('summary', 'No summary available')
-                sentiment = aspect.get('sentiment', 0)
-                mentions = aspect.get('mention_count', 0)
-                
-                sentiment_emoji = "🟢" if sentiment > 0.3 else "🟡" if sentiment > -0.3 else "🔴"
-                
-                result = f"""## {aspect_name.title()}
+    aspects = state.get("aspect_analysis", {}).get('aspects', [])
+    for aspect in aspects:
+        if aspect.get('name', '').lower() == aspect_name.lower():
+            s = aspect.get('sentiment', 0)
+            emoji = "🟢" if s > 0.3 else "🟡" if s > -0.3 else "🔴"
+            label = "Positive" if s > 0.3 else "Mixed" if s > -0.3 else "Negative"
+            
+            result = f"""### {aspect_name.title()} {emoji}
 
-{sentiment_emoji} **Sentiment:** {sentiment:+.2f} | **Mentions:** {mentions}
+**Sentiment:** {s:+.2f} ({label}) | **Mentions:** {aspect.get('mention_count', 0)}
 
-### Customer Feedback Summary:
-{summary}
+---
 
-### Sample Reviews:
+**What customers say:**
+{aspect.get('summary', 'No summary available.')}
+
+---
+
+**Sample reviews:**
 """
-                # Add sample reviews
-                reviews = aspect.get('related_reviews', [])[:3]
-                for i, review in enumerate(reviews, 1):
-                    result += f"\n{i}. \"{review.get('review_text', '')[:200]}...\"\n"
-                
-                return result
+            for i, r in enumerate(aspect.get('related_reviews', [])[:3], 1):
+                text = r.get('review_text', str(r))[:180] if isinstance(r, dict) else str(r)[:180]
+                result += f"\n> {i}. \"{text}...\"\n"
+            return result
+    
+    return f"No data found for '{aspect_name}'"
+
+
+def answer_question(question: str, state: dict) -> str:
+    if not question or not question.strip():
+        return "❓ Please type a question above."
+    if not state:
+        return "⚠️ Please analyze a restaurant first."
+    
+    restaurant = state.get("restaurant_name", "the restaurant")
+    menu = state.get("menu_analysis", {})
+    aspects = state.get("aspect_analysis", {})
+    
+    q = question.lower()
+    matches = []
+    
+    for item in menu.get('food_items', []) + menu.get('drinks', []):
+        name = item.get('name', '').lower()
+        if name in q or any(w in name for w in q.split() if len(w) > 3):
+            matches.append(item)
+    
+    for aspect in aspects.get('aspects', []):
+        name = aspect.get('name', '').lower()
+        if name in q or any(w in name for w in q.split() if len(w) > 3):
+            matches.append(aspect)
+    
+    if matches:
+        answer = f"**Based on reviews of {restaurant}:**\n\n"
+        for m in matches[:3]:
+            s = m.get('sentiment', 0)
+            emoji = "🟢" if s > 0.3 else "🟡" if s > -0.3 else "🔴"
+            answer += f"**{m.get('name', '?').title()}** {emoji} (sentiment: {s:+.2f})\n"
+            answer += f"{m.get('summary', '')[:250]}...\n\n"
+        return f"**Q:** {question}\n\n{answer}"
+    
+    return f"""**Q:** {question}
+
+**A:** I couldn't find specific information about that topic.
+
+💡 **Try asking about:**
+• Specific dishes (e.g., "How is the salmon?")
+• Service quality (e.g., "What do people say about service?")
+• Ambiance (e.g., "Is it good for dates?")
+• Value (e.g., "Is it worth the price?")
+"""
+
+
+# ============================================================================
+# EXAMPLE QUESTIONS
+# ============================================================================
+
+EXAMPLE_QUESTIONS = [
+    "What are the best dishes to order?",
+    "How is the service quality?",
+    "Is this restaurant good for a date?",
+    "What do people say about the ambiance?",
+    "Is the food worth the price?",
+    "Any complaints about wait times?",
+]
+
+def use_example_question(example: str) -> str:
+    return example
+
+
+# ============================================================================
+# GRADIO INTERFACE
+# ============================================================================
+
+def create_app() -> gr.Blocks:
+    """Create enhanced Gradio interface."""
+    
+    with gr.Blocks(title="Restaurant Intelligence Agent") as app:
         
-        return f"No data found for '{aspect_name}'"
-        
-    except Exception as e:
-        return f"Error loading summary: {str(e)}"
-
-
-def ask_question(question: str, restaurant_context: str) -> str:
-    """Answer questions about the restaurant using RAG."""
-    
-    # Debug logging
-    print(f"DEBUG: ask_question called")
-    print(f"DEBUG: question = '{question}'")
-    print(f"DEBUG: restaurant_context type = {type(restaurant_context)}")
-    print(f"DEBUG: restaurant_context value = '{restaurant_context}'")
-    print(f"DEBUG: restaurant_context repr = {repr(restaurant_context)}")
-    
-    if not question or question.strip() == "":
-        return "❓ Please enter a question"
-    
-    # Check if context is valid
-    if not restaurant_context or restaurant_context.strip() == "" or restaurant_context in ["⏳ In progress...", "❌ Invalid URL"]:
-        return "⚠️ Please analyze a restaurant first before asking questions."
-    
-    try:
-        from src.mcp_integrations.query_reviews import query_reviews_direct
-        print(f"DEBUG: Calling query_reviews_direct with context: '{restaurant_context}'")
-        answer = query_reviews_direct(restaurant_context, question)
-        print(f"DEBUG: Got answer: {answer[:100]}...")
-        return f"**Q:** {question}\n\n**A:** {answer}"
-    except Exception as e:
-        error_msg = f"❌ Error: {str(e)}"
-        print(f"DEBUG: Error in ask_question: {error_msg}")
-        import traceback
-        traceback.print_exc()
-        return error_msg
-
-
-def create_interface() -> gr.Blocks:
-    """Create the Gradio interface."""
-    
-    with gr.Blocks(title="Restaurant Intelligence Agent") as demo:
-        
-        # Header
+        # ==================== HEADER ====================
         gr.Markdown("""
-        # 🍽️ Restaurant Intelligence Agent
-        ### AI-Powered Restaurant Review Analysis
-        
-        Analyze customer reviews from OpenTable to get actionable insights for chefs and managers.
-        Built with Claude AI + MCP + Gradio 6
+# 🍽️ Restaurant Intelligence Agent
+
+**AI-Powered Review Analysis for Restaurant Owners, Chefs & Managers**
+
+*Uncover what customers really think — beyond star ratings.*
         """)
         
-        # Input Section
-        with gr.Row():
-            with gr.Column():
-                url_input = gr.Textbox(
-                    label="📍 OpenTable Restaurant URL",
-                    placeholder="https://www.opentable.ca/r/restaurant-name",
-                    info="Paste the full OpenTable URL of the restaurant"
-                )
-                
-                review_count = gr.Dropdown(
-                    choices=[20, 50, 100, 200, 300, 400, 500],
-                    value=100,
-                    label="📊 Number of Reviews to Analyze",
-                    info="More reviews = better insights but longer processing time (recommended: 100)"
-                )
-                
-                analyze_btn = gr.Button("🚀 Analyze Restaurant", variant="primary", size="lg")
+        gr.Markdown("---")
         
-        # Progress Section
-        progress_box = gr.Textbox(
-            label="📊 Analysis Progress",
-            lines=6,
-            interactive=False
+        # ==================== INPUT SECTION ====================
+        gr.Markdown("### 📍 Enter Restaurant Details")
+        
+        with gr.Row():
+            with gr.Column(scale=5):
+                url_input = gr.Textbox(
+                    label="OpenTable URL",
+                    placeholder="https://www.opentable.com/r/restaurant-name",
+                    info="Paste the full URL from OpenTable",
+                    max_lines=1
+                )
+            with gr.Column(scale=1):
+                review_count = gr.Dropdown(
+                    choices=[20, 50, 100, 200],
+                    value=50,
+                    label="Reviews",
+                    info="More = better insights"
+                )
+            with gr.Column(scale=1):
+                analyze_btn = gr.Button("🚀 Analyze", variant="primary", size="lg")
+        
+        # ==================== STATUS ====================
+        status_box = gr.Markdown(
+            value="*Enter a restaurant URL above and click **Analyze** to start. Analysis takes 3-8 minutes.*"
         )
         
-        status_text = gr.State("")  # Use State instead
-        restaurant_context = gr.State("")  # Use State instead
+        # Hidden state
+        analysis_state = gr.State(value={})
         
-        # Results Tabs
+        gr.Markdown("---")
+        
+        # ==================== RESULTS TABS ====================
         with gr.Tabs():
             
-            # Chef Tab
+            # ========== CHEF TAB ==========
             with gr.Tab("🍳 Chef Insights"):
-                gr.Markdown("### Kitchen Performance & Menu Analysis")
                 
-                chef_chart = gr.Image(label="Menu Sentiment Analysis", type="filepath")
-                
-                chef_insights = gr.Markdown("Run analysis to see chef insights")
-                
-                gr.Markdown("---")
-                gr.Markdown("### 🔍 Drill Down: Select a Menu Item")
-                
-                chef_dropdown = gr.Dropdown(
-                    choices=[],
-                    label="Select Menu Item",
-                    info="Choose a dish or drink to see detailed customer feedback"
+                # Plain English Summary
+                chef_summary = gr.Markdown(
+                    value="*Run analysis to see menu performance overview.*"
                 )
                 
-                chef_summary = gr.Markdown("Select a menu item above to see detailed feedback")
+                gr.Markdown("---")
+                
+                # Chart + Insights side by side
+                with gr.Row():
+                    with gr.Column(scale=1):
+                        chef_chart = gr.Image(label="Menu Sentiment Chart", height=380)
+                    with gr.Column(scale=1):
+                        chef_insights = gr.Markdown(value="*AI-generated insights will appear here.*")
+                
+                gr.Markdown("---")
+                
+                # Drill-down
+                gr.Markdown("#### 🔍 Explore Menu Items")
+                chef_dropdown = gr.Dropdown(label="Select a menu item", choices=[], interactive=True)
+                chef_detail = gr.Markdown(value="*Select an item above to see what customers say about it.*")
             
-            # Manager Tab
+            # ========== MANAGER TAB ==========
             with gr.Tab("👔 Manager Insights"):
-                gr.Markdown("### Operations & Service Analysis")
                 
-                manager_chart = gr.Image(label="Aspect Comparison", type="filepath")
-                
-                manager_insights = gr.Markdown("Run analysis to see manager insights")
-                
-                gr.Markdown("---")
-                gr.Markdown("### 🔍 Drill Down: Select an Aspect")
-                
-                manager_dropdown = gr.Dropdown(
-                    choices=[],
-                    label="Select Aspect",
-                    info="Choose an aspect (service, ambience, etc.) to see detailed feedback"
+                # Plain English Summary
+                manager_summary = gr.Markdown(
+                    value="*Run analysis to see operations & service overview.*"
                 )
                 
-                manager_summary = gr.Markdown("Select an aspect above to see detailed feedback")
-            
-            # Q&A Tab
-            with gr.Tab("💬 Ask Questions"):
-                gr.Markdown("""
-                ### Ask questions about customer reviews
+                gr.Markdown("---")
                 
-                Use the RAG-powered Q&A system to get specific answers from the review data.
+                # Chart + Insights
+                with gr.Row():
+                    with gr.Column(scale=1):
+                        manager_chart = gr.Image(label="Aspect Sentiment Chart", height=380)
+                    with gr.Column(scale=1):
+                        manager_insights = gr.Markdown(value="*AI-generated insights will appear here.*")
+                
+                gr.Markdown("---")
+                
+                # Drill-down
+                gr.Markdown("#### 🔍 Explore Service Aspects")
+                manager_dropdown = gr.Dropdown(label="Select an aspect", choices=[], interactive=True)
+                manager_detail = gr.Markdown(value="*Select an aspect above to see detailed feedback.*")
+            
+            # ========== Q&A TAB ==========
+            with gr.Tab("💬 Ask Questions"):
+                
+                gr.Markdown("""
+### Ask anything about the reviews
+
+Get instant answers based on customer feedback. Try asking about specific dishes, 
+service quality, ambiance, value, or any other aspect of the dining experience.
                 """)
                 
+                # Example questions
+                gr.Markdown("**💡 Try these example questions:**")
                 with gr.Row():
-                    question_input = gr.Textbox(
-                        label="Your Question",
-                        placeholder="e.g., What do customers say about the atmosphere?",
-                        lines=2
-                    )
+                    for i, q in enumerate(EXAMPLE_QUESTIONS[:3]):
+                        gr.Button(q, size="sm").click(
+                            fn=lambda x=q: x,
+                            outputs=gr.Textbox(visible=False)
+                        )
                 
-                ask_btn = gr.Button("Ask", variant="primary")
+                question_input = gr.Textbox(
+                    label="Your Question",
+                    placeholder="e.g., What do customers think about the pasta dishes?",
+                    lines=2
+                )
                 
-                answer_output = gr.Markdown("Answers will appear here after you analyze a restaurant and ask a question...")
+                with gr.Row():
+                    ask_btn = gr.Button("🔍 Ask", variant="primary")
+                    clear_btn = gr.Button("Clear", variant="secondary")
+                
+                answer_output = gr.Markdown(
+                    value="*Analyze a restaurant first, then ask questions about the reviews.*"
+                )
+                
+                clear_btn.click(fn=lambda: ("", ""), outputs=[question_input, answer_output])
         
-        # Footer
+        # ==================== FOOTER ====================
+        gr.Markdown("---")
+        
         gr.Markdown("""
-        ---
-        **Built for:** Anthropic MCP 1st Birthday Hackathon 2025  
-        **Track:** Track 2 - MCP in Action (Productivity)  
-        **Tags:** `mcp-in-action-track-productivity`
+<center>
+
+**Built for** [Anthropic MCP 1st Birthday Hackathon](https://huggingface.co/MCP-1st-Birthday) 🎂 | 
+**Track:** Productivity | **By:** Tushar Pingle
+
+*Powered by Claude AI • Modal Cloud • MCP Integration*
+
+</center>
         """)
         
-        # Connect analyze button
+        # ==================== EVENT HANDLERS ====================
         analyze_btn.click(
-            fn=analyze_restaurant_interface,
+            fn=analyze_restaurant,
             inputs=[url_input, review_count],
             outputs=[
-                progress_box,
-                chef_chart,
-                chef_insights,
-                chef_dropdown,
-                manager_chart,
-                manager_insights,
-                manager_dropdown,
-                status_text,
-                restaurant_context
+                status_box,
+                chef_summary, chef_chart, chef_insights, chef_dropdown, chef_detail,
+                manager_summary, manager_chart, manager_insights, manager_dropdown, manager_detail,
+                analysis_state
             ]
         )
         
-        # Connect dropdowns
         chef_dropdown.change(
-            fn=get_menu_item_summary,
-            inputs=chef_dropdown,
-            outputs=chef_summary
+            fn=get_item_detail,
+            inputs=[chef_dropdown, analysis_state],
+            outputs=chef_detail
         )
         
         manager_dropdown.change(
-            fn=get_aspect_summary,
-            inputs=manager_dropdown,
-            outputs=manager_summary
+            fn=get_aspect_detail,
+            inputs=[manager_dropdown, analysis_state],
+            outputs=manager_detail
         )
         
-        # Connect Q&A
         ask_btn.click(
-            fn=ask_question,
-            inputs=[question_input, restaurant_context],
+            fn=answer_question,
+            inputs=[question_input, analysis_state],
             outputs=answer_output
         )
     
-    return demo
+    return app
 
 
-def launch_app(share: bool = False):
-    """Launch the Gradio app."""
-    demo = create_interface()
-    demo.launch(
-        share=share,
-        server_name="0.0.0.0",
-        theme=gr.themes.Soft(
-            primary_hue="blue",
-            secondary_hue="gray",
-        )
-    )
-
+# ============================================================================
+# MAIN
+# ============================================================================
 
 if __name__ == "__main__":
-    launch_app(share=True)
+    app = create_app()
+    app.launch(
+        server_name="0.0.0.0",
+        server_port=7860,
+        share=True,
+        theme=gr.themes.Soft(primary_hue="orange", secondary_hue="slate")
+    )

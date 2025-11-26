@@ -1,3 +1,9 @@
+---
+title: restaurant-intelligence-agent
+app_file: src/ui/gradio_app.py
+sdk: gradio
+sdk_version: 6.0.0
+---
 # 🍽️ Restaurant Intelligence Agent
 
 **AI-powered autonomous analysis of restaurant reviews with MCP integration**
