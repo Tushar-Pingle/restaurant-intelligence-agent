@@ -5,13 +5,10 @@ Professional UI with cards, plain English summaries, polished layout
 Hackathon: Anthropic MCP 1st Birthday - Track 2 (Productivity)
 Author: Tushar Pingle
 
-FIXES & REFINEMENTS:
-1. RAG - Fixed Anthropic client initialization (removed proxies issue)
-2. Trend Chart - Fixed date parsing and added debug logging
-3. Charts - Top 10 by MENTIONS, legends bottom-left, cleaner layout
-4. Trend Chart - Wider/more relaxed for readability
-5. Tab Order - Trends first, then Chef, Manager, Q&A
-6. Review Dropdown - 50, 100, 200, 500, 1000
+VERSION 3.0 FEATURES:
+1. Multi-platform support (OpenTable + Google Maps)
+2. PDF Report Export (download + email)
+3. All previous fixes and refinements
 """
 
 import gradio as gr
@@ -19,6 +16,11 @@ import os
 import ast
 import re
 import requests
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email.mime.text import MIMEText
+from email import encoders
 from typing import Optional, Tuple, List, Dict, Any
 import tempfile
 from datetime import datetime, timedelta
@@ -32,31 +34,61 @@ MODAL_API_URL = os.getenv(
     "https://tushar-pingle--restaurant-intelligence-fastapi-app.modal.run"
 )
 
+# Email configuration (set these as environment variables)
+SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+EMAIL_FROM = os.getenv("EMAIL_FROM", "Restaurant Intelligence Agent <noreply@example.com>")
+
+
+# ============================================================================
+# URL DETECTION
+# ============================================================================
+
+def detect_platform(url: str) -> str:
+    """Detect which platform the URL is from."""
+    if not url:
+        return "unknown"
+    
+    url_lower = url.lower()
+    
+    if 'opentable' in url_lower:
+        return "opentable"
+    elif any(x in url_lower for x in ['google.com/maps', 'goo.gl/maps', 'maps.google', 'maps.app.goo.gl']):
+        return "google_maps"
+    else:
+        return "unknown"
+
+
+def get_platform_emoji(platform: str) -> str:
+    """Get emoji for platform."""
+    return "🍽️" if platform == "opentable" else "🗺️" if platform == "google_maps" else "❓"
+
+
 # ============================================================================
 # TREND CHART - Rating vs Sentiment Over Time
 # ============================================================================
 
 def parse_opentable_date(date_str: str) -> Optional[datetime]:
-    """
-    Parse OpenTable date formats like 'Dined 1 day ago', 'Dined 2 weeks ago'.
-    """
+    """Parse date formats like 'Dined 1 day ago', '2 weeks ago', etc."""
     if not date_str:
         return None
     
     date_str = str(date_str).lower().strip()
     today = datetime.now()
     
-    # "Dined X day(s) ago"
+    # "Dined X day(s) ago" or "X day(s) ago"
     day_match = re.search(r'(\d+)\s*days?\s*ago', date_str)
     if day_match:
         return today - timedelta(days=int(day_match.group(1)))
     
-    # "Dined X week(s) ago"
+    # "X week(s) ago"
     week_match = re.search(r'(\d+)\s*weeks?\s*ago', date_str)
     if week_match:
         return today - timedelta(weeks=int(week_match.group(1)))
     
-    # "Dined X month(s) ago"
+    # "X month(s) ago"
     month_match = re.search(r'(\d+)\s*months?\s*ago', date_str)
     if month_match:
         return today - timedelta(days=int(month_match.group(1)) * 30)
@@ -66,7 +98,7 @@ def parse_opentable_date(date_str: str) -> Optional[datetime]:
     if 'today' in date_str:
         return today
     
-    # Try to extract just "X days ago" without "Dined"
+    # Simple formats
     simple_day = re.search(r'^(\d+)\s*day', date_str)
     if simple_day:
         return today - timedelta(days=int(simple_day.group(1)))
@@ -100,80 +132,49 @@ def calculate_review_sentiment(text: str) -> float:
 
 
 def generate_trend_chart(raw_reviews: List[Dict], restaurant_name: str) -> Optional[str]:
-    """
-    Generate Rating vs Sentiment trend chart.
-    UPDATED: Wider chart, legend bottom-left, more relaxed spacing
-    """
+    """Generate Rating vs Sentiment trend chart."""
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     import matplotlib.dates as mdates
     
-    print(f"[TREND CHART] Starting chart generation for {restaurant_name}")
-    print(f"[TREND CHART] Raw reviews count: {len(raw_reviews) if raw_reviews else 0}")
-    
     if not raw_reviews or len(raw_reviews) < 3:
-        print("[TREND CHART] Not enough reviews (need 3+)")
         return None
-    
-    # Debug: Print sample raw review structure
-    if raw_reviews:
-        print(f"[TREND CHART] Sample review structure: {list(raw_reviews[0].keys()) if isinstance(raw_reviews[0], dict) else type(raw_reviews[0])}")
-        print(f"[TREND CHART] Sample date value: {raw_reviews[0].get('date', 'NO DATE KEY')}")
     
     # Parse and prepare data
     dated_reviews = []
-    parse_failures = 0
-    
-    for i, r in enumerate(raw_reviews):
+    for r in raw_reviews:
         if not isinstance(r, dict):
             continue
-            
-        date_str = r.get('date', '')
-        date = parse_opentable_date(date_str)
-        
+        date = parse_opentable_date(r.get('date', ''))
         if date:
             rating = float(r.get('rating', 0) or r.get('overall_rating', 0) or 0)
             text = r.get('text', '') or r.get('review_text', '')
-            sentiment = calculate_review_sentiment(text)
-            
             dated_reviews.append({
                 'date': date,
                 'rating': rating if rating > 0 else 3.5,
-                'sentiment': sentiment
+                'sentiment': calculate_review_sentiment(text)
             })
-        else:
-            parse_failures += 1
-            if parse_failures <= 3:
-                print(f"[TREND CHART] Failed to parse date: '{date_str}'")
     
-    print(f"[TREND CHART] Successfully parsed {len(dated_reviews)} reviews, {parse_failures} failures")
-    
-    # If we couldn't parse dates, create synthetic dates based on order
+    # Fallback: synthetic dates
     if len(dated_reviews) < 3 and len(raw_reviews) >= 3:
-        print("[TREND CHART] Using synthetic dates (reviews ordered by recency)")
         dated_reviews = []
         for i, r in enumerate(raw_reviews):
             if not isinstance(r, dict):
                 continue
             rating = float(r.get('rating', 0) or r.get('overall_rating', 0) or 3.5)
             text = r.get('text', '') or r.get('review_text', '')
-            sentiment = calculate_review_sentiment(text)
-            
-            synthetic_date = datetime.now() - timedelta(days=i)
             dated_reviews.append({
-                'date': synthetic_date,
+                'date': datetime.now() - timedelta(days=i),
                 'rating': rating if rating > 0 else 3.5,
-                'sentiment': sentiment
+                'sentiment': calculate_review_sentiment(text)
             })
     
     if len(dated_reviews) < 3:
-        print("[TREND CHART] Still not enough dated reviews")
         return None
     
     # Sort and group by week
     dated_reviews.sort(key=lambda x: x['date'])
-    
     weekly = {}
     for r in dated_reviews:
         week = r['date'] - timedelta(days=r['date'].weekday())
@@ -183,9 +184,6 @@ def generate_trend_chart(raw_reviews: List[Dict], restaurant_name: str) -> Optio
         weekly[key]['ratings'].append(r['rating'])
         weekly[key]['sentiments'].append(r['sentiment'])
     
-    print(f"[TREND CHART] Grouped into {len(weekly)} weeks")
-    
-    # Calculate averages
     dates = []
     ratings = []
     sentiments = []
@@ -196,13 +194,9 @@ def generate_trend_chart(raw_reviews: List[Dict], restaurant_name: str) -> Optio
         sentiments.append(sum(w['sentiments']) / len(w['sentiments']))
     
     if len(dates) < 2:
-        print("[TREND CHART] Not enough data points after grouping")
         return None
     
-    print(f"[TREND CHART] Final data points: {len(dates)}")
-    print(f"[TREND CHART] Date range: {min(dates)} to {max(dates)}")
-    
-    # Dark theme colors
+    # Dark theme
     BG = '#1f2937'
     TEXT = '#e5e7eb'
     GRID = '#374151'
@@ -210,12 +204,10 @@ def generate_trend_chart(raw_reviews: List[Dict], restaurant_name: str) -> Optio
     SENTIMENT_COLOR = '#10b981'
     
     try:
-        # UPDATED: Wider figure for more relaxed readability
         fig, ax1 = plt.subplots(figsize=(14, 6))
         fig.patch.set_facecolor(BG)
         ax1.set_facecolor(BG)
         
-        # Rating line
         ax1.plot(dates, ratings, color=RATING_COLOR, linewidth=2.5, marker='o', 
                  markersize=8, label='Avg Rating (Stars)')
         ax1.fill_between(dates, ratings, alpha=0.2, color=RATING_COLOR)
@@ -224,10 +216,9 @@ def generate_trend_chart(raw_reviews: List[Dict], restaurant_name: str) -> Optio
         ax1.tick_params(axis='x', colors=TEXT, labelsize=10)
         ax1.set_ylim(1, 5)
         
-        # Sentiment line (scaled to 1-5 range)
         ax2 = ax1.twinx()
         ax2.set_facecolor(BG)
-        sent_scaled = [(s + 1) * 2 + 1 for s in sentiments]  # Scale -1..1 to 1..5
+        sent_scaled = [(s + 1) * 2 + 1 for s in sentiments]
         ax2.plot(dates, sent_scaled, color=SENTIMENT_COLOR, linewidth=2.5, 
                  marker='s', markersize=8, linestyle='--', label='Sentiment')
         ax2.fill_between(dates, sent_scaled, alpha=0.15, color=SENTIMENT_COLOR)
@@ -236,8 +227,6 @@ def generate_trend_chart(raw_reviews: List[Dict], restaurant_name: str) -> Optio
         ax2.set_ylim(1, 5)
         
         ax1.set_title(f'📊 Rating vs Sentiment Trend', fontsize=15, fontweight='bold', color=TEXT, pad=20)
-        
-        # Better date formatting with more space
         ax1.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))
         ax1.xaxis.set_major_locator(mdates.WeekdayLocator(interval=1))
         plt.setp(ax1.xaxis.get_majorticklabels(), rotation=30, ha='right', color=TEXT)
@@ -248,37 +237,29 @@ def generate_trend_chart(raw_reviews: List[Dict], restaurant_name: str) -> Optio
         for spine in ax2.spines.values():
             spine.set_color(GRID)
         
-        # UPDATED: Legend in BOTTOM-LEFT
         lines1, labels1 = ax1.get_legend_handles_labels()
         lines2, labels2 = ax2.get_legend_handles_labels()
         ax1.legend(lines1 + lines2, labels1 + labels2, loc='lower left',
                    facecolor=BG, edgecolor=GRID, labelcolor=TEXT, fontsize=10)
         
-        # Add more padding
         plt.tight_layout(pad=2.0)
         
         with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
             plt.savefig(f.name, dpi=120, bbox_inches='tight', facecolor=BG)
             plt.close()
-            print(f"[TREND CHART] Successfully saved to {f.name}")
             return f.name
-            
     except Exception as e:
-        print(f"[TREND CHART] Error generating chart: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"[TREND CHART] Error: {e}")
         return None
 
 
 def generate_trend_insight(raw_reviews: List[Dict], restaurant_name: str) -> str:
     """Generate text insight from trend data."""
     if not raw_reviews or len(raw_reviews) < 3:
-        return "Not enough data to analyze trends (need 3+ reviews with dates)."
+        return "Not enough data to analyze trends (need 3+ reviews)."
     
-    # Calculate overall averages
     ratings = []
     sentiments = []
-    
     for r in raw_reviews:
         if isinstance(r, dict):
             rating = float(r.get('rating', 0) or r.get('overall_rating', 0) or 0)
@@ -288,29 +269,27 @@ def generate_trend_insight(raw_reviews: List[Dict], restaurant_name: str) -> str
             sentiments.append(calculate_review_sentiment(text))
     
     if not ratings:
-        return "No rating data available for trend analysis."
+        return "No rating data available."
     
     avg_rating = sum(ratings) / len(ratings)
     avg_sentiment = sum(sentiments) / len(sentiments)
     
-    # Analyze disconnect
     insight = f"**{restaurant_name}** has an average rating of **{avg_rating:.1f} stars** "
     
     if avg_sentiment > 0.3:
-        insight += "with **positive sentiment** in reviews. "
+        insight += "with **positive sentiment**. "
         if avg_rating >= 4.0:
-            insight += "✅ Ratings and sentiment are aligned - customers love this place!"
+            insight += "✅ Ratings and sentiment are aligned!"
         else:
-            insight += "🤔 Sentiment is positive but ratings are moderate - some customers may have had mixed experiences."
+            insight += "🤔 Sentiment is positive but ratings are moderate."
     elif avg_sentiment < -0.1:
-        insight += "but with **concerning sentiment** in review text. "
+        insight += "but with **concerning sentiment**. "
         if avg_rating >= 4.0:
-            insight += "⚠️ **Warning:** High ratings but negative sentiment detected. Look deeper at specific complaints."
+            insight += "⚠️ **Warning:** High ratings but negative sentiment detected."
         else:
-            insight += "❌ Both ratings and sentiment suggest areas for improvement."
+            insight += "❌ Both ratings and sentiment suggest issues."
     else:
-        insight += "with **neutral sentiment** overall. "
-        insight += "📊 Reviews are mixed - check specific aspects for more detail."
+        insight += "with **neutral sentiment**. 📊 Reviews are mixed."
     
     return insight
 
@@ -324,9 +303,7 @@ def clean_insight_text(data) -> str:
     if not data:
         return "• No data available"
     
-    # If it's already a string
     if isinstance(data, str):
-        # Try to parse as list
         try:
             parsed = ast.literal_eval(data)
             if isinstance(parsed, list):
@@ -334,12 +311,10 @@ def clean_insight_text(data) -> str:
         except:
             return data
     
-    # If it's a list
     if isinstance(data, list):
         lines = []
         for item in data:
             if isinstance(item, dict):
-                # Handle recommendation format
                 action = item.get('action', item.get('recommendation', str(item)))
                 priority = item.get('priority', '')
                 if priority:
@@ -390,7 +365,6 @@ def translate_menu_performance(menu: dict, restaurant_name: str) -> str:
     if not all_items:
         return f"*No menu data available for {restaurant_name} yet.*"
     
-    # Find stars and concerns
     stars = [i for i in all_items if i.get('sentiment', 0) > 0.5]
     concerns = [i for i in all_items if i.get('sentiment', 0) < -0.2]
     
@@ -430,13 +404,7 @@ def translate_aspect_performance(aspects: dict, restaurant_name: str) -> str:
 
 
 def generate_chart(items: list, title: str) -> Optional[str]:
-    """
-    Generate professional dark-themed sentiment chart.
-    UPDATED: 
-    - Sort by MENTIONS (top 10 most mentioned)
-    - Legend in BOTTOM-LEFT
-    - Mention counts in Y-axis labels (not on chart area)
-    """
+    """Generate sentiment chart - top 10 by mentions."""
     if not items:
         return None
     
@@ -445,7 +413,6 @@ def generate_chart(items: list, title: str) -> Optional[str]:
         matplotlib.use('Agg')
         import matplotlib.pyplot as plt
         
-        # Dark theme colors (matching Gradio dark mode)
         BG_COLOR = '#1f2937'
         TEXT_COLOR = '#e5e7eb'
         GRID_COLOR = '#374151'
@@ -453,35 +420,28 @@ def generate_chart(items: list, title: str) -> Optional[str]:
         NEUTRAL = '#f59e0b'
         NEGATIVE = '#ef4444'
         
-        # UPDATED: Sort by MENTIONS (not sentiment) and take top 10
         sorted_items = sorted(items, key=lambda x: x.get('mention_count', 0), reverse=True)[:10]
         
-        # UPDATED: Include mention count in the label (outside chart area)
         names = [f"{item.get('name', '?')[:18]} ({item.get('mention_count', 0)})" for item in sorted_items]
         sentiments = [item.get('sentiment', 0) for item in sorted_items]
         
-        # Colors based on sentiment
         colors = [POSITIVE if s > 0.3 else NEUTRAL if s > -0.3 else NEGATIVE for s in sentiments]
         
-        # Create figure with dark background
         fig, ax = plt.subplots(figsize=(10, max(5, len(names) * 0.5)))
         fig.patch.set_facecolor(BG_COLOR)
         ax.set_facecolor(BG_COLOR)
         
         y_pos = range(len(names))
-        
-        bars = ax.barh(y_pos, sentiments, color=colors, height=0.65, 
-                      edgecolor=BG_COLOR, linewidth=1, alpha=0.9)
+        bars = ax.barh(y_pos, sentiments, color=colors, height=0.65, alpha=0.9)
         
         ax.set_yticks(y_pos)
         ax.set_yticklabels(names, fontsize=10, color=TEXT_COLOR, fontweight='medium')
-        ax.set_xlabel('Sentiment Score', fontsize=11, color=TEXT_COLOR, fontweight='medium')
+        ax.set_xlabel('Sentiment Score', fontsize=11, color=TEXT_COLOR)
         ax.set_title(title, fontsize=14, fontweight='bold', color=TEXT_COLOR, pad=15)
         
         ax.axvline(x=0, color=GRID_COLOR, linestyle='-', linewidth=1.5, alpha=0.8)
         ax.set_xlim(-1, 1)
         
-        # Add sentiment score labels at end of bars
         for bar, sent in zip(bars, sentiments):
             label = f'{sent:+.2f}'
             x_pos = bar.get_width() + 0.05 if bar.get_width() >= 0 else bar.get_width() - 0.12
@@ -493,28 +453,24 @@ def generate_chart(items: list, title: str) -> Optional[str]:
             spine.set_visible(False)
         
         ax.xaxis.grid(True, color=GRID_COLOR, linestyle='-', linewidth=0.5, alpha=0.5)
-        ax.set_axisbelow(True)
         ax.tick_params(axis='x', colors=TEXT_COLOR, labelsize=9)
         ax.tick_params(axis='y', colors=TEXT_COLOR, left=False)
         
-        # UPDATED: Legend in BOTTOM-LEFT
         from matplotlib.patches import Patch
         legend_elements = [
             Patch(facecolor=POSITIVE, label='Positive (>0.3)', alpha=0.9),
             Patch(facecolor=NEUTRAL, label='Mixed (-0.3 to 0.3)', alpha=0.9),
             Patch(facecolor=NEGATIVE, label='Negative (<-0.3)', alpha=0.9)
         ]
-        legend = ax.legend(handles=legend_elements, loc='lower left', fontsize=9,
-                          facecolor=BG_COLOR, edgecolor=GRID_COLOR, labelcolor=TEXT_COLOR)
+        ax.legend(handles=legend_elements, loc='lower left', fontsize=9,
+                 facecolor=BG_COLOR, edgecolor=GRID_COLOR, labelcolor=TEXT_COLOR)
         
         plt.tight_layout()
         
         with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
-            plt.savefig(f.name, dpi=120, bbox_inches='tight', 
-                       facecolor=BG_COLOR, edgecolor='none')
+            plt.savefig(f.name, dpi=120, bbox_inches='tight', facecolor=BG_COLOR)
             plt.close(fig)
             return f.name
-        
     except Exception as e:
         print(f"Chart error: {e}")
         return None
@@ -523,8 +479,15 @@ def generate_chart(items: list, title: str) -> Optional[str]:
 def extract_restaurant_name(url: str) -> str:
     """Extract restaurant name from URL."""
     try:
-        path = url.split('?')[0].rstrip('/')
-        return path.split('/')[-1].replace('-', ' ').title()
+        if 'opentable' in url.lower():
+            path = url.split('?')[0].rstrip('/')
+            return path.split('/')[-1].replace('-', ' ').title()
+        elif 'google' in url.lower():
+            # Try to extract from Google Maps URL
+            if '/place/' in url:
+                place = url.split('/place/')[1].split('/')[0]
+                return place.replace('+', ' ').replace('%20', ' ')
+        return "Restaurant"
     except:
         return "Restaurant"
 
@@ -534,9 +497,7 @@ def get_item_detail(item_name: str, state: dict) -> str:
     if not item_name or not state:
         return "Select an item to see details."
     
-    # Extract just the name (remove mention count if present)
     clean_name = item_name.split(' (')[0].strip().lower()
-    
     menu = state.get('menu_analysis', {})
     all_items = menu.get('food_items', []) + menu.get('drinks', [])
     
@@ -555,7 +516,6 @@ def get_item_detail(item_name: str, state: dict) -> str:
 **Customer Feedback:**
 {summary}
 """
-    
     return f"No details found for '{item_name}'."
 
 
@@ -564,9 +524,7 @@ def get_aspect_detail(aspect_name: str, state: dict) -> str:
     if not aspect_name or not state:
         return "Select an aspect to see details."
     
-    # Extract just the name (remove mention count if present)
     clean_name = aspect_name.split(' (')[0].strip().lower()
-    
     aspects = state.get('aspect_analysis', {}).get('aspects', [])
     
     for aspect in aspects:
@@ -584,24 +542,183 @@ def get_aspect_detail(aspect_name: str, state: dict) -> str:
 **Customer Feedback:**
 {summary}
 """
-    
     return f"No details found for '{aspect_name}'."
 
 
 # ============================================================================
-# RAG Q&A FUNCTIONS - FIXED
+# PDF GENERATION
 # ============================================================================
 
-# Word categories for semantic search
+def generate_pdf_report(state: dict) -> Optional[str]:
+    """Generate PDF report from analysis state."""
+    if not state:
+        return None
+    
+    try:
+        from src.reports.pdf_generator import generate_pdf_report as gen_pdf
+        
+        restaurant_name = state.get('restaurant_name', 'Restaurant')
+        
+        # Create report
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_name = restaurant_name.lower().replace(" ", "_").replace("/", "_")[:30]
+        output_path = os.path.join(tempfile.gettempdir(), f"{safe_name}_report_{timestamp}.pdf")
+        
+        pdf_path = gen_pdf(state, restaurant_name, output_path)
+        return pdf_path
+    
+    except ImportError:
+        # Fallback: simple text-based PDF
+        return generate_simple_pdf(state)
+    except Exception as e:
+        print(f"PDF generation error: {e}")
+        return None
+
+
+def generate_simple_pdf(state: dict) -> Optional[str]:
+    """Fallback: Generate simple PDF using basic reportlab."""
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.units import inch
+        
+        restaurant_name = state.get('restaurant_name', 'Restaurant')
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_path = os.path.join(tempfile.gettempdir(), f"report_{timestamp}.pdf")
+        
+        c = canvas.Canvas(output_path, pagesize=letter)
+        width, height = letter
+        
+        # Title
+        c.setFont("Helvetica-Bold", 24)
+        c.drawCentredString(width/2, height - inch, "Restaurant Intelligence Report")
+        
+        c.setFont("Helvetica", 16)
+        c.drawCentredString(width/2, height - 1.5*inch, restaurant_name)
+        
+        c.setFont("Helvetica", 10)
+        c.drawCentredString(width/2, height - 2*inch, f"Generated: {datetime.now().strftime('%B %d, %Y')}")
+        
+        # Stats
+        menu = state.get('menu_analysis', {})
+        aspects = state.get('aspect_analysis', {})
+        raw_reviews = state.get('raw_reviews', [])
+        
+        y = height - 3*inch
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(inch, y, "Summary Statistics:")
+        
+        y -= 0.3*inch
+        c.setFont("Helvetica", 10)
+        c.drawString(inch, y, f"• Reviews Analyzed: {len(raw_reviews)}")
+        
+        y -= 0.25*inch
+        food_items = menu.get('food_items', [])
+        drinks = menu.get('drinks', [])
+        c.drawString(inch, y, f"• Menu Items: {len(food_items) + len(drinks)}")
+        
+        y -= 0.25*inch
+        c.drawString(inch, y, f"• Aspects Analyzed: {len(aspects.get('aspects', []))}")
+        
+        c.save()
+        return output_path
+    except Exception as e:
+        print(f"Simple PDF error: {e}")
+        return None
+
+
+def download_pdf(state: dict) -> Optional[str]:
+    """Generate PDF and return path for download."""
+    if not state:
+        return None
+    return generate_pdf_report(state)
+
+
+def send_email_report(email: str, state: dict) -> str:
+    """Send PDF report via email."""
+    if not state:
+        return "❌ No analysis data available. Please run analysis first."
+    
+    if not email or '@' not in email:
+        return "❌ Please enter a valid email address."
+    
+    # Check if email is configured
+    if not SMTP_USER or not SMTP_PASSWORD:
+        return "⚠️ Email sending is not configured. Please download the PDF instead."
+    
+    try:
+        # Generate PDF
+        pdf_path = generate_pdf_report(state)
+        if not pdf_path:
+            return "❌ Failed to generate PDF report."
+        
+        restaurant_name = state.get('restaurant_name', 'Restaurant')
+        
+        # Create email
+        msg = MIMEMultipart()
+        msg['From'] = EMAIL_FROM
+        msg['To'] = email
+        msg['Subject'] = f"Restaurant Intelligence Report - {restaurant_name}"
+        
+        body = f"""
+Hello,
+
+Please find attached your Restaurant Intelligence Report for {restaurant_name}.
+
+This report includes:
+- Executive Summary
+- Menu Performance Analysis
+- Customer Experience Aspects
+- Chef & Manager Insights
+- Trend Analysis
+
+Generated by Restaurant Intelligence Agent
+Powered by Claude AI
+
+Best regards,
+Restaurant Intelligence Agent
+        """
+        
+        msg.attach(MIMEText(body, 'plain'))
+        
+        # Attach PDF
+        with open(pdf_path, 'rb') as f:
+            part = MIMEBase('application', 'octet-stream')
+            part.set_payload(f.read())
+        
+        encoders.encode_base64(part)
+        part.add_header('Content-Disposition', f'attachment; filename="{restaurant_name}_report.pdf"')
+        msg.attach(part)
+        
+        # Send email
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.send_message(msg)
+        
+        # Clean up temp file
+        try:
+            os.remove(pdf_path)
+        except:
+            pass
+        
+        return f"✅ Report sent successfully to **{email}**!"
+    
+    except Exception as e:
+        return f"❌ Failed to send email: {str(e)}"
+
+
+# ============================================================================
+# RAG Q&A FUNCTIONS
+# ============================================================================
+
 FOOD_WORDS = {'food', 'dish', 'dishes', 'menu', 'eat', 'taste', 'flavor', 'best', 'try', 'order', 'recommend'}
 SERVICE_WORDS = {'service', 'staff', 'waiter', 'server', 'waitress', 'attentive', 'friendly', 'rude', 'slow'}
 AMBIANCE_WORDS = {'ambiance', 'atmosphere', 'vibe', 'decor', 'noise', 'loud', 'quiet', 'romantic', 'cozy'}
-VALUE_WORDS = {'price', 'value', 'worth', 'expensive', 'cheap', 'affordable', 'overpriced', 'money'}
-DATE_WORDS = {'date', 'romantic', 'anniversary', 'special', 'occasion', 'birthday', 'celebration'}
 
 
 def find_relevant_reviews(question: str, state: dict, top_k: int = 6) -> List[str]:
-    """RETRIEVAL: Find relevant reviews for the question."""
+    """Find relevant reviews for the question."""
     if not state:
         return []
     
@@ -616,7 +733,6 @@ def find_relevant_reviews(question: str, state: dict, top_k: int = 6) -> List[st
     
     relevant_reviews = []
     
-    # Get reviews from matching items
     for item in all_items:
         name = item.get('name', '').lower()
         if name in q or any(w in name for w in q_words):
@@ -625,7 +741,6 @@ def find_relevant_reviews(question: str, state: dict, top_k: int = 6) -> List[st
                 if text not in relevant_reviews and len(text) > 20:
                     relevant_reviews.append(text)
     
-    # Get reviews from matching aspects
     for aspect in all_aspects:
         name = aspect.get('name', '').lower()
         if name in q or any(w in name for w in q_words):
@@ -634,18 +749,9 @@ def find_relevant_reviews(question: str, state: dict, top_k: int = 6) -> List[st
                 if text not in relevant_reviews and len(text) > 20:
                     relevant_reviews.append(text)
     
-    # Category-based retrieval
     if q_words & SERVICE_WORDS:
         for aspect in all_aspects:
             if any(w in aspect.get('name', '').lower() for w in ['service', 'staff', 'wait']):
-                for r in aspect.get('related_reviews', [])[:2]:
-                    text = r.get('review_text', str(r)) if isinstance(r, dict) else str(r)
-                    if text not in relevant_reviews:
-                        relevant_reviews.append(text)
-    
-    if q_words & AMBIANCE_WORDS:
-        for aspect in all_aspects:
-            if any(w in aspect.get('name', '').lower() for w in ['ambiance', 'atmosphere', 'noise']):
                 for r in aspect.get('related_reviews', [])[:2]:
                     text = r.get('review_text', str(r)) if isinstance(r, dict) else str(r)
                     if text not in relevant_reviews:
@@ -659,7 +765,6 @@ def find_relevant_reviews(question: str, state: dict, top_k: int = 6) -> List[st
                 if text not in relevant_reviews:
                     relevant_reviews.append(text)
     
-    # Fallback: get reviews from top items
     if not relevant_reviews:
         for item in all_items[:5]:
             for r in item.get('related_reviews', [])[:1]:
@@ -671,39 +776,27 @@ def find_relevant_reviews(question: str, state: dict, top_k: int = 6) -> List[st
 
 
 def generate_answer_with_claude(question: str, reviews: list, restaurant_name: str) -> str:
-    """
-    GENERATION: Use Claude to generate answer from retrieved reviews.
-    FIXED: Proper Anthropic client initialization without proxies
-    """
+    """Generate answer using Claude."""
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
-        return "⚠️ API key not configured for AI-powered answers."
+        return "⚠️ API key not configured."
     
-    # Format reviews
     reviews_text = ""
     for i, review in enumerate(reviews[:6], 1):
         text = str(review)[:250] + "..." if len(str(review)) > 250 else str(review)
         reviews_text += f"\n[Review {i}]: {text}\n"
     
-    prompt = f"""Answer a question about {restaurant_name} based on these customer reviews.
+    prompt = f"""Answer about {restaurant_name} based on these reviews:
 
 REVIEWS:
 {reviews_text}
 
 QUESTION: {question}
 
-Instructions:
-- Answer based ONLY on the reviews above
-- Be specific - mention dishes, staff, or details from reviews
-- Keep it concise (2-4 sentences)
-- Be natural and helpful
-
-Answer:"""
+Answer concisely (2-4 sentences) based ONLY on the reviews above."""
 
     try:
-        # FIXED: Simple client initialization without extra parameters
         from anthropic import Anthropic
-        
         client = Anthropic(api_key=api_key)
         response = client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -711,59 +804,31 @@ Answer:"""
             messages=[{"role": "user", "content": prompt}]
         )
         return response.content[0].text
-    except TypeError as e:
-        # Handle the proxies error specifically
-        if 'proxies' in str(e):
-            print(f"[RAG] Anthropic SDK version mismatch. Trying alternative initialization...")
-            try:
-                # Try with httpx client
-                import httpx
-                from anthropic import Anthropic
-                
-                http_client = httpx.Client()
-                client = Anthropic(api_key=api_key, http_client=http_client)
-                response = client.messages.create(
-                    model="claude-sonnet-4-20250514",
-                    max_tokens=300,
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                return response.content[0].text
-            except Exception as e2:
-                return f"⚠️ Could not generate answer: {str(e2)}"
-        return f"⚠️ Could not generate answer: {str(e)}"
     except Exception as e:
         return f"⚠️ Could not generate answer: {str(e)}"
 
 
 def answer_question(question: str, state: dict) -> str:
-    """
-    TRUE RAG Q&A:
-    1. RETRIEVAL - Find relevant reviews
-    2. GENERATION - Claude generates answer from reviews
-    """
+    """RAG Q&A function."""
     if not question or not question.strip():
         return "❓ Please type a question above."
     if not state:
         return "⚠️ Please analyze a restaurant first."
     
     restaurant = state.get("restaurant_name", "the restaurant")
-    
-    # STEP 1: RETRIEVAL
     relevant_reviews = find_relevant_reviews(question, state, top_k=6)
     
     if not relevant_reviews:
         return f"""**Q:** {question}
 
-**A:** I couldn't find relevant reviews to answer this question.
+**A:** I couldn't find relevant reviews.
 
 💡 **Try asking:**
 • "What are the best dishes?"
 • "How is the service?"
 • "Is it good for a date?"
-• "Is it worth the price?"
 """
     
-    # STEP 2: GENERATION (Claude answers from reviews)
     answer = generate_answer_with_claude(question, relevant_reviews, restaurant)
     
     return f"""**Q:** {question}
@@ -771,12 +836,8 @@ def answer_question(question: str, state: dict) -> str:
 **A:** {answer}
 
 ---
-*🤖 AI-generated answer based on {len(relevant_reviews)} customer reviews*"""
+*🤖 AI-generated answer based on {len(relevant_reviews)} reviews*"""
 
-
-# ============================================================================
-# EXAMPLE QUESTIONS
-# ============================================================================
 
 EXAMPLE_QUESTIONS = [
     "What are the best dishes to order?",
@@ -793,7 +854,7 @@ EXAMPLE_QUESTIONS = [
 # ============================================================================
 
 def analyze_restaurant(url: str, review_count: int):
-    """Main analysis - calls Modal API."""
+    """Main analysis function - calls Modal API."""
     
     empty = {}
     default_summary = "Run analysis to see performance overview."
@@ -804,7 +865,7 @@ def analyze_restaurant(url: str, review_count: int):
     # Validation
     if not url or not url.strip():
         return (
-            "❌ **Error:** Please enter an OpenTable restaurant URL.",
+            "❌ **Error:** Please enter a restaurant URL.",
             None, "No trend data available.",
             default_summary, None, default_insight, empty_dropdown, default_detail,
             default_summary, None, default_insight, empty_dropdown, default_detail,
@@ -812,9 +873,11 @@ def analyze_restaurant(url: str, review_count: int):
         )
     
     url = url.strip()
-    if "opentable" not in url.lower():
+    platform = detect_platform(url)
+    
+    if platform == "unknown":
         return (
-            "❌ **Error:** URL must be from OpenTable (e.g., opentable.com/r/restaurant-name)",
+            "❌ **Error:** URL not recognized. Please use OpenTable or Google Maps URL.",
             None, "No trend data available.",
             default_summary, None, default_insight, empty_dropdown, default_detail,
             default_summary, None, default_insight, empty_dropdown, default_detail,
@@ -822,11 +885,11 @@ def analyze_restaurant(url: str, review_count: int):
         )
     
     restaurant_name = extract_restaurant_name(url)
+    platform_emoji = get_platform_emoji(platform)
     
     try:
-        print(f"[ANALYZE] Calling Modal API for {restaurant_name}...")
+        print(f"[ANALYZE] {platform_emoji} Analyzing {restaurant_name} from {platform}...")
         
-        # Call Modal
         response = requests.post(
             f"{MODAL_API_URL}/analyze",
             json={"url": url, "max_reviews": review_count},
@@ -844,8 +907,6 @@ def analyze_restaurant(url: str, review_count: int):
         
         data = response.json()
         
-        print(f"[ANALYZE] Response keys: {data.keys()}")
-        
         if not data.get("success"):
             return (
                 f"❌ **Analysis Failed:** {data.get('error', 'Unknown error')}",
@@ -855,49 +916,37 @@ def analyze_restaurant(url: str, review_count: int):
                 empty
             )
         
-        # Extract data
         menu = data.get('menu_analysis', {})
         aspects = data.get('aspect_analysis', {})
         insights = data.get('insights', {})
         raw_reviews = data.get('raw_reviews', [])
-        
-        print(f"[ANALYZE] raw_reviews count: {len(raw_reviews)}")
-        if raw_reviews:
-            print(f"[ANALYZE] Sample raw_review: {raw_reviews[0]}")
         
         food_items = menu.get('food_items', [])
         drinks = menu.get('drinks', [])
         aspect_list = aspects.get('aspects', [])
         all_menu = food_items + drinks
         
-        # State (includes raw_reviews for trend chart)
         state = {
             "menu_analysis": menu,
             "aspect_analysis": aspects,
             "insights": insights,
             "restaurant_name": restaurant_name,
-            "raw_reviews": raw_reviews
+            "raw_reviews": raw_reviews,
+            "source": platform
         }
         
-        # Generate trend chart and insight
-        print(f"[ANALYZE] Generating trend chart...")
         trend_chart = generate_trend_chart(raw_reviews, restaurant_name)
         trend_insight = generate_trend_insight(raw_reviews, restaurant_name)
-        print(f"[ANALYZE] Trend chart result: {trend_chart}")
         
-        # Plain English Summaries
         menu_summary = translate_menu_performance(menu, restaurant_name)
         aspect_summary = translate_aspect_performance(aspects, restaurant_name)
         
-        # Insights
         chef_insights = format_insights(insights.get('chef', {}), 'chef')
         manager_insights = format_insights(insights.get('manager', {}), 'manager')
         
-        # Charts
         chef_chart = generate_chart(all_menu, f"Menu Item Sentiment (Top 10 by Mentions)")
         manager_chart = generate_chart(aspect_list, f"Aspect Sentiment (Top 10 by Mentions)")
         
-        # Dropdowns - UPDATED: Sort by mentions and include count in label
         chef_sorted = sorted(all_menu, key=lambda x: x.get('mention_count', 0), reverse=True)
         manager_sorted = sorted(aspect_list, key=lambda x: x.get('mention_count', 0), reverse=True)
         
@@ -907,10 +956,10 @@ def analyze_restaurant(url: str, review_count: int):
         chef_dropdown_update = gr.update(choices=chef_choices, value=None)
         manager_dropdown_update = gr.update(choices=manager_choices, value=None)
         
-        # Status
-        status = f"""✅ **Analysis Complete for {restaurant_name}!**
+        status = f"""✅ **Analysis Complete for {restaurant_name}!** {platform_emoji}
 
 **📊 Summary:**
+• Source: **{platform.replace('_', ' ').title()}**
 • Reviews analyzed: **{review_count}**
 • Menu items found: **{len(all_menu)}** ({len(food_items)} food, {len(drinks)} drinks)
 • Aspects discovered: **{len(aspect_list)}**
@@ -918,7 +967,6 @@ def analyze_restaurant(url: str, review_count: int):
 👇 **Explore the tabs below for detailed insights!**
 """
         
-        # UPDATED: Return order matches new tab order (Trends first)
         return (
             status,
             trend_chart, trend_insight,
@@ -963,6 +1011,8 @@ def create_app() -> gr.Blocks:
 **AI-Powered Review Analysis for Restaurant Owners, Chefs & Managers**
 
 *Uncover what customers really think — beyond star ratings.*
+
+**Supported Platforms:** 🍽️ OpenTable | 🗺️ Google Maps
         """)
         
         gr.Markdown("---")
@@ -973,13 +1023,12 @@ def create_app() -> gr.Blocks:
         with gr.Row():
             with gr.Column(scale=5):
                 url_input = gr.Textbox(
-                    label="OpenTable URL",
-                    placeholder="https://www.opentable.com/r/restaurant-name",
-                    info="Paste the full URL from OpenTable",
+                    label="Restaurant URL",
+                    placeholder="Paste OpenTable or Google Maps URL",
+                    info="Supports: opentable.com, google.com/maps",
                     max_lines=1
                 )
             with gr.Column(scale=1):
-                # UPDATED: 50, 100, 200, 500, 1000 (removed 20)
                 review_count = gr.Dropdown(
                     choices=[50, 100, 200, 500, 1000],
                     value=100,
@@ -989,90 +1038,64 @@ def create_app() -> gr.Blocks:
             with gr.Column(scale=1):
                 analyze_btn = gr.Button("🚀 Analyze", variant="primary", size="lg")
         
-        # ==================== STATUS ====================
         status_box = gr.Markdown(
-            value="*Enter a restaurant URL above and click **Analyze** to start. Analysis takes 3-8 minutes.*"
+            value="*Enter a restaurant URL above and click **Analyze** to start.*"
         )
         
-        # Hidden state
         analysis_state = gr.State(value={})
         
         gr.Markdown("---")
         
         # ==================== RESULTS TABS ====================
-        # UPDATED: Tab order - Trends → Chef → Manager → Q&A
         with gr.Tabs():
             
-            # ========== TRENDS TAB (FIRST) ==========
+            # ========== TRENDS TAB ==========
             with gr.Tab("📈 Trends"):
-                
                 gr.Markdown("""
 ### Rating vs Sentiment Over Time
 
 This chart reveals the **disconnect** between what customers **rate** (stars) 
-vs what they **say** (sentiment). A restaurant with high ratings but negative 
-sentiment could be a warning sign!
+vs what they **say** (sentiment).
                 """)
-                
                 trend_chart = gr.Image(label="Rating vs Sentiment Trend", height=450)
-                
                 gr.Markdown("---")
-                
-                trend_insight = gr.Markdown(
-                    value="*Run analysis to see trend insights.*"
-                )
+                trend_insight = gr.Markdown(value="*Run analysis to see trend insights.*")
             
             # ========== CHEF TAB ==========
             with gr.Tab("🍳 Chef Insights"):
-                
-                chef_summary = gr.Markdown(
-                    value="*Run analysis to see menu performance overview.*"
-                )
-                
+                chef_summary = gr.Markdown(value="*Run analysis to see menu performance overview.*")
                 gr.Markdown("---")
-                
                 with gr.Row():
                     with gr.Column(scale=1):
                         chef_chart = gr.Image(label="Menu Sentiment Chart", height=420)
                     with gr.Column(scale=1):
                         chef_insights = gr.Markdown(value="*AI-generated insights will appear here.*")
-                
                 gr.Markdown("---")
-                
                 gr.Markdown("**🔍 Drill Down:** Select a menu item to see detailed feedback")
                 chef_dropdown = gr.Dropdown(choices=[], label="Select Menu Item", interactive=True)
                 chef_detail = gr.Markdown(value="*Select an item above to see detailed feedback.*")
             
             # ========== MANAGER TAB ==========
             with gr.Tab("📊 Manager Insights"):
-                
-                manager_summary = gr.Markdown(
-                    value="*Run analysis to see aspect performance overview.*"
-                )
-                
+                manager_summary = gr.Markdown(value="*Run analysis to see aspect performance overview.*")
                 gr.Markdown("---")
-                
                 with gr.Row():
                     with gr.Column(scale=1):
                         manager_chart = gr.Image(label="Aspect Sentiment Chart", height=420)
                     with gr.Column(scale=1):
                         manager_insights = gr.Markdown(value="*AI-generated insights will appear here.*")
-                
                 gr.Markdown("---")
-                
                 gr.Markdown("**🔍 Drill Down:** Select an aspect to see detailed feedback")
                 manager_dropdown = gr.Dropdown(choices=[], label="Select Aspect", interactive=True)
                 manager_detail = gr.Markdown(value="*Select an aspect above to see detailed feedback.*")
             
-            # ========== Q&A TAB (LAST) ==========
+            # ========== Q&A TAB ==========
             with gr.Tab("💬 Ask Questions"):
-                
                 gr.Markdown("""
 ### Ask Questions About the Reviews
 
 Get AI-powered answers based on actual customer feedback.
                 """)
-                
                 gr.Markdown("**💡 Try these example questions:**")
                 with gr.Row():
                     for q in EXAMPLE_QUESTIONS[:3]:
@@ -1083,20 +1106,50 @@ Get AI-powered answers based on actual customer feedback.
                     placeholder="e.g., What do customers think about the pasta dishes?",
                     lines=2
                 )
-                
                 with gr.Row():
                     ask_btn = gr.Button("🔍 Ask", variant="primary")
                     clear_btn = gr.Button("Clear", variant="secondary")
-                
-                answer_output = gr.Markdown(
-                    value="*Analyze a restaurant first, then ask questions about the reviews.*"
-                )
-                
+                answer_output = gr.Markdown(value="*Analyze a restaurant first, then ask questions.*")
                 clear_btn.click(fn=lambda: ("", "*Ask a question above.*"), outputs=[question_input, answer_output])
+            
+            # ========== EXPORT TAB ==========
+            with gr.Tab("📤 Export Report"):
+                gr.Markdown("""
+### Export Your Analysis
+
+Download a comprehensive PDF report or have it emailed directly to you.
+                """)
+                
+                gr.Markdown("---")
+                
+                # Download Section
+                gr.Markdown("#### 📥 Download PDF Report")
+                gr.Markdown("Get a professional PDF with all analysis results, charts, and recommendations.")
+                
+                with gr.Row():
+                    download_btn = gr.Button("📄 Generate & Download PDF", variant="primary", size="lg")
+                
+                pdf_output = gr.File(label="Download Your Report", visible=True)
+                
+                gr.Markdown("---")
+                
+                # Email Section
+                gr.Markdown("#### 📧 Email Report")
+                gr.Markdown("Enter your email address to receive the PDF report directly in your inbox.")
+                
+                with gr.Row():
+                    email_input = gr.Textbox(
+                        label="Email Address",
+                        placeholder="your@email.com",
+                        max_lines=1,
+                        scale=3
+                    )
+                    send_btn = gr.Button("📨 Send Report", variant="secondary", scale=1)
+                
+                email_status = gr.Markdown(value="")
         
         # ==================== FOOTER ====================
         gr.Markdown("---")
-        
         gr.Markdown("""
 <center>
 
@@ -1109,7 +1162,6 @@ Get AI-powered answers based on actual customer feedback.
         """)
         
         # ==================== EVENT HANDLERS ====================
-        # UPDATED: Output order matches new tab order
         analyze_btn.click(
             fn=analyze_restaurant,
             inputs=[url_input, review_count],
@@ -1138,6 +1190,18 @@ Get AI-powered answers based on actual customer feedback.
             fn=answer_question,
             inputs=[question_input, analysis_state],
             outputs=answer_output
+        )
+        
+        download_btn.click(
+            fn=download_pdf,
+            inputs=[analysis_state],
+            outputs=pdf_output
+        )
+        
+        send_btn.click(
+            fn=send_email_report,
+            inputs=[email_input, analysis_state],
+            outputs=email_status
         )
     
     return app

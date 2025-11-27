@@ -20,3 +20,4 @@ reportlab==4.0.7
 
 # Optional: Better Selenium driver management
 webdriver-manager==4.0.1
+reportlab==4.0.7

@@ -13,3 +13,4 @@ matplotlib>=3.8.0
 # Anthropic SDK - FIXED: Use a version that doesn't have proxies issue
 # The issue is that older versions use 'proxies' param which newer httpx doesn't support
 anthropic>=0.45.0
+reportlab>=4.0.0

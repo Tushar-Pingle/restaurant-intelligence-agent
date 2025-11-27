@@ -1,10 +1,12 @@
 """
 Modal Backend for Restaurant Intelligence Agent
-With TRUE MCP Server Integration
+With Multi-Platform Scraper Support (OpenTable + Google Maps)
 
-Deploys:
-1. Analysis API endpoint (existing)
-2. MCP Server endpoint (NEW - for true MCP protocol)
+VERSION 3.0:
+1. Auto-detects URL platform
+2. Routes to appropriate scraper
+3. PDF report generation
+4. TRUE MCP Server Integration
 """
 
 import modal
@@ -19,7 +21,7 @@ image = (
     .apt_install("chromium", "chromium-driver")
     .run_commands("ln -sf /usr/bin/chromedriver /usr/local/bin/chromedriver")
     .run_commands("ln -sf /usr/bin/chromium /usr/local/bin/chromium")
-    .uv_pip_install(
+    .pip_install(
         "anthropic",
         "selenium", 
         "beautifulsoup4",
@@ -28,16 +30,35 @@ image = (
         "matplotlib",
         "fastapi[standard]",
         "fastmcp",
+        "reportlab",  # For PDF generation
     )
     .add_local_python_source("src")
 )
 
 
 # ============================================================================
+# URL DETECTION
+# ============================================================================
+
+def detect_platform(url: str) -> str:
+    """Detect which platform the URL is from."""
+    if not url:
+        return "unknown"
+    
+    url_lower = url.lower()
+    
+    if 'opentable' in url_lower:
+        return "opentable"
+    elif any(x in url_lower for x in ['google.com/maps', 'goo.gl/maps', 'maps.google', 'maps.app.goo.gl']):
+        return "google_maps"
+    else:
+        return "unknown"
+
+
+# ============================================================================
 # MCP SERVER (TRUE MCP INTEGRATION)
 # ============================================================================
 
-# In-memory storage for MCP
 REVIEW_INDEX: Dict[str, List[str]] = {}
 ANALYSIS_CACHE: Dict[str, Dict[str, Any]] = {}
 
@@ -45,11 +66,7 @@ ANALYSIS_CACHE: Dict[str, Dict[str, Any]] = {}
 @app.function(image=image, timeout=300)
 @modal.asgi_app()
 def mcp_server():
-    """
-    TRUE MCP Server - exposes tools via MCP protocol over HTTP.
-    
-    Agent calls this server to use MCP tools.
-    """
+    """TRUE MCP Server - exposes tools via MCP protocol over HTTP."""
     from fastapi import FastAPI, HTTPException
     from pydantic import BaseModel
     from datetime import datetime
@@ -69,7 +86,6 @@ def mcp_server():
         question: str
         top_k: int = 5
     
-    # MCP Tools
     def index_reviews(restaurant_name: str, reviews: List[str]) -> Dict[str, Any]:
         REVIEW_INDEX[restaurant_name] = reviews
         return {
@@ -96,11 +112,6 @@ def mcp_server():
             "review_count": min(top_k, len(reviews))
         }
     
-    def save_report(restaurant_name: str, report_data: Dict, report_type: str = "analysis") -> Dict[str, Any]:
-        report_id = f"{restaurant_name}_{report_type}_{datetime.now().isoformat()}"
-        ANALYSIS_CACHE[report_id] = {"restaurant": restaurant_name, "type": report_type, "data": report_data}
-        return {"success": True, "report_id": report_id}
-    
     def list_tools() -> Dict[str, Any]:
         return {
             "success": True,
@@ -113,7 +124,7 @@ def mcp_server():
     
     @mcp_api.get("/")
     async def root():
-        return {"name": "Restaurant Intelligence MCP Server", "protocol": "MCP", "version": "1.0"}
+        return {"name": "Restaurant Intelligence MCP Server", "protocol": "MCP", "version": "3.0"}
     
     @mcp_api.get("/health")
     async def health():
@@ -125,11 +136,9 @@ def mcp_server():
     
     @mcp_api.post("/mcp/call")
     async def call_tool(request: ToolRequest):
-        """TRUE MCP interface - agent calls tools via this endpoint."""
         tool_map = {
             "index_reviews": lambda args: index_reviews(args["restaurant_name"], args["reviews"]),
             "query_reviews": lambda args: query_reviews(args["restaurant_name"], args["question"], args.get("top_k", 5)),
-            "save_report": lambda args: save_report(args["restaurant_name"], args["report_data"], args.get("report_type", "analysis")),
             "list_tools": lambda args: list_tools()
         }
         
@@ -142,40 +151,41 @@ def mcp_server():
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
     
-    @mcp_api.post("/tools/index_reviews")
-    async def api_index_reviews(request: IndexReviewsRequest):
-        return index_reviews(request.restaurant_name, request.reviews)
-    
-    @mcp_api.post("/tools/query_reviews")
-    async def api_query_reviews(request: QueryReviewsRequest):
-        return query_reviews(request.restaurant_name, request.question, request.top_k)
-    
     return mcp_api
 
 
 # ============================================================================
-# MAIN ANALYSIS API (existing functionality)
+# SCRAPER FUNCTIONS
 # ============================================================================
 
 @app.function(image=image)
 def hello() -> Dict[str, Any]:
-    return {"status": "Modal is working!", "mcp": "enabled"}
+    return {"status": "Modal is working!", "mcp": "enabled", "version": "3.0", "platforms": ["opentable", "google_maps"]}
 
 
-@app.function(image=image, timeout=600)
+@app.function(image=image, timeout=900)
 def scrape_restaurant_modal(url: str, max_reviews: int = 100) -> Dict[str, Any]:
-    """Scrape reviews from OpenTable."""
-    from src.scrapers.opentable_scraper import scrape_opentable
-    from src.data_processing import process_reviews, clean_reviews_for_ai
+    """Scrape reviews - auto-detects platform."""
+    platform = detect_platform(url)
     
-    result = scrape_opentable(url=url, max_reviews=max_reviews, headless=True)
+    if platform == "opentable":
+        from src.scrapers.opentable_scraper import scrape_opentable
+        result = scrape_opentable(url=url, max_reviews=max_reviews, headless=True)
+    elif platform == "google_maps":
+        from src.scrapers.google_maps_scraper import scrape_google_maps
+        result = scrape_google_maps(url=url, max_reviews=max_reviews, headless=True)
+    else:
+        return {"success": False, "error": f"Unsupported platform. Use OpenTable or Google Maps URL."}
+    
     if not result.get("success"):
         return {"success": False, "error": result.get("error")}
+    
+    from src.data_processing import process_reviews, clean_reviews_for_ai
     
     df = process_reviews(result)
     reviews = clean_reviews_for_ai(df["review_text"].tolist(), verbose=False)
     
-    # Include raw review data with dates and ratings for trend analysis
+    # Include raw review data
     raw_reviews = []
     for _, row in df.iterrows():
         raw_reviews.append({
@@ -189,6 +199,7 @@ def scrape_restaurant_modal(url: str, max_reviews: int = 100) -> Dict[str, Any]:
     
     return {
         "success": True,
+        "source": platform,
         "total_reviews": len(reviews),
         "reviews": reviews,
         "raw_reviews": raw_reviews,
@@ -202,20 +213,29 @@ def scrape_restaurant_modal(url: str, max_reviews: int = 100) -> Dict[str, Any]:
     timeout=2400,
 )
 def full_analysis_modal(url: str, max_reviews: int = 100) -> Dict[str, Any]:
-    """Complete end-to-end analysis with MCP integration."""
-    from src.scrapers.opentable_scraper import scrape_opentable
-    from src.data_processing import process_reviews, clean_reviews_for_ai
-    from src.agent.base_agent import RestaurantAnalysisAgent
+    """Complete end-to-end analysis with multi-platform support."""
+    platform = detect_platform(url)
     
-    # Scrape
-    result = scrape_opentable(url=url, max_reviews=max_reviews, headless=True)
+    # Route to appropriate scraper
+    if platform == "opentable":
+        from src.scrapers.opentable_scraper import scrape_opentable
+        result = scrape_opentable(url=url, max_reviews=max_reviews, headless=True)
+    elif platform == "google_maps":
+        from src.scrapers.google_maps_scraper import scrape_google_maps
+        result = scrape_google_maps(url=url, max_reviews=max_reviews, headless=True)
+    else:
+        return {"success": False, "error": "Unsupported platform. Use OpenTable or Google Maps URL."}
+    
     if not result.get("success"):
         return {"success": False, "error": result.get("error")}
+    
+    from src.data_processing import process_reviews, clean_reviews_for_ai
+    from src.agent.base_agent import RestaurantAnalysisAgent
     
     df = process_reviews(result)
     reviews = clean_reviews_for_ai(df["review_text"].tolist(), verbose=False)
     
-    # Extract raw review data with dates and ratings for trend analysis
+    # Extract raw review data
     raw_reviews = []
     for _, row in df.iterrows():
         raw_reviews.append({
@@ -227,7 +247,15 @@ def full_analysis_modal(url: str, max_reviews: int = 100) -> Dict[str, Any]:
             "text": str(row.get("review_text", ""))
         })
     
-    restaurant_name = url.split("/")[-1].split("?")[0].replace("-", " ").title()
+    # Extract restaurant name from URL
+    if platform == "opentable":
+        restaurant_name = url.split("/")[-1].split("?")[0].replace("-", " ").title()
+    else:
+        # Google Maps
+        if '/place/' in url:
+            restaurant_name = url.split('/place/')[1].split('/')[0].replace('+', ' ').replace('%20', ' ')
+        else:
+            restaurant_name = "Restaurant"
     
     # Analyze
     agent = RestaurantAnalysisAgent()
@@ -237,17 +265,18 @@ def full_analysis_modal(url: str, max_reviews: int = 100) -> Dict[str, Any]:
         reviews=reviews,
     )
     
-    # Store in MCP cache for Q&A
+    # Store in MCP cache
     REVIEW_INDEX[restaurant_name] = reviews
     
-    # Add raw reviews for trend analysis
+    # Add metadata
     analysis['raw_reviews'] = raw_reviews
+    analysis['source'] = platform
     
     return analysis
 
 
 # ============================================================================
-# FASTAPI APP (serves both analysis and MCP)
+# FASTAPI APP
 # ============================================================================
 
 @app.function(
@@ -257,11 +286,11 @@ def full_analysis_modal(url: str, max_reviews: int = 100) -> Dict[str, Any]:
 )
 @modal.asgi_app()
 def fastapi_app():
-    """Main API with MCP integration."""
+    """Main API with multi-platform support and MCP integration."""
     from fastapi import FastAPI, HTTPException
     from pydantic import BaseModel
     
-    web_app = FastAPI(title="Restaurant Intelligence API with MCP")
+    web_app = FastAPI(title="Restaurant Intelligence API v3.0")
     
     class AnalyzeRequest(BaseModel):
         url: str
@@ -275,8 +304,9 @@ def fastapi_app():
     async def root():
         return {
             "name": "Restaurant Intelligence API",
-            "version": "2.0",
+            "version": "3.0",
             "mcp": "enabled",
+            "supported_platforms": ["opentable", "google_maps"],
             "endpoints": {
                 "analyze": "/analyze",
                 "mcp_tools": "/mcp/call",
@@ -286,17 +316,24 @@ def fastapi_app():
     
     @web_app.get("/health")
     async def health():
-        return {"status": "healthy", "mcp": "enabled"}
+        return {"status": "healthy", "mcp": "enabled", "version": "3.0"}
     
     @web_app.post("/analyze")
     async def analyze(request: AnalyzeRequest):
         try:
+            # Detect platform first
+            platform = detect_platform(request.url)
+            if platform == "unknown":
+                raise HTTPException(
+                    status_code=400, 
+                    detail="Unsupported URL. Please use OpenTable or Google Maps URL."
+                )
+            
             result = full_analysis_modal.remote(url=request.url, max_reviews=request.max_reviews)
             return result
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
     
-    # MCP Endpoints
     @web_app.get("/mcp/tools")
     async def mcp_list_tools():
         return {
@@ -309,10 +346,6 @@ def fastapi_app():
     
     @web_app.post("/mcp/call")
     async def mcp_call(request: MCPCallRequest):
-        """TRUE MCP interface."""
-        # For now, this delegates to local functions
-        # In production, this would connect to the MCP server
-        
         if request.tool_name == "index_reviews":
             args = request.arguments
             REVIEW_INDEX[args["restaurant_name"]] = args["reviews"]
@@ -341,16 +374,20 @@ def fastapi_app():
 
 @app.local_entrypoint()
 def main():
-    print("🧪 Testing Modal deployment with MCP...\n")
+    print("🧪 Testing Modal deployment v3.0...\n")
     
     print("1️⃣ Testing connection...")
     result = hello.remote()
     print(f"✅ {result}\n")
     
-    print("2️⃣ MCP Server deployed at:")
+    print("2️⃣ Supported platforms:")
+    print("   • OpenTable (opentable.com)")
+    print("   • Google Maps (google.com/maps)")
+    
+    print("\n3️⃣ MCP Server deployed at:")
     print("   https://tushar-pingle--restaurant-intelligence-mcp-server.modal.run")
     
-    print("\n3️⃣ Analysis API deployed at:")
+    print("\n4️⃣ Analysis API deployed at:")
     print("   https://tushar-pingle--restaurant-intelligence-fastapi-app.modal.run")
     
-    print("\n✅ Both endpoints ready!")
+    print("\n✅ All endpoints ready!")
