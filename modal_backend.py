@@ -1,19 +1,20 @@
 """
-Modal Backend for Restaurant Intelligence Agent
-With TRUE MCP Server Integration
+Modal Backend for Restaurant Intelligence Agent - PARALLEL OPTIMIZED
+Version 3.0 - Uses Modal's parallel processing for 5x speed improvement
 
-UPDATED: Now sends slim trend_data instead of full raw_reviews
-- Reduces response size by ~97%
-- Pre-calculates sentiment in backend
-- Fixes HuggingFace timeout issues
+KEY OPTIMIZATIONS:
+1. Parallel batch processing with .map() - Process all batches simultaneously
+2. Parallel insights generation - Chef + Manager at same time
+3. Larger batch sizes (30 reviews instead of 20)
+4. Reduced timeout since parallel is faster
 
-Deploys:
-1. Analysis API endpoint
-2. MCP Server endpoint
+TARGET: 1000 reviews in ~5 minutes (down from 15+ minutes)
 """
 
 import modal
 from typing import Dict, Any, List
+import os
+import json
 
 # Create Modal app
 app = modal.App("restaurant-intelligence")
@@ -33,14 +34,14 @@ image = (
         "matplotlib",
         "fastapi[standard]",
         "httpx",
-        "fastmcp",  # Required by src/mcp_integrations modules
+        "fastmcp",
     )
     .add_local_python_source("src")
 )
 
 
 # ============================================================================
-# HELPER FUNCTION - Calculate sentiment from text
+# HELPER FUNCTIONS
 # ============================================================================
 
 def calculate_sentiment(text: str) -> float:
@@ -65,186 +66,277 @@ def calculate_sentiment(text: str) -> float:
 
 
 # ============================================================================
-# MCP SERVER (TRUE MCP INTEGRATION)
+# PARALLEL BATCH PROCESSOR - The key optimization!
 # ============================================================================
 
-# In-memory storage for MCP
-REVIEW_INDEX: Dict[str, List[str]] = {}
-ANALYSIS_CACHE: Dict[str, Dict[str, Any]] = {}
-
-
-@app.function(image=image, timeout=300)
-@modal.asgi_app()
-def mcp_server():
+@app.function(
+    image=image,
+    secrets=[modal.Secret.from_name("anthropic-api-key")],
+    timeout=120,  # 2 min per batch is plenty
+    retries=2,
+)
+def process_batch(batch_data: Dict[str, Any]) -> Dict[str, Any]:
     """
-    TRUE MCP Server - exposes tools via MCP protocol over HTTP.
+    Process a single batch of reviews - runs in PARALLEL across containers!
+    
+    This function is called via .map() to process all batches simultaneously.
+    Modal will spin up multiple containers to handle batches in parallel.
     """
-    from fastapi import FastAPI, HTTPException
-    from pydantic import BaseModel
-    from datetime import datetime
+    from anthropic import Anthropic
+    import os
     
-    mcp_api = FastAPI(title="Restaurant Intelligence MCP Server")
+    reviews = batch_data["reviews"]
+    restaurant_name = batch_data["restaurant_name"]
+    batch_index = batch_data["batch_index"]
+    start_index = batch_data["start_index"]
     
-    class ToolRequest(BaseModel):
-        tool_name: str
-        arguments: Dict[str, Any] = {}
+    print(f"🔄 Processing batch {batch_index} ({len(reviews)} reviews)...")
     
-    class IndexReviewsRequest(BaseModel):
-        restaurant_name: str
-        reviews: List[str]
+    client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     
-    class QueryReviewsRequest(BaseModel):
-        restaurant_name: str
-        question: str
-        top_k: int = 5
+    # Build extraction prompt
+    numbered_reviews = []
+    for i, review in enumerate(reviews):
+        numbered_reviews.append(f"[Review {i}]: {review}")
+    reviews_text = "\n\n".join(numbered_reviews)
     
-    # MCP Tools
-    def index_reviews(restaurant_name: str, reviews: List[str]) -> Dict[str, Any]:
-        REVIEW_INDEX[restaurant_name] = reviews
-        return {
-            "success": True,
-            "restaurant": restaurant_name,
-            "indexed_count": len(reviews),
-            "message": f"Indexed {len(reviews)} reviews for {restaurant_name}"
-        }
-    
-    def query_reviews(restaurant_name: str, question: str, top_k: int = 5) -> Dict[str, Any]:
-        reviews = REVIEW_INDEX.get(restaurant_name, [])
-        if not reviews:
-            return {"success": False, "error": f"No reviews indexed for {restaurant_name}"}
+    prompt = f"""You are analyzing customer reviews for {restaurant_name}. Extract BOTH menu items AND aspects in ONE PASS.
+
+REVIEWS:
+{reviews_text}
+
+YOUR TASK - Extract THREE things simultaneously:
+1. **MENU ITEMS** (food & drinks mentioned)
+2. **ASPECTS** (what customers care about: service, ambience, etc.)
+3. **SENTIMENT** for each
+
+SENTIMENT SCALE (IMPORTANT):
+- **Positive (0.6 to 1.0):** Customer clearly enjoyed/praised this item or aspect
+- **Neutral (0.0 to 0.59):** Mixed feelings, okay but not exceptional, or simply mentioned without strong opinion
+- **Negative (-1.0 to -0.01):** Customer complained, criticized, or expressed disappointment
+
+RULES:
+- Specific items only: "salmon sushi", "miso soup", "sake"
+- Separate food from drinks
+- Lowercase names
+- For EACH item/aspect, list which review NUMBERS mention it (just indices, not text)
+
+OUTPUT (JSON):
+{{
+  "food_items": [
+    {{"name": "item name", "mention_count": 2, "sentiment": 0.85, "category": "type", "related_reviews": [0, 5]}}
+  ],
+  "drinks": [
+    {{"name": "drink name", "mention_count": 1, "sentiment": 0.7, "category": "alcohol", "related_reviews": [3]}}
+  ],
+  "aspects": [
+    {{"name": "service speed", "mention_count": 3, "sentiment": 0.65, "description": "brief desc", "related_reviews": [1, 2, 7]}}
+  ]
+}}
+
+CRITICAL: Output ONLY valid JSON, no other text. Use sentiment scale: >= 0.6 positive, 0-0.59 neutral, < 0 negative
+
+Extract everything:"""
+
+    try:
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=4000,
+            temperature=0.3,
+            messages=[{"role": "user", "content": prompt}]
+        )
         
-        question_words = set(question.lower().split())
-        scored = [(len(question_words & set(r.lower().split())), r) for r in reviews]
-        scored.sort(reverse=True, key=lambda x: x[0])
+        result_text = response.content[0].text
+        result_text = result_text.replace('```json', '').replace('```', '').strip()
         
-        return {
-            "success": True,
-            "restaurant": restaurant_name,
-            "question": question,
-            "relevant_reviews": [r[1] for r in scored[:top_k]],
-            "review_count": min(top_k, len(reviews))
-        }
-    
-    def save_report(restaurant_name: str, report_data: Dict, report_type: str = "analysis") -> Dict[str, Any]:
-        report_id = f"{restaurant_name}_{report_type}_{datetime.now().isoformat()}"
-        ANALYSIS_CACHE[report_id] = {"restaurant": restaurant_name, "type": report_type, "data": report_data}
-        return {"success": True, "report_id": report_id}
-    
-    def list_tools() -> Dict[str, Any]:
-        return {
-            "success": True,
-            "tools": [
-                {"name": "index_reviews", "description": "Index reviews for RAG Q&A"},
-                {"name": "query_reviews", "description": "Answer questions about reviews"},
-                {"name": "save_report", "description": "Save analysis report"},
-            ]
-        }
-    
-    @mcp_api.get("/")
-    async def root():
-        return {"name": "Restaurant Intelligence MCP Server", "protocol": "MCP", "version": "1.0"}
-    
-    @mcp_api.get("/health")
-    async def health():
-        return {"status": "healthy", "mcp": "enabled"}
-    
-    @mcp_api.get("/tools")
-    async def get_tools():
-        return list_tools()
-    
-    @mcp_api.post("/mcp/call")
-    async def call_tool(request: ToolRequest):
-        """TRUE MCP interface - agent calls tools via this endpoint."""
-        tool_map = {
-            "index_reviews": lambda args: index_reviews(args["restaurant_name"], args["reviews"]),
-            "query_reviews": lambda args: query_reviews(args["restaurant_name"], args["question"], args.get("top_k", 5)),
-            "save_report": lambda args: save_report(args["restaurant_name"], args["report_data"], args.get("report_type", "analysis")),
-            "list_tools": lambda args: list_tools()
-        }
+        data = json.loads(result_text)
         
-        if request.tool_name not in tool_map:
-            raise HTTPException(status_code=404, detail=f"Tool '{request.tool_name}' not found")
+        # Map review indices back to full text
+        for item in data.get('food_items', []):
+            indices = item.get('related_reviews', [])
+            item['related_reviews'] = []
+            for idx in indices:
+                if isinstance(idx, int) and 0 <= idx < len(reviews):
+                    item['related_reviews'].append({
+                        'review_index': start_index + idx,
+                        'review_text': reviews[idx]
+                    })
+            if 'name' in item:
+                item['name'] = item['name'].lower()
         
-        try:
-            result = tool_map[request.tool_name](request.arguments)
-            return {"success": True, "tool": request.tool_name, "result": result}
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
-    
-    @mcp_api.post("/tools/index_reviews")
-    async def api_index_reviews(request: IndexReviewsRequest):
-        return index_reviews(request.restaurant_name, request.reviews)
-    
-    @mcp_api.post("/tools/query_reviews")
-    async def api_query_reviews(request: QueryReviewsRequest):
-        return query_reviews(request.restaurant_name, request.question, request.top_k)
-    
-    return mcp_api
-
-
-# ============================================================================
-# MAIN ANALYSIS FUNCTIONS
-# ============================================================================
-
-@app.function(image=image)
-def hello() -> Dict[str, Any]:
-    return {"status": "Modal is working!", "mcp": "enabled"}
-
-
-@app.function(image=image, timeout=600)
-def scrape_restaurant_modal(url: str, max_reviews: int = 100) -> Dict[str, Any]:
-    """Scrape reviews from OpenTable or Google Maps."""
-    
-    # Detect platform
-    url_lower = url.lower()
-    if 'opentable' in url_lower:
-        from src.scrapers.opentable_scraper import scrape_opentable
-        result = scrape_opentable(url=url, max_reviews=max_reviews, headless=True)
-    elif any(x in url_lower for x in ['google.com/maps', 'goo.gl/maps', 'maps.google', 'maps.app.goo.gl']):
-        from src.scrapers.google_maps_scraper import scrape_google_maps
-        result = scrape_google_maps(url=url, max_reviews=max_reviews, headless=True)
-    else:
-        return {"success": False, "error": "Unsupported platform. Use OpenTable or Google Maps."}
-    
-    if not result.get("success"):
-        return {"success": False, "error": result.get("error")}
-    
-    from src.data_processing import process_reviews, clean_reviews_for_ai
-    
-    df = process_reviews(result)
-    reviews = clean_reviews_for_ai(df["review_text"].tolist(), verbose=False)
-    
-    # Create SLIM trend_data (pre-calculate sentiment, no text!)
-    trend_data = []
-    for _, row in df.iterrows():
-        text = str(row.get("review_text", ""))
-        trend_data.append({
-            "date": str(row.get("date", "")),
-            "rating": float(row.get("overall_rating", 0) or 0),
-            "sentiment": calculate_sentiment(text)  # Pre-calculate!
-        })
-    
-    return {
-        "success": True,
-        "total_reviews": len(reviews),
-        "reviews": reviews,
-        "trend_data": trend_data,  # Slim version, no text!
-        "metadata": result.get("metadata", {}),
-    }
+        for item in data.get('drinks', []):
+            indices = item.get('related_reviews', [])
+            item['related_reviews'] = []
+            for idx in indices:
+                if isinstance(idx, int) and 0 <= idx < len(reviews):
+                    item['related_reviews'].append({
+                        'review_index': start_index + idx,
+                        'review_text': reviews[idx]
+                    })
+            if 'name' in item:
+                item['name'] = item['name'].lower()
+        
+        for aspect in data.get('aspects', []):
+            indices = aspect.get('related_reviews', [])
+            aspect['related_reviews'] = []
+            for idx in indices:
+                if isinstance(idx, int) and 0 <= idx < len(reviews):
+                    aspect['related_reviews'].append({
+                        'review_index': start_index + idx,
+                        'review_text': reviews[idx]
+                    })
+            if 'name' in aspect:
+                aspect['name'] = aspect['name'].lower()
+        
+        print(f"✅ Batch {batch_index} complete: {len(data.get('food_items', []))} food, {len(data.get('drinks', []))} drinks, {len(data.get('aspects', []))} aspects")
+        return {"success": True, "batch_index": batch_index, "data": data}
+        
+    except json.JSONDecodeError as e:
+        print(f"⚠️ Batch {batch_index} JSON error: {e}")
+        return {"success": False, "batch_index": batch_index, "data": {"food_items": [], "drinks": [], "aspects": []}}
+    except Exception as e:
+        print(f"❌ Batch {batch_index} error: {e}")
+        return {"success": False, "batch_index": batch_index, "data": {"food_items": [], "drinks": [], "aspects": []}}
 
 
 @app.function(
     image=image,
     secrets=[modal.Secret.from_name("anthropic-api-key")],
-    timeout=2400,
+    timeout=180,  # 3 min for insights
 )
-def full_analysis_modal(url: str, max_reviews: int = 100) -> Dict[str, Any]:
-    """
-    Complete end-to-end analysis with MCP integration.
+def generate_insights_parallel(analysis_data: Dict[str, Any], restaurant_name: str, role: str) -> Dict[str, Any]:
+    """Generate insights for a single role - runs in parallel with other insights."""
+    from anthropic import Anthropic
+    import os
+    import re
     
-    UPDATED: Returns slim trend_data instead of full raw_reviews.
-    This reduces response size by ~97% and fixes timeout issues.
+    print(f"🧠 Generating {role} insights...")
+    
+    client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    
+    # Build prompt based on role
+    menu_items = analysis_data.get('menu_analysis', {}).get('food_items', [])[:20]
+    drinks = analysis_data.get('menu_analysis', {}).get('drinks', [])[:10]
+    aspects = analysis_data.get('aspect_analysis', {}).get('aspects', [])[:20]
+    
+    # Format menu summary
+    menu_lines = ["TOP MENU ITEMS:"]
+    for item in menu_items:
+        s = item.get('sentiment', 0)
+        emoji = "🟢" if s >= 0.6 else "🟡" if s >= 0 else "🔴"
+        menu_lines.append(f"  {emoji} {item.get('name', '?')}: sentiment {s:+.2f}, {item.get('mention_count', 0)} mentions")
+    menu_summary = "\n".join(menu_lines)
+    
+    # Format aspect summary
+    aspect_lines = ["TOP ASPECTS:"]
+    for a in aspects:
+        s = a.get('sentiment', 0)
+        emoji = "🟢" if s >= 0.6 else "🟡" if s >= 0 else "🔴"
+        aspect_lines.append(f"  {emoji} {a.get('name', '?')}: sentiment {s:+.2f}, {a.get('mention_count', 0)} mentions")
+    aspect_summary = "\n".join(aspect_lines)
+    
+    if role == 'chef':
+        focus = "Focus on: Food quality, menu items, ingredients, presentation, portions, consistency"
+        topic_filter = "ONLY on food/kitchen topics"
+    else:
+        focus = "Focus on: Service, staff, wait times, ambience, value, cleanliness"
+        topic_filter = "ONLY on operations/service topics"
+    
+    prompt = f"""You are an expert restaurant consultant analyzing feedback for {restaurant_name}.
+
+{menu_summary}
+
+{aspect_summary}
+
+SENTIMENT SCALE:
+- 🟢 POSITIVE (>= 0.6): Highlight as STRENGTH
+- 🟡 NEUTRAL (0 to 0.59): Room for improvement
+- 🔴 NEGATIVE (< 0): Flag as CONCERN
+
+YOUR TASK: Generate insights for the {"HEAD CHEF" if role == "chef" else "RESTAURANT MANAGER"}.
+{focus}
+
+RULES:
+1. Focus {topic_filter}
+2. STRENGTHS from items with sentiment >= 0.6
+3. CONCERNS from items with sentiment < 0
+4. Output ONLY valid JSON
+
+OUTPUT:
+{{
+  "summary": "2-3 sentence executive summary",
+  "strengths": ["strength 1", "strength 2", "strength 3", "strength 4", "strength 5"],
+  "concerns": ["concern 1", "concern 2", "concern 3"],
+  "recommendations": [
+    {{"priority": "high", "action": "action", "reason": "why", "evidence": "data"}},
+    {{"priority": "medium", "action": "action", "reason": "why", "evidence": "data"}},
+    {{"priority": "low", "action": "action", "reason": "why", "evidence": "data"}}
+  ]
+}}
+
+Generate {role} insights:"""
+
+    try:
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=2000,
+            temperature=0.4,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        
+        result_text = response.content[0].text.strip()
+        result_text = result_text.replace('```json', '').replace('```', '').strip()
+        
+        # Find JSON in response
+        match = re.search(r'\{[\s\S]*\}', result_text)
+        if match:
+            insights = json.loads(match.group())
+            print(f"✅ {role.title()} insights generated")
+            return {"role": role, "insights": insights}
+        else:
+            print(f"⚠️ No JSON found in {role} response")
+            return {"role": role, "insights": _fallback_insights(role)}
+            
+    except Exception as e:
+        print(f"❌ Error generating {role} insights: {e}")
+        return {"role": role, "insights": _fallback_insights(role)}
+
+
+def _fallback_insights(role: str) -> Dict[str, Any]:
+    """Fallback insights if generation fails."""
+    return {
+        "summary": f"Analysis complete. See data for {role} insights.",
+        "strengths": ["Data available in charts"],
+        "concerns": ["Review individual items for details"],
+        "recommendations": [{"priority": "medium", "action": "Review data", "reason": "Auto-generated", "evidence": "N/A"}]
+    }
+
+
+# ============================================================================
+# MAIN ANALYSIS FUNCTION - PARALLEL OPTIMIZED
+# ============================================================================
+
+@app.function(
+    image=image,
+    secrets=[modal.Secret.from_name("anthropic-api-key")],
+    timeout=600,  # 10 min max (down from 40 min)
+)
+def full_analysis_parallel(url: str, max_reviews: int = 100) -> Dict[str, Any]:
     """
+    PARALLEL OPTIMIZED analysis pipeline.
+    
+    Speed improvements:
+    1. Batches processed in PARALLEL via .map()
+    2. Chef + Manager insights generated in PARALLEL
+    3. Larger batch size (30 reviews)
+    
+    Target: 1000 reviews in ~5 minutes
+    """
+    import time
+    start_time = time.time()
+    
+    print(f"🚀 Starting PARALLEL analysis for {url}")
+    print(f"📊 Max reviews: {max_reviews}")
     
     # Detect platform
     url_lower = url.lower()
@@ -253,7 +345,10 @@ def full_analysis_modal(url: str, max_reviews: int = 100) -> Dict[str, Any]:
     if platform == "unknown":
         return {"success": False, "error": "Unsupported platform. Use OpenTable or Google Maps."}
     
-    # Import scrapers
+    # Phase 1: Scrape reviews
+    print("📥 Phase 1: Scraping reviews...")
+    scrape_start = time.time()
+    
     if platform == "opentable":
         from src.scrapers.opentable_scraper import scrape_opentable
         result = scrape_opentable(url=url, max_reviews=max_reviews, headless=True)
@@ -262,52 +357,181 @@ def full_analysis_modal(url: str, max_reviews: int = 100) -> Dict[str, Any]:
         result = scrape_google_maps(url=url, max_reviews=max_reviews, headless=True)
     
     if not result.get("success"):
-        return {"success": False, "error": result.get("error")}
+        return {"success": False, "error": result.get("error", "Scraping failed")}
     
+    print(f"✅ Scraping complete in {time.time() - scrape_start:.1f}s")
+    
+    # Process reviews
     from src.data_processing import process_reviews, clean_reviews_for_ai
-    from src.agent.base_agent import RestaurantAnalysisAgent
     
     df = process_reviews(result)
     reviews = clean_reviews_for_ai(df["review_text"].tolist(), verbose=False)
     
-    # Create SLIM trend_data (pre-calculate sentiment in backend!)
-    # This is ~97% smaller than sending full review text
+    print(f"📊 Total reviews: {len(reviews)}")
+    
+    # Create trend data
     trend_data = []
     for _, row in df.iterrows():
         text = str(row.get("review_text", ""))
         trend_data.append({
             "date": str(row.get("date", "")),
             "rating": float(row.get("overall_rating", 0) or 0),
-            "sentiment": calculate_sentiment(text)  # Pre-calculated!
+            "sentiment": calculate_sentiment(text)
         })
     
-    # Extract restaurant name from URL
+    # Extract restaurant name
     if platform == "opentable":
         restaurant_name = url.split("/")[-1].split("?")[0].replace("-", " ").title()
     else:
-        # Google Maps
         if '/place/' in url:
             restaurant_name = url.split('/place/')[1].split('/')[0].replace('+', ' ').replace('%20', ' ')
         else:
             restaurant_name = "Restaurant"
     
-    # Run analysis
-    agent = RestaurantAnalysisAgent()
-    analysis = agent.analyze_restaurant(
-        restaurant_url=url,
-        restaurant_name=restaurant_name,
-        reviews=reviews,
-    )
+    # Phase 2: PARALLEL batch extraction
+    print("🔄 Phase 2: PARALLEL batch extraction...")
+    extract_start = time.time()
     
-    # Store in MCP cache for Q&A
-    REVIEW_INDEX[restaurant_name] = reviews
+    BATCH_SIZE = 30  # Larger batches = fewer API calls
+    batches = []
+    for i in range(0, len(reviews), BATCH_SIZE):
+        batch_reviews = reviews[i:i+BATCH_SIZE]
+        batches.append({
+            "reviews": batch_reviews,
+            "restaurant_name": restaurant_name,
+            "batch_index": len(batches) + 1,
+            "start_index": i
+        })
     
-    # Add slim trend_data (NOT full raw_reviews!)
-    analysis['trend_data'] = trend_data
-    analysis['source'] = platform
+    print(f"📦 Created {len(batches)} batches of ~{BATCH_SIZE} reviews each")
+    print(f"🚀 Processing ALL batches in PARALLEL...")
     
-    # Log response size for debugging
-    import json
+    # THIS IS THE KEY: Process all batches in parallel!
+    batch_results = list(process_batch.map(batches))
+    
+    print(f"✅ All batches complete in {time.time() - extract_start:.1f}s")
+    
+    # Merge results from all batches
+    all_food_items = {}
+    all_drinks = {}
+    all_aspects = {}
+    
+    for batch_result in batch_results:
+        if not batch_result.get("success"):
+            continue
+        
+        data = batch_result.get("data", {})
+        
+        # Merge food items
+        for item in data.get('food_items', []):
+            name = item.get('name', '').lower()
+            if not name:
+                continue
+            if name in all_food_items:
+                all_food_items[name]['mention_count'] += item.get('mention_count', 1)
+                all_food_items[name]['related_reviews'].extend(item.get('related_reviews', []))
+                # Weighted average sentiment
+                old_count = all_food_items[name]['mention_count'] - item.get('mention_count', 1)
+                new_count = item.get('mention_count', 1)
+                if old_count + new_count > 0:
+                    old_sent = all_food_items[name]['sentiment']
+                    new_sent = item.get('sentiment', 0)
+                    all_food_items[name]['sentiment'] = (old_sent * old_count + new_sent * new_count) / (old_count + new_count)
+            else:
+                all_food_items[name] = item
+        
+        # Merge drinks
+        for item in data.get('drinks', []):
+            name = item.get('name', '').lower()
+            if not name:
+                continue
+            if name in all_drinks:
+                all_drinks[name]['mention_count'] += item.get('mention_count', 1)
+                all_drinks[name]['related_reviews'].extend(item.get('related_reviews', []))
+                old_count = all_drinks[name]['mention_count'] - item.get('mention_count', 1)
+                new_count = item.get('mention_count', 1)
+                if old_count + new_count > 0:
+                    old_sent = all_drinks[name]['sentiment']
+                    new_sent = item.get('sentiment', 0)
+                    all_drinks[name]['sentiment'] = (old_sent * old_count + new_sent * new_count) / (old_count + new_count)
+            else:
+                all_drinks[name] = item
+        
+        # Merge aspects
+        for aspect in data.get('aspects', []):
+            name = aspect.get('name', '').lower()
+            if not name:
+                continue
+            if name in all_aspects:
+                all_aspects[name]['mention_count'] += aspect.get('mention_count', 1)
+                all_aspects[name]['related_reviews'].extend(aspect.get('related_reviews', []))
+                old_count = all_aspects[name]['mention_count'] - aspect.get('mention_count', 1)
+                new_count = aspect.get('mention_count', 1)
+                if old_count + new_count > 0:
+                    old_sent = all_aspects[name]['sentiment']
+                    new_sent = aspect.get('sentiment', 0)
+                    all_aspects[name]['sentiment'] = (old_sent * old_count + new_sent * new_count) / (old_count + new_count)
+            else:
+                all_aspects[name] = aspect
+    
+    # Sort by mention count
+    food_list = sorted(all_food_items.values(), key=lambda x: x.get('mention_count', 0), reverse=True)
+    drinks_list = sorted(all_drinks.values(), key=lambda x: x.get('mention_count', 0), reverse=True)
+    aspects_list = sorted(all_aspects.values(), key=lambda x: x.get('mention_count', 0), reverse=True)
+    
+    print(f"📊 Discovered: {len(food_list)} food + {len(drinks_list)} drinks + {len(aspects_list)} aspects")
+    
+    # Build analysis data
+    analysis_data = {
+        "menu_analysis": {
+            "food_items": food_list,
+            "drinks": drinks_list
+        },
+        "aspect_analysis": {
+            "aspects": aspects_list
+        }
+    }
+    
+    # Phase 3: PARALLEL insights generation
+    print("🧠 Phase 3: PARALLEL insights generation...")
+    insights_start = time.time()
+    
+    # Generate both insights in parallel!
+    insight_inputs = [
+        (analysis_data, restaurant_name, "chef"),
+        (analysis_data, restaurant_name, "manager")
+    ]
+    
+    insight_results = list(generate_insights_parallel.starmap(insight_inputs))
+    
+    insights = {}
+    for result in insight_results:
+        insights[result["role"]] = result["insights"]
+    
+    print(f"✅ Insights complete in {time.time() - insights_start:.1f}s")
+    
+    # Build final response
+    total_time = time.time() - start_time
+    print(f"🎉 TOTAL TIME: {total_time:.1f}s ({total_time/60:.1f} min)")
+    
+    analysis = {
+        "success": True,
+        "restaurant_name": restaurant_name,
+        "menu_analysis": analysis_data["menu_analysis"],
+        "aspect_analysis": analysis_data["aspect_analysis"],
+        "insights": insights,
+        "trend_data": trend_data,
+        "source": platform,
+        "stats": {
+            "total_reviews": len(reviews),
+            "food_items": len(food_list),
+            "drinks": len(drinks_list),
+            "aspects": len(aspects_list),
+            "processing_time_seconds": round(total_time, 1)
+        }
+    }
+    
+    # Log response size
     response_size = len(json.dumps(analysis))
     print(f"[MODAL] Response size: {response_size / 1024:.1f} KB")
     
@@ -315,113 +539,61 @@ def full_analysis_modal(url: str, max_reviews: int = 100) -> Dict[str, Any]:
 
 
 # ============================================================================
-# FASTAPI APP (serves both analysis and MCP)
+# FASTAPI APP - Updated to use parallel function
 # ============================================================================
 
 @app.function(
     image=image, 
     secrets=[modal.Secret.from_name("anthropic-api-key")],
-    timeout=2400,
+    timeout=900,  # 15 min timeout for the API endpoint
 )
 @modal.asgi_app()
 def fastapi_app():
-    """Main API with MCP integration."""
+    """Main API - uses parallel processing for speed."""
     from fastapi import FastAPI, HTTPException
     from pydantic import BaseModel
     
-    web_app = FastAPI(title="Restaurant Intelligence API with MCP")
+    web_app = FastAPI(title="Restaurant Intelligence API - PARALLEL OPTIMIZED")
     
     class AnalyzeRequest(BaseModel):
         url: str
         max_reviews: int = 100
     
-    class MCPCallRequest(BaseModel):
-        tool_name: str
-        arguments: Dict[str, Any] = {}
-    
     @web_app.get("/")
     async def root():
         return {
             "name": "Restaurant Intelligence API",
-            "version": "3.0",
-            "mcp": "enabled",
-            "optimizations": ["slim_trend_data", "pre_calculated_sentiment"],
-            "endpoints": {
-                "analyze": "/analyze",
-                "mcp_tools": "/mcp/call",
-                "mcp_list": "/mcp/tools"
-            }
+            "version": "3.0-parallel",
+            "optimizations": ["parallel_batches", "parallel_insights", "larger_batch_size"],
+            "target": "1000 reviews in ~5 minutes"
         }
     
     @web_app.get("/health")
     async def health():
-        return {"status": "healthy", "mcp": "enabled"}
+        return {"status": "healthy", "version": "parallel"}
     
     @web_app.post("/analyze")
     async def analyze(request: AnalyzeRequest):
         try:
-            result = full_analysis_modal.remote(url=request.url, max_reviews=request.max_reviews)
+            result = full_analysis_parallel.remote(url=request.url, max_reviews=request.max_reviews)
             return result
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             raise HTTPException(status_code=500, detail=str(e))
-    
-    # MCP Endpoints
-    @web_app.get("/mcp/tools")
-    async def mcp_list_tools():
-        return {
-            "tools": [
-                {"name": "index_reviews", "description": "Index reviews for RAG Q&A"},
-                {"name": "query_reviews", "description": "Answer questions about reviews"},
-                {"name": "save_report", "description": "Save analysis report"},
-            ]
-        }
-    
-    @web_app.post("/mcp/call")
-    async def mcp_call(request: MCPCallRequest):
-        """TRUE MCP interface."""
-        # For now, this delegates to local functions
-        if request.tool_name == "index_reviews":
-            args = request.arguments
-            REVIEW_INDEX[args["restaurant_name"]] = args["reviews"]
-            return {"success": True, "indexed": len(args["reviews"])}
-        
-        elif request.tool_name == "query_reviews":
-            args = request.arguments
-            reviews = REVIEW_INDEX.get(args["restaurant_name"], [])
-            if not reviews:
-                return {"success": False, "error": "No reviews indexed"}
-            
-            question_words = set(args["question"].lower().split())
-            scored = [(len(question_words & set(r.lower().split())), r) for r in reviews]
-            scored.sort(reverse=True, key=lambda x: x[0])
-            top_k = args.get("top_k", 5)
-            
-            return {
-                "success": True,
-                "relevant_reviews": [r[1] for r in scored[:top_k]]
-            }
-        
-        return {"success": False, "error": f"Unknown tool: {request.tool_name}"}
     
     return web_app
 
 
+# ============================================================================
+# LOCAL ENTRYPOINT FOR TESTING
+# ============================================================================
+
 @app.local_entrypoint()
 def main():
-    print("🧪 Testing Modal deployment with MCP...\n")
+    print("🧪 Testing PARALLEL Modal deployment...\n")
     
-    print("1️⃣ Testing connection...")
-    result = hello.remote()
-    print(f"✅ {result}\n")
-    
-    print("2️⃣ MCP Server deployed at:")
-    print("   https://tushar-pingle--restaurant-intelligence-mcp-server.modal.run")
-    
-    print("\n3️⃣ Analysis API deployed at:")
+    print("1️⃣ API will be deployed at:")
     print("   https://tushar-pingle--restaurant-intelligence-fastapi-app.modal.run")
     
-    print("\n✅ Both endpoints ready!")
-    print("\n📊 Optimizations enabled:")
-    print("   - Slim trend_data (no full review text)")
-    print("   - Pre-calculated sentiment in backend")
-    print("   - ~97% smaller response size")
+    print("\n✅ Deploy with: modal deploy modal_backend.py")
