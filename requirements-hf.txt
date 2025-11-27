@@ -1,3 +1,15 @@
-gradio>=4.0.0
-requests
-matplotlib
+# HuggingFace Space Dependencies
+# Fixed for Anthropic SDK compatibility
+
+# Core UI
+gradio>=5.0.0,<6.1.0
+
+# HTTP requests
+requests>=2.31.0
+
+# Visualization
+matplotlib>=3.8.0
+
+# Anthropic SDK - FIXED: Use a version that doesn't have proxies issue
+# The issue is that older versions use 'proxies' param which newer httpx doesn't support
+anthropic>=0.45.0
