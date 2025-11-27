@@ -962,7 +962,7 @@ def generate_pdf_report(state: dict) -> Optional[str]:
                         if isinstance(r, dict):
                             priority = r.get('priority', 'medium').lower()
                             action = r.get('action', str(r))
-                            style_name = 'PriorityHigh' if priority == 'high' else 'PriorityMedium' if priority == 'medium' else 'PriorityLow'
+                            style_name = 'RIAPriorityHigh' if priority == 'high' else 'RIAPriorityMedium' if priority == 'medium' else 'RIAPriorityLow'
                             elements.append(Paragraph(f"[{priority.upper()}] {action}", styles[style_name]))
                         else:
                             elements.append(Paragraph(f"• {r}", styles['RIABullet']))
@@ -1005,7 +1005,7 @@ def generate_pdf_report(state: dict) -> Optional[str]:
                         if isinstance(r, dict):
                             priority = r.get('priority', 'medium').lower()
                             action = r.get('action', str(r))
-                            style_name = 'PriorityHigh' if priority == 'high' else 'PriorityMedium' if priority == 'medium' else 'PriorityLow'
+                            style_name = 'RIAPriorityHigh' if priority == 'high' else 'RIAPriorityMedium' if priority == 'medium' else 'RIAPriorityLow'
                             elements.append(Paragraph(f"[{priority.upper()}] {action}", styles[style_name]))
                         else:
                             elements.append(Paragraph(f"• {r}", styles['RIABullet']))
