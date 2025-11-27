@@ -5,9 +5,13 @@ Professional UI with cards, plain English summaries, polished layout
 Hackathon: Anthropic MCP 1st Birthday - Track 2 (Productivity)
 Author: Tushar Pingle
 
-FIXES APPLIED:
+FIXES & REFINEMENTS:
 1. RAG - Fixed Anthropic client initialization (removed proxies issue)
 2. Trend Chart - Fixed date parsing and added debug logging
+3. Charts - Top 10 by MENTIONS, legends bottom-left, cleaner layout
+4. Trend Chart - Wider/more relaxed for readability
+5. Tab Order - Trends first, then Chef, Manager, Q&A
+6. Review Dropdown - 50, 100, 200, 500, 1000
 """
 
 import gradio as gr
@@ -35,8 +39,6 @@ MODAL_API_URL = os.getenv(
 def parse_opentable_date(date_str: str) -> Optional[datetime]:
     """
     Parse OpenTable date formats like 'Dined 1 day ago', 'Dined 2 weeks ago'.
-    
-    FIXED: Added more robust parsing and debug logging
     """
     if not date_str:
         return None
@@ -100,8 +102,7 @@ def calculate_review_sentiment(text: str) -> float:
 def generate_trend_chart(raw_reviews: List[Dict], restaurant_name: str) -> Optional[str]:
     """
     Generate Rating vs Sentiment trend chart.
-    
-    FIXED: Added debug logging, better error handling, fallback for missing dates
+    UPDATED: Wider chart, legend bottom-left, more relaxed spacing
     """
     import matplotlib
     matplotlib.use('Agg')
@@ -138,12 +139,12 @@ def generate_trend_chart(raw_reviews: List[Dict], restaurant_name: str) -> Optio
             
             dated_reviews.append({
                 'date': date,
-                'rating': rating if rating > 0 else 3.5,  # Default to neutral if no rating
+                'rating': rating if rating > 0 else 3.5,
                 'sentiment': sentiment
             })
         else:
             parse_failures += 1
-            if parse_failures <= 3:  # Only log first few failures
+            if parse_failures <= 3:
                 print(f"[TREND CHART] Failed to parse date: '{date_str}'")
     
     print(f"[TREND CHART] Successfully parsed {len(dated_reviews)} reviews, {parse_failures} failures")
@@ -159,7 +160,6 @@ def generate_trend_chart(raw_reviews: List[Dict], restaurant_name: str) -> Optio
             text = r.get('text', '') or r.get('review_text', '')
             sentiment = calculate_review_sentiment(text)
             
-            # Assume reviews are in reverse chronological order
             synthetic_date = datetime.now() - timedelta(days=i)
             dated_reviews.append({
                 'date': synthetic_date,
@@ -210,17 +210,18 @@ def generate_trend_chart(raw_reviews: List[Dict], restaurant_name: str) -> Optio
     SENTIMENT_COLOR = '#10b981'
     
     try:
-        fig, ax1 = plt.subplots(figsize=(10, 5))
+        # UPDATED: Wider figure for more relaxed readability
+        fig, ax1 = plt.subplots(figsize=(14, 6))
         fig.patch.set_facecolor(BG)
         ax1.set_facecolor(BG)
         
         # Rating line
         ax1.plot(dates, ratings, color=RATING_COLOR, linewidth=2.5, marker='o', 
-                 markersize=6, label='Avg Rating (Stars)')
+                 markersize=8, label='Avg Rating (Stars)')
         ax1.fill_between(dates, ratings, alpha=0.2, color=RATING_COLOR)
-        ax1.set_ylabel('Rating (1-5)', fontsize=11, color=RATING_COLOR)
-        ax1.tick_params(axis='y', labelcolor=RATING_COLOR)
-        ax1.tick_params(axis='x', colors=TEXT)
+        ax1.set_ylabel('Rating (1-5)', fontsize=12, color=RATING_COLOR)
+        ax1.tick_params(axis='y', labelcolor=RATING_COLOR, labelsize=10)
+        ax1.tick_params(axis='x', colors=TEXT, labelsize=10)
         ax1.set_ylim(1, 5)
         
         # Sentiment line (scaled to 1-5 range)
@@ -228,15 +229,18 @@ def generate_trend_chart(raw_reviews: List[Dict], restaurant_name: str) -> Optio
         ax2.set_facecolor(BG)
         sent_scaled = [(s + 1) * 2 + 1 for s in sentiments]  # Scale -1..1 to 1..5
         ax2.plot(dates, sent_scaled, color=SENTIMENT_COLOR, linewidth=2.5, 
-                 marker='s', markersize=6, linestyle='--', label='Sentiment')
+                 marker='s', markersize=8, linestyle='--', label='Sentiment')
         ax2.fill_between(dates, sent_scaled, alpha=0.15, color=SENTIMENT_COLOR)
-        ax2.set_ylabel('Sentiment', fontsize=11, color=SENTIMENT_COLOR)
-        ax2.tick_params(axis='y', labelcolor=SENTIMENT_COLOR)
+        ax2.set_ylabel('Sentiment', fontsize=12, color=SENTIMENT_COLOR)
+        ax2.tick_params(axis='y', labelcolor=SENTIMENT_COLOR, labelsize=10)
         ax2.set_ylim(1, 5)
         
-        ax1.set_title(f'📊 Rating vs Sentiment Trend', fontsize=13, fontweight='bold', color=TEXT)
+        ax1.set_title(f'📊 Rating vs Sentiment Trend', fontsize=15, fontweight='bold', color=TEXT, pad=20)
+        
+        # Better date formatting with more space
         ax1.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))
-        plt.setp(ax1.xaxis.get_majorticklabels(), rotation=45, ha='right', color=TEXT)
+        ax1.xaxis.set_major_locator(mdates.WeekdayLocator(interval=1))
+        plt.setp(ax1.xaxis.get_majorticklabels(), rotation=30, ha='right', color=TEXT)
         ax1.grid(True, alpha=0.3, color=GRID)
         
         for spine in ax1.spines.values():
@@ -244,12 +248,14 @@ def generate_trend_chart(raw_reviews: List[Dict], restaurant_name: str) -> Optio
         for spine in ax2.spines.values():
             spine.set_color(GRID)
         
+        # UPDATED: Legend in BOTTOM-LEFT
         lines1, labels1 = ax1.get_legend_handles_labels()
         lines2, labels2 = ax2.get_legend_handles_labels()
-        ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper left',
-                   facecolor=BG, edgecolor=GRID, labelcolor=TEXT, fontsize=9)
+        ax1.legend(lines1 + lines2, labels1 + labels2, loc='lower left',
+                   facecolor=BG, edgecolor=GRID, labelcolor=TEXT, fontsize=10)
         
-        plt.tight_layout()
+        # Add more padding
+        plt.tight_layout(pad=2.0)
         
         with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
             plt.savefig(f.name, dpi=120, bbox_inches='tight', facecolor=BG)
@@ -424,7 +430,13 @@ def translate_aspect_performance(aspects: dict, restaurant_name: str) -> str:
 
 
 def generate_chart(items: list, title: str) -> Optional[str]:
-    """Generate professional dark-themed sentiment chart."""
+    """
+    Generate professional dark-themed sentiment chart.
+    UPDATED: 
+    - Sort by MENTIONS (top 10 most mentioned)
+    - Legend in BOTTOM-LEFT
+    - Mention counts in Y-axis labels (not on chart area)
+    """
     if not items:
         return None
     
@@ -441,18 +453,18 @@ def generate_chart(items: list, title: str) -> Optional[str]:
         NEUTRAL = '#f59e0b'
         NEGATIVE = '#ef4444'
         
-        # Sort and limit
-        sorted_items = sorted(items, key=lambda x: x.get('sentiment', 0), reverse=True)[:10]
+        # UPDATED: Sort by MENTIONS (not sentiment) and take top 10
+        sorted_items = sorted(items, key=lambda x: x.get('mention_count', 0), reverse=True)[:10]
         
-        names = [item.get('name', '?')[:20] for item in sorted_items]
+        # UPDATED: Include mention count in the label (outside chart area)
+        names = [f"{item.get('name', '?')[:18]} ({item.get('mention_count', 0)})" for item in sorted_items]
         sentiments = [item.get('sentiment', 0) for item in sorted_items]
-        mentions = [item.get('mention_count', 1) for item in sorted_items]
         
         # Colors based on sentiment
         colors = [POSITIVE if s > 0.3 else NEUTRAL if s > -0.3 else NEGATIVE for s in sentiments]
         
         # Create figure with dark background
-        fig, ax = plt.subplots(figsize=(8, max(4, len(names) * 0.45)))
+        fig, ax = plt.subplots(figsize=(10, max(5, len(names) * 0.5)))
         fig.patch.set_facecolor(BG_COLOR)
         ax.set_facecolor(BG_COLOR)
         
@@ -463,21 +475,19 @@ def generate_chart(items: list, title: str) -> Optional[str]:
         
         ax.set_yticks(y_pos)
         ax.set_yticklabels(names, fontsize=10, color=TEXT_COLOR, fontweight='medium')
-        ax.set_xlabel('Sentiment Score', fontsize=10, color=TEXT_COLOR, fontweight='medium')
-        ax.set_title(title, fontsize=13, fontweight='bold', color=TEXT_COLOR, pad=15)
+        ax.set_xlabel('Sentiment Score', fontsize=11, color=TEXT_COLOR, fontweight='medium')
+        ax.set_title(title, fontsize=14, fontweight='bold', color=TEXT_COLOR, pad=15)
         
         ax.axvline(x=0, color=GRID_COLOR, linestyle='-', linewidth=1.5, alpha=0.8)
         ax.set_xlim(-1, 1)
         
-        for bar, sent, mention in zip(bars, sentiments, mentions):
+        # Add sentiment score labels at end of bars
+        for bar, sent in zip(bars, sentiments):
             label = f'{sent:+.2f}'
             x_pos = bar.get_width() + 0.05 if bar.get_width() >= 0 else bar.get_width() - 0.12
             ax.text(x_pos, bar.get_y() + bar.get_height()/2, label, 
                    va='center', ha='left' if bar.get_width() >= 0 else 'right',
                    fontsize=9, color=TEXT_COLOR, fontweight='bold')
-            
-            ax.text(-0.95, bar.get_y() + bar.get_height()/2, f'({mention})', 
-                   va='center', ha='left', fontsize=8, color='#9ca3af', alpha=0.8)
         
         for spine in ax.spines.values():
             spine.set_visible(False)
@@ -487,13 +497,14 @@ def generate_chart(items: list, title: str) -> Optional[str]:
         ax.tick_params(axis='x', colors=TEXT_COLOR, labelsize=9)
         ax.tick_params(axis='y', colors=TEXT_COLOR, left=False)
         
+        # UPDATED: Legend in BOTTOM-LEFT
         from matplotlib.patches import Patch
         legend_elements = [
-            Patch(facecolor=POSITIVE, label='Positive', alpha=0.9),
-            Patch(facecolor=NEUTRAL, label='Mixed', alpha=0.9),
-            Patch(facecolor=NEGATIVE, label='Negative', alpha=0.9)
+            Patch(facecolor=POSITIVE, label='Positive (>0.3)', alpha=0.9),
+            Patch(facecolor=NEUTRAL, label='Mixed (-0.3 to 0.3)', alpha=0.9),
+            Patch(facecolor=NEGATIVE, label='Negative (<-0.3)', alpha=0.9)
         ]
-        legend = ax.legend(handles=legend_elements, loc='lower right', fontsize=8,
+        legend = ax.legend(handles=legend_elements, loc='lower left', fontsize=9,
                           facecolor=BG_COLOR, edgecolor=GRID_COLOR, labelcolor=TEXT_COLOR)
         
         plt.tight_layout()
@@ -523,18 +534,21 @@ def get_item_detail(item_name: str, state: dict) -> str:
     if not item_name or not state:
         return "Select an item to see details."
     
+    # Extract just the name (remove mention count if present)
+    clean_name = item_name.split(' (')[0].strip().lower()
+    
     menu = state.get('menu_analysis', {})
     all_items = menu.get('food_items', []) + menu.get('drinks', [])
     
     for item in all_items:
-        if item.get('name', '').lower() == item_name.lower():
+        if item.get('name', '').lower() == clean_name:
             sentiment = item.get('sentiment', 0)
             mentions = item.get('mention_count', 0)
             summary = item.get('summary', 'No detailed summary available.')
             
             emoji = "🟢" if sentiment > 0.3 else "🟡" if sentiment > -0.3 else "🔴"
             
-            return f"""### {item_name.title()}
+            return f"""### {clean_name.title()}
 
 {emoji} **Sentiment:** {sentiment:+.2f} | **Mentions:** {mentions}
 
@@ -550,17 +564,20 @@ def get_aspect_detail(aspect_name: str, state: dict) -> str:
     if not aspect_name or not state:
         return "Select an aspect to see details."
     
+    # Extract just the name (remove mention count if present)
+    clean_name = aspect_name.split(' (')[0].strip().lower()
+    
     aspects = state.get('aspect_analysis', {}).get('aspects', [])
     
     for aspect in aspects:
-        if aspect.get('name', '').lower() == aspect_name.lower():
+        if aspect.get('name', '').lower() == clean_name:
             sentiment = aspect.get('sentiment', 0)
             mentions = aspect.get('mention_count', 0)
             summary = aspect.get('summary', 'No detailed summary available.')
             
             emoji = "🟢" if sentiment > 0.3 else "🟡" if sentiment > -0.3 else "🔴"
             
-            return f"""### {aspect_name.title()}
+            return f"""### {clean_name.title()}
 
 {emoji} **Sentiment:** {sentiment:+.2f} | **Mentions:** {mentions}
 
@@ -656,7 +673,6 @@ def find_relevant_reviews(question: str, state: dict, top_k: int = 6) -> List[st
 def generate_answer_with_claude(question: str, reviews: list, restaurant_name: str) -> str:
     """
     GENERATION: Use Claude to generate answer from retrieved reviews.
-    
     FIXED: Proper Anthropic client initialization without proxies
     """
     api_key = os.getenv("ANTHROPIC_API_KEY")
@@ -789,9 +805,9 @@ def analyze_restaurant(url: str, review_count: int):
     if not url or not url.strip():
         return (
             "❌ **Error:** Please enter an OpenTable restaurant URL.",
-            default_summary, None, default_insight, empty_dropdown, default_detail,
-            default_summary, None, default_insight, empty_dropdown, default_detail,
             None, "No trend data available.",
+            default_summary, None, default_insight, empty_dropdown, default_detail,
+            default_summary, None, default_insight, empty_dropdown, default_detail,
             empty
         )
     
@@ -799,9 +815,9 @@ def analyze_restaurant(url: str, review_count: int):
     if "opentable" not in url.lower():
         return (
             "❌ **Error:** URL must be from OpenTable (e.g., opentable.com/r/restaurant-name)",
-            default_summary, None, default_insight, empty_dropdown, default_detail,
-            default_summary, None, default_insight, empty_dropdown, default_detail,
             None, "No trend data available.",
+            default_summary, None, default_insight, empty_dropdown, default_detail,
+            default_summary, None, default_insight, empty_dropdown, default_detail,
             empty
         )
     
@@ -820,9 +836,9 @@ def analyze_restaurant(url: str, review_count: int):
         if response.status_code != 200:
             return (
                 f"❌ **API Error ({response.status_code}):** {response.text[:200]}",
-                default_summary, None, default_insight, empty_dropdown, default_detail,
-                default_summary, None, default_insight, empty_dropdown, default_detail,
                 None, "No trend data available.",
+                default_summary, None, default_insight, empty_dropdown, default_detail,
+                default_summary, None, default_insight, empty_dropdown, default_detail,
                 empty
             )
         
@@ -833,9 +849,9 @@ def analyze_restaurant(url: str, review_count: int):
         if not data.get("success"):
             return (
                 f"❌ **Analysis Failed:** {data.get('error', 'Unknown error')}",
-                default_summary, None, default_insight, empty_dropdown, default_detail,
-                default_summary, None, default_insight, empty_dropdown, default_detail,
                 None, "No trend data available.",
+                default_summary, None, default_insight, empty_dropdown, default_detail,
+                default_summary, None, default_insight, empty_dropdown, default_detail,
                 empty
             )
         
@@ -878,12 +894,15 @@ def analyze_restaurant(url: str, review_count: int):
         manager_insights = format_insights(insights.get('manager', {}), 'manager')
         
         # Charts
-        chef_chart = generate_chart(all_menu, f"Menu Item Sentiment")
-        manager_chart = generate_chart(aspect_list, f"Aspect Sentiment")
+        chef_chart = generate_chart(all_menu, f"Menu Item Sentiment (Top 10 by Mentions)")
+        manager_chart = generate_chart(aspect_list, f"Aspect Sentiment (Top 10 by Mentions)")
         
-        # Dropdowns - use gr.update() for Gradio 6
-        chef_choices = [i.get('name', '?') for i in all_menu]
-        manager_choices = [a.get('name', '?') for a in aspect_list]
+        # Dropdowns - UPDATED: Sort by mentions and include count in label
+        chef_sorted = sorted(all_menu, key=lambda x: x.get('mention_count', 0), reverse=True)
+        manager_sorted = sorted(aspect_list, key=lambda x: x.get('mention_count', 0), reverse=True)
+        
+        chef_choices = [f"{i.get('name', '?')} ({i.get('mention_count', 0)})" for i in chef_sorted]
+        manager_choices = [f"{a.get('name', '?')} ({a.get('mention_count', 0)})" for a in manager_sorted]
         
         chef_dropdown_update = gr.update(choices=chef_choices, value=None)
         manager_dropdown_update = gr.update(choices=manager_choices, value=None)
@@ -899,20 +918,21 @@ def analyze_restaurant(url: str, review_count: int):
 👇 **Explore the tabs below for detailed insights!**
 """
         
+        # UPDATED: Return order matches new tab order (Trends first)
         return (
             status,
+            trend_chart, trend_insight,
             menu_summary, chef_chart, chef_insights, chef_dropdown_update, default_detail,
             aspect_summary, manager_chart, manager_insights, manager_dropdown_update, default_detail,
-            trend_chart, trend_insight,
             state
         )
         
     except requests.exceptions.Timeout:
         return (
-            "❌ **Timeout:** Request took too long. Try with fewer reviews (20-50).",
-            default_summary, None, default_insight, empty_dropdown, default_detail,
-            default_summary, None, default_insight, empty_dropdown, default_detail,
+            "❌ **Timeout:** Request took too long. Try with fewer reviews (50-100).",
             None, "No trend data available.",
+            default_summary, None, default_insight, empty_dropdown, default_detail,
+            default_summary, None, default_insight, empty_dropdown, default_detail,
             empty
         )
     except Exception as e:
@@ -920,9 +940,9 @@ def analyze_restaurant(url: str, review_count: int):
         traceback.print_exc()
         return (
             f"❌ **Error:** {str(e)}",
-            default_summary, None, default_insight, empty_dropdown, default_detail,
-            default_summary, None, default_insight, empty_dropdown, default_detail,
             None, "No trend data available.",
+            default_summary, None, default_insight, empty_dropdown, default_detail,
+            default_summary, None, default_insight, empty_dropdown, default_detail,
             empty
         )
 
@@ -959,9 +979,10 @@ def create_app() -> gr.Blocks:
                     max_lines=1
                 )
             with gr.Column(scale=1):
+                # UPDATED: 50, 100, 200, 500, 1000 (removed 20)
                 review_count = gr.Dropdown(
-                    choices=[20, 50, 100, 200],
-                    value=50,
+                    choices=[50, 100, 200, 500, 1000],
+                    value=100,
                     label="Reviews",
                     info="More = better insights"
                 )
@@ -979,7 +1000,27 @@ def create_app() -> gr.Blocks:
         gr.Markdown("---")
         
         # ==================== RESULTS TABS ====================
+        # UPDATED: Tab order - Trends → Chef → Manager → Q&A
         with gr.Tabs():
+            
+            # ========== TRENDS TAB (FIRST) ==========
+            with gr.Tab("📈 Trends"):
+                
+                gr.Markdown("""
+### Rating vs Sentiment Over Time
+
+This chart reveals the **disconnect** between what customers **rate** (stars) 
+vs what they **say** (sentiment). A restaurant with high ratings but negative 
+sentiment could be a warning sign!
+                """)
+                
+                trend_chart = gr.Image(label="Rating vs Sentiment Trend", height=450)
+                
+                gr.Markdown("---")
+                
+                trend_insight = gr.Markdown(
+                    value="*Run analysis to see trend insights.*"
+                )
             
             # ========== CHEF TAB ==========
             with gr.Tab("🍳 Chef Insights"):
@@ -992,7 +1033,7 @@ def create_app() -> gr.Blocks:
                 
                 with gr.Row():
                     with gr.Column(scale=1):
-                        chef_chart = gr.Image(label="Menu Sentiment Chart", height=380)
+                        chef_chart = gr.Image(label="Menu Sentiment Chart", height=420)
                     with gr.Column(scale=1):
                         chef_insights = gr.Markdown(value="*AI-generated insights will appear here.*")
                 
@@ -1013,7 +1054,7 @@ def create_app() -> gr.Blocks:
                 
                 with gr.Row():
                     with gr.Column(scale=1):
-                        manager_chart = gr.Image(label="Aspect Sentiment Chart", height=380)
+                        manager_chart = gr.Image(label="Aspect Sentiment Chart", height=420)
                     with gr.Column(scale=1):
                         manager_insights = gr.Markdown(value="*AI-generated insights will appear here.*")
                 
@@ -1023,7 +1064,7 @@ def create_app() -> gr.Blocks:
                 manager_dropdown = gr.Dropdown(choices=[], label="Select Aspect", interactive=True)
                 manager_detail = gr.Markdown(value="*Select an aspect above to see detailed feedback.*")
             
-            # ========== Q&A TAB ==========
+            # ========== Q&A TAB (LAST) ==========
             with gr.Tab("💬 Ask Questions"):
                 
                 gr.Markdown("""
@@ -1052,25 +1093,6 @@ Get AI-powered answers based on actual customer feedback.
                 )
                 
                 clear_btn.click(fn=lambda: ("", "*Ask a question above.*"), outputs=[question_input, answer_output])
-            
-            # ========== TRENDS TAB ==========
-            with gr.Tab("📈 Trends"):
-                
-                gr.Markdown("""
-### Rating vs Sentiment Over Time
-
-This chart reveals the **disconnect** between what customers **rate** (stars) 
-vs what they **say** (sentiment). A restaurant with high ratings but negative 
-sentiment could be a warning sign!
-                """)
-                
-                trend_chart = gr.Image(label="Rating vs Sentiment Trend", height=400)
-                
-                gr.Markdown("---")
-                
-                trend_insight = gr.Markdown(
-                    value="*Run analysis to see trend insights.*"
-                )
         
         # ==================== FOOTER ====================
         gr.Markdown("---")
@@ -1087,14 +1109,15 @@ sentiment could be a warning sign!
         """)
         
         # ==================== EVENT HANDLERS ====================
+        # UPDATED: Output order matches new tab order
         analyze_btn.click(
             fn=analyze_restaurant,
             inputs=[url_input, review_count],
             outputs=[
                 status_box,
+                trend_chart, trend_insight,
                 chef_summary, chef_chart, chef_insights, chef_dropdown, chef_detail,
                 manager_summary, manager_chart, manager_insights, manager_dropdown, manager_detail,
-                trend_chart, trend_insight,
                 analysis_state
             ]
         )
