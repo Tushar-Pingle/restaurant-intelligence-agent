@@ -231,7 +231,7 @@ def generate_trend_chart(trend_data: List[Dict], restaurant_name: str) -> Option
         ax2.tick_params(axis='y', labelcolor=SENTIMENT_COLOR, labelsize=10)
         ax2.set_ylim(1, 5)
         
-        ax1.set_title(f'📊 Rating vs Sentiment Trend', fontsize=15, fontweight='bold', color=TEXT, pad=20)
+        ax1.set_title(f'Rating vs Sentiment Trend', fontsize=15, fontweight='bold', color=TEXT, pad=20)
         ax1.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))
         ax1.xaxis.set_major_locator(mdates.WeekdayLocator(interval=1))
         plt.setp(ax1.xaxis.get_majorticklabels(), rotation=30, ha='right', color=TEXT)

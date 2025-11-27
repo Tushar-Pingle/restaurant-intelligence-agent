@@ -501,6 +501,12 @@ def full_analysis_parallel(url: str, max_reviews: int = 100) -> Dict[str, Any]:
     if not result.get("success"):
         return {"success": False, "error": result.get("error", "Scraping failed")}
     
+    # Check if we actually got any reviews
+    review_count = result.get('total_reviews', 0)
+    reviews_list = result.get('reviews', [])
+    if review_count == 0 and len(reviews_list) == 0:
+        return {"success": False, "error": "No reviews found. The restaurant may have no reviews or the scraper couldn't access them."}
+    
     print(f"✅ Scraping complete in {time.time() - scrape_start:.1f}s")
     
     # Process reviews - FIXED: Handle both old and new scraper formats
@@ -510,7 +516,7 @@ def full_analysis_parallel(url: str, max_reviews: int = 100) -> Dict[str, Any]:
     # The scraper returns data at top level, not nested under 'reviews'
     # Build DataFrame directly from scraper result
     if 'names' in result:
-        # New format: data at top level
+        # OpenTable format: data at top level with parallel arrays
         df = pd.DataFrame({
             'name': result.get('names', []),
             'date': result.get('dates', []),
@@ -519,6 +525,23 @@ def full_analysis_parallel(url: str, max_reviews: int = 100) -> Dict[str, Any]:
             'service_rating': result.get('service_ratings', []),
             'ambience_rating': result.get('ambience_ratings', []),
             'review_text': result.get('reviews', [])
+        })
+    elif 'reviews' in result and isinstance(result['reviews'], list):
+        # Google Maps format: just a list of review texts
+        reviews_list = result.get('reviews', [])
+        dates_list = result.get('dates', [''] * len(reviews_list))
+        ratings_list = result.get('ratings', [0] * len(reviews_list))
+        
+        # Ensure all lists are same length
+        n = len(reviews_list)
+        df = pd.DataFrame({
+            'name': [''] * n,
+            'date': (dates_list + [''] * n)[:n],
+            'overall_rating': (ratings_list + [0] * n)[:n],
+            'food_rating': [0] * n,
+            'service_rating': [0] * n,
+            'ambience_rating': [0] * n,
+            'review_text': reviews_list
         })
     else:
         # Fallback: try old format with process_reviews

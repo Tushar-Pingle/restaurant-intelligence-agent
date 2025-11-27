@@ -1,42 +1,47 @@
 """
-OpenTable Scraper - FIXED VERSION
-Production-ready scraper that doesn't lose reviews.
+OpenTable Review Scraper - ROBUST VERSION with Retry Logic
+Designed to handle Modal's container environment reliably.
 
-FIXES:
-1. Only counts reviews that have actual text
-2. Better selector specificity
-3. Logs empty vs real reviews for debugging
-4. Continues even if individual reviews fail
+IMPROVEMENTS:
+1. Retry logic with exponential backoff (3 attempts)
+2. Longer timeouts for Modal environment
+3. Better Chrome options for containerized environments
+4. Graceful degradation on partial failures
+5. Memory-efficient processing
 
 Author: Tushar Pingle
 Updated: Nov 2024
 """
 
 import time
-from typing import Dict, Any, List, Optional, Callable
+import random
+from typing import List, Dict, Any, Optional, Callable
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
+from selenium.common.exceptions import (
+    NoSuchElementException,
+    StaleElementReferenceException,
+    TimeoutException,
+    WebDriverException
+)
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, StaleElementReferenceException
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 
 
 class OpenTableScraper:
     """
-    Production OpenTable scraper with improved review extraction.
+    Robust OpenTable scraper with retry logic for containerized environments.
     """
     
-    # Updated selectors - more specific for actual review cards
+    # Production selectors
     SELECTORS = {
         "review_cards": [
-            # Most specific first - only match list items that contain actual review content
             "//li[@data-test='reviews-list-item']",
-            # Fallback: items in reviews section that have both date AND substantial text
-            "//section[@id='reviews']//li[contains(., 'Dined') and .//span[string-length(normalize-space()) > 30]]",
-            # Generic fallback
-            "//section[.//h2[contains(., 'people are saying') or contains(., 'Reviews')]]//li[.//p[string-length(normalize-space()) > 30] or .//span[string-length(normalize-space()) > 30]]",
+            "//section[@id='reviews']//li[contains(., 'Dined')]",
+            "//section[.//h2[contains(., 'people are saying') or contains(., 'Reviews')]]//li[.//p or .//span or .//time]",
+            "//li[@data-test='review']"
         ],
         "next_button": [
             "//a[@aria-label='Go to the next page']",
@@ -74,25 +79,25 @@ class OpenTableScraper:
             ".//li[contains(., 'Ambience')]//span"
         ],
         "review_text": [
-            # Priority order - most specific first
             ".//span[@data-test='wrapper-tag']",
             ".//div[@data-test='wrapper-tag']",
             ".//p[@data-test='review-text']",
-            # Get text content from review body
             ".//div[contains(@class,'review')]//p[string-length(normalize-space()) > 20]",
             ".//div[contains(@class,'review')]//span[string-length(normalize-space()) > 20]",
-            # Fallback: any paragraph/span with substantial text that's not date/rating
-            ".//p[not(contains(., 'Dined')) and not(contains(., 'Overall')) and not(contains(., 'Food')) and not(contains(., 'Service')) and not(contains(., 'Ambience')) and string-length(normalize-space()) > 20]",
+            ".//p[not(contains(., 'Dined')) and not(contains(., 'Overall')) and string-length(normalize-space()) > 20]",
             ".//span[not(contains(., 'Dined')) and not(ancestor::li[contains(., 'Overall')]) and string-length(normalize-space()) > 20]",
         ]
     }
+    
+    # Retry configuration
+    MAX_RETRIES = 3
+    RETRY_DELAYS = [5, 15, 30]  # Exponential backoff in seconds
     
     def __init__(self, headless: bool = True, page_load_strategy: str = 'eager'):
         self.headless = headless
         self.page_load_strategy = page_load_strategy
         self.driver = None
         self.wait = None
-        self.empty_count = 0  # Track empty reviews for debugging
     
     def scrape_reviews(
         self,
@@ -101,37 +106,84 @@ class OpenTableScraper:
         progress_callback: Optional[Callable[[str], None]] = None
     ) -> Dict[str, Any]:
         """
-        Scrape reviews from OpenTable restaurant page.
-        
-        FIXED: Only counts and returns reviews that have actual text content.
+        Scrape reviews with automatic retry on failure.
         """
         if not self._validate_url(url):
             return {'success': False, 'error': 'Invalid OpenTable URL', 'reviews': []}
         
-        try:
-            self._init_driver()
-        except Exception as e:
-            return {'success': False, 'error': f'Browser init failed: {str(e)}', 'reviews': []}
+        last_error = None
+        
+        for attempt in range(self.MAX_RETRIES):
+            try:
+                self._log_progress(f"🚀 Attempt {attempt + 1}/{self.MAX_RETRIES}...", progress_callback)
+                
+                result = self._scrape_with_timeout(url, max_reviews, progress_callback)
+                
+                if result.get('success'):
+                    return result
+                else:
+                    last_error = result.get('error', 'Unknown error')
+                    self._log_progress(f"⚠️ Attempt {attempt + 1} failed: {last_error}", progress_callback)
+                    
+            except Exception as e:
+                last_error = str(e)
+                self._log_progress(f"⚠️ Attempt {attempt + 1} exception: {last_error}", progress_callback)
+            
+            finally:
+                # Always cleanup between attempts
+                self._cleanup()
+            
+            # Wait before retry (exponential backoff)
+            if attempt < self.MAX_RETRIES - 1:
+                delay = self.RETRY_DELAYS[attempt] + random.uniform(0, 5)
+                self._log_progress(f"⏳ Waiting {delay:.0f}s before retry...", progress_callback)
+                time.sleep(delay)
+        
+        return {
+            'success': False, 
+            'error': f'Failed after {self.MAX_RETRIES} attempts. Last error: {last_error}',
+            'reviews': []
+        }
+    
+    def _scrape_with_timeout(
+        self,
+        url: str,
+        max_reviews: Optional[int],
+        progress_callback: Optional[Callable]
+    ) -> Dict[str, Any]:
+        """
+        Core scraping logic with improved timeout handling.
+        """
+        # Initialize driver with robust settings
+        self._init_driver_robust()
+        
+        # Data containers
+        names = []
+        dates = []
+        overall_ratings = []
+        food_ratings = []
+        service_ratings = []
+        ambience_ratings = []
+        reviews = []
         
         try:
-            self._log_progress("🚀 Starting scraper...", progress_callback)
+            self._log_progress("🌐 Loading page...", progress_callback)
+            
+            # Load page with explicit wait
             self.driver.get(url)
             
-            # Wait for page to fully load
-            time.sleep(5)
+            # Wait for page to be interactive
+            time.sleep(8)  # Longer initial wait for Modal
             
-            # Initialize data containers
-            names = []
-            dates = []
-            overall_ratings = []
-            food_ratings = []
-            service_ratings = []
-            ambience_ratings = []
-            reviews = []
+            # Check if page loaded
+            if "OpenTable" not in self.driver.title and "opentable" not in self.driver.current_url:
+                return {'success': False, 'error': 'Page did not load correctly', 'reviews': []}
+            
+            self._log_progress("✅ Page loaded successfully", progress_callback)
             
             page_count = 0
-            review_count = 0  # Only counts VALID reviews with text
-            self.empty_count = 0  # Track skipped empty reviews
+            review_count = 0
+            empty_pages = 0
             
             while True:
                 page_count += 1
@@ -144,88 +196,74 @@ class OpenTableScraper:
                 )
                 
                 if not review_elements:
-                    self._log_progress("⚠️  No reviews found on page.", progress_callback)
-                    if page_count == 1:
-                        # Save page source for debugging
-                        try:
-                            with open('debug_page_source.html', 'w', encoding='utf-8') as f:
-                                f.write(self.driver.page_source)
-                            self._log_progress("💾 Saved page source to debug_page_source.html", progress_callback)
-                        except:
-                            pass
-                    break
+                    empty_pages += 1
+                    self._log_progress(f"⚠️ No reviews found on page {page_count}", progress_callback)
+                    
+                    if empty_pages >= 2 or page_count == 1:
+                        break
+                    continue
                 
-                self._log_progress(f"📋 Found {len(review_elements)} review cards on page", progress_callback)
+                empty_pages = 0  # Reset counter
+                self._log_progress(f"📋 Found {len(review_elements)} review cards", progress_callback)
                 
-                # Extract data from each review
-                page_valid = 0
-                page_empty = 0
-                
-                for idx, review in enumerate(review_elements):
+                # Extract from each review
+                page_extracted = 0
+                for idx, review_elem in enumerate(review_elements):
                     if max_reviews and review_count >= max_reviews:
-                        self._log_progress(f"🎯 Reached max reviews ({max_reviews}).", progress_callback)
                         break
                     
                     try:
-                        # Extract review text FIRST - this is the critical field
-                        review_text = self._extract_review_text(review)
+                        review_text = self._extract_review_text(review_elem)
                         
-                        # FIXED: Skip reviews without actual text content
+                        # Skip empty reviews
                         if not review_text or len(review_text.strip()) < 10:
-                            page_empty += 1
-                            self.empty_count += 1
-                            continue  # Don't append, don't count
+                            continue
                         
-                        # Now extract other fields
-                        name = self._extract_text_with_fallback(review, self.SELECTORS["name"])
-                        date = self._extract_text_with_fallback(review, self.SELECTORS["date"])
-                        overall_rating = self._extract_text_with_fallback(review, self.SELECTORS["overall_rating"])
-                        food_rating = self._extract_text_with_fallback(review, self.SELECTORS["food_rating"])
-                        service_rating = self._extract_text_with_fallback(review, self.SELECTORS["service_rating"])
-                        ambience_rating = self._extract_text_with_fallback(review, self.SELECTORS["ambience_rating"])
+                        name = self._extract_text_with_fallback(review_elem, self.SELECTORS["name"])
+                        date = self._extract_text_with_fallback(review_elem, self.SELECTORS["date"])
+                        overall = self._extract_text_with_fallback(review_elem, self.SELECTORS["overall_rating"])
+                        food = self._extract_text_with_fallback(review_elem, self.SELECTORS["food_rating"])
+                        service = self._extract_text_with_fallback(review_elem, self.SELECTORS["service_rating"])
+                        ambience = self._extract_text_with_fallback(review_elem, self.SELECTORS["ambience_rating"])
                         
-                        # Append valid review
                         names.append(name)
                         dates.append(date)
-                        overall_ratings.append(overall_rating)
-                        food_ratings.append(food_rating)
-                        service_ratings.append(service_rating)
-                        ambience_ratings.append(ambience_rating)
+                        overall_ratings.append(overall)
+                        food_ratings.append(food)
+                        service_ratings.append(service)
+                        ambience_ratings.append(ambience)
                         reviews.append(review_text)
                         
                         review_count += 1
-                        page_valid += 1
+                        page_extracted += 1
                         
-                        if review_count % 50 == 0:
-                            self._log_progress(f"📊 Extracted {review_count} valid reviews so far...", progress_callback)
-                        
+                    except StaleElementReferenceException:
+                        continue
                     except Exception as e:
-                        self._log_progress(f"⚠️  Error on review {idx + 1}: {str(e)}", progress_callback)
                         continue
                 
-                # Log page summary
-                self._log_progress(f"   ✅ Page {page_count}: {page_valid} valid, {page_empty} empty", progress_callback)
+                self._log_progress(f"   ✅ Extracted {page_extracted} reviews from page {page_count}", progress_callback)
                 
                 if max_reviews and review_count >= max_reviews:
+                    self._log_progress(f"🎯 Reached target: {max_reviews} reviews", progress_callback)
                     break
                 
-                # Try to click "Next" button
+                # Try next page
                 if not self._click_next():
-                    self._log_progress("📍 No more pages. Scraping complete!", progress_callback)
+                    self._log_progress("📍 No more pages available", progress_callback)
                     break
                 
-                time.sleep(3)  # Wait for new page to load
+                # Wait for next page
+                time.sleep(4)
             
-            self._log_progress(f"✅ DONE! Scraped {review_count} valid reviews from {page_count} pages", progress_callback)
-            if self.empty_count > 0:
-                self._log_progress(f"   ℹ️  Skipped {self.empty_count} empty/invalid review cards", progress_callback)
+            self._log_progress(f"✅ Scraping complete: {review_count} reviews from {page_count} pages", progress_callback)
             
-            # Extract restaurant metadata
-            metadata = self._extract_metadata()
+            if review_count == 0:
+                return {'success': False, 'error': 'No reviews extracted', 'reviews': []}
             
             return {
                 'success': True,
-                'total_reviews': review_count,  # Now correctly represents VALID reviews
+                'total_reviews': review_count,
                 'names': names,
                 'dates': dates,
                 'overall_ratings': overall_ratings,
@@ -233,59 +271,107 @@ class OpenTableScraper:
                 'service_ratings': service_ratings,
                 'ambience_ratings': ambience_ratings,
                 'reviews': reviews,
-                'metadata': metadata,
-                'stats': {
-                    'pages_scraped': page_count,
-                    'valid_reviews': review_count,
-                    'empty_skipped': self.empty_count
-                }
+                'metadata': {'pages_scraped': page_count}
             }
             
+        except TimeoutException as e:
+            return {'success': False, 'error': f'Page load timeout: {str(e)}', 'reviews': []}
+        except WebDriverException as e:
+            return {'success': False, 'error': f'Browser error: {str(e)}', 'reviews': []}
         except Exception as e:
-            import traceback
-            error_msg = f"Scraping error: {str(e)}\n{traceback.format_exc()}"
-            self._log_progress(f"❌ {error_msg}", progress_callback)
-            return {'success': False, 'error': error_msg, 'reviews': []}
-        finally:
-            self._cleanup()
+            return {'success': False, 'error': f'Scraping error: {str(e)}', 'reviews': []}
+    
+    def _init_driver_robust(self):
+        """
+        Initialize Chrome with settings optimized for Modal/containerized environments.
+        """
+        chrome_options = Options()
+        
+        # Page load strategy - 'eager' is faster but 'normal' is more reliable
+        chrome_options.page_load_strategy = 'normal'  # Changed from 'eager' for reliability
+        
+        if self.headless:
+            chrome_options.add_argument('--headless=new')
+        
+        # CRITICAL for containerized environments
+        chrome_options.add_argument('--no-sandbox')
+        chrome_options.add_argument('--disable-dev-shm-usage')
+        chrome_options.add_argument('--disable-gpu')
+        chrome_options.add_argument('--disable-software-rasterizer')
+        
+        # Memory management
+        chrome_options.add_argument('--disable-extensions')
+        chrome_options.add_argument('--disable-plugins')
+        chrome_options.add_argument('--disable-images')  # Faster loading
+        chrome_options.add_argument('--blink-settings=imagesEnabled=false')
+        
+        # Stability improvements
+        chrome_options.add_argument('--disable-setuid-sandbox')
+        chrome_options.add_argument('--disable-accelerated-2d-canvas')
+        chrome_options.add_argument('--disable-accelerated-jpeg-decoding')
+        chrome_options.add_argument('--disable-background-networking')
+        chrome_options.add_argument('--disable-background-timer-throttling')
+        chrome_options.add_argument('--disable-backgrounding-occluded-windows')
+        chrome_options.add_argument('--disable-breakpad')
+        chrome_options.add_argument('--disable-client-side-phishing-detection')
+        chrome_options.add_argument('--disable-component-update')
+        chrome_options.add_argument('--disable-default-apps')
+        chrome_options.add_argument('--disable-hang-monitor')
+        chrome_options.add_argument('--disable-popup-blocking')
+        chrome_options.add_argument('--disable-prompt-on-repost')
+        chrome_options.add_argument('--disable-sync')
+        chrome_options.add_argument('--disable-translate')
+        chrome_options.add_argument('--metrics-recording-only')
+        chrome_options.add_argument('--no-first-run')
+        chrome_options.add_argument('--safebrowsing-disable-auto-update')
+        
+        # Window size (helps with rendering)
+        chrome_options.add_argument('--window-size=1920,1080')
+        
+        # User agent (avoid bot detection)
+        chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36')
+        
+        # Anti-detection
+        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        chrome_options.add_experimental_option('useAutomationExtension', False)
+        
+        # Create driver with longer timeout
+        service = Service('/usr/local/bin/chromedriver')
+        self.driver = webdriver.Chrome(service=service, options=chrome_options)
+        
+        # LONGER timeouts for Modal environment
+        self.driver.set_page_load_timeout(60)  # Was 30
+        self.driver.set_script_timeout(60)
+        self.driver.implicitly_wait(10)
+        
+        self.wait = WebDriverWait(self.driver, 20)  # Was 10
     
     def _extract_review_text(self, review_element) -> str:
-        """
-        Extract review text with multiple fallback strategies.
-        Returns empty string if no valid text found.
-        """
-        # Try each selector
+        """Extract review text with multiple fallback strategies."""
         for selector in self.SELECTORS["review_text"]:
             try:
                 elements = review_element.find_elements(By.XPATH, selector)
                 for elem in elements:
                     text = elem.text.strip()
-                    # Validate it's actual review content
                     if text and len(text) > 20:
-                        # Filter out dates and ratings that might have leaked
-                        if "Dined on" in text or text.startswith("Overall") or text.startswith("Food"):
+                        if "Dined on" in text or text.startswith("Overall"):
                             continue
-                        # Filter out very short generic text
                         if text in ["See more", "Read more", "Show more"]:
                             continue
                         return text
             except:
                 continue
         
-        # Last resort: try to get all text from the review card and extract the main content
+        # Last resort: get all text and find longest content
         try:
             full_text = review_element.text
-            # Split by newlines and find the longest substantial text
             lines = [line.strip() for line in full_text.split('\n') if line.strip()]
-            # Filter out dates, ratings, names
             content_lines = []
             for line in lines:
-                if len(line) > 30:  # Substantial text
+                if len(line) > 30:
                     if not any(skip in line for skip in ['Dined on', 'Overall', 'Food', 'Service', 'Ambience', 'VIP']):
                         content_lines.append(line)
-            
             if content_lines:
-                # Return the longest line as the review
                 return max(content_lines, key=len)
         except:
             pass
@@ -316,26 +402,23 @@ class OpenTableScraper:
         return []
     
     def _click_next(self) -> bool:
-        """Click the next page button."""
+        """Click next page button with robust handling."""
         for xp in self.SELECTORS["next_button"]:
             try:
-                btn = WebDriverWait(self.driver, 3).until(
+                btn = WebDriverWait(self.driver, 5).until(
                     EC.presence_of_element_located((By.XPATH, xp))
                 )
                 
-                # Check if disabled
                 aria_disabled = (btn.get_attribute("aria-disabled") or "").lower()
                 if aria_disabled in ("true", "1"):
                     return False
                 
-                # Scroll into view
                 try:
                     self.driver.execute_script("arguments[0].scrollIntoView({block:'center'});", btn)
-                    time.sleep(0.15)
+                    time.sleep(0.3)
                 except:
                     pass
                 
-                # Try clicking
                 try:
                     WebDriverWait(self.driver, 5).until(EC.element_to_be_clickable((By.XPATH, xp)))
                     btn.click()
@@ -349,7 +432,6 @@ class OpenTableScraper:
             except StaleElementReferenceException:
                 try:
                     btn = self.driver.find_element(By.XPATH, xp)
-                    self.driver.execute_script("arguments[0].scrollIntoView({block:'center'});", btn)
                     self.driver.execute_script("arguments[0].click();", btn)
                     return True
                 except:
@@ -359,73 +441,15 @@ class OpenTableScraper:
         
         return False
     
-    def _extract_metadata(self) -> Dict[str, Any]:
-        """Extract restaurant metadata from page."""
-        metadata = {}
-        try:
-            # Restaurant name
-            name_selectors = [
-                "//h1",
-                "//h1[@data-test='restaurant-name']",
-                "//div[contains(@class,'restaurant-name')]//h1"
-            ]
-            for sel in name_selectors:
-                try:
-                    elem = self.driver.find_element(By.XPATH, sel)
-                    if elem.text.strip():
-                        metadata['restaurant_name'] = elem.text.strip()
-                        break
-                except:
-                    continue
-            
-            # Cuisine type
-            cuisine_selectors = [
-                "//span[contains(@class,'cuisine')]",
-                "//p[contains(@class,'cuisine')]",
-                "//div[contains(@class,'cuisine')]"
-            ]
-            for sel in cuisine_selectors:
-                try:
-                    elem = self.driver.find_element(By.XPATH, sel)
-                    if elem.text.strip():
-                        metadata['cuisine'] = elem.text.strip()
-                        break
-                except:
-                    continue
-                    
-        except:
-            pass
-        
-        return metadata
-    
-    def _init_driver(self):
-        """Initialize Chrome WebDriver."""
-        chrome_options = Options()
-        chrome_options.page_load_strategy = self.page_load_strategy
-        
-        if self.headless:
-            chrome_options.add_argument('--headless=new')
-            chrome_options.add_argument('--no-sandbox')
-            chrome_options.add_argument('--disable-dev-shm-usage')
-            chrome_options.add_argument('--disable-gpu')
-        
-        chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36')
-        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-        chrome_options.add_experimental_option('useAutomationExtension', False)
-        
-        service = Service('/usr/local/bin/chromedriver')
-        self.driver = webdriver.Chrome(service=service, options=chrome_options)
-        self.driver.set_page_load_timeout(30)
-        self.wait = WebDriverWait(self.driver, 10)
-    
     def _cleanup(self):
-        """Close browser."""
+        """Close browser safely."""
         if self.driver:
             try:
                 self.driver.quit()
             except:
                 pass
             self.driver = None
+            self.wait = None
     
     def _validate_url(self, url: str) -> bool:
         """Validate OpenTable URL."""
@@ -443,23 +467,20 @@ class OpenTableScraper:
 
 def scrape_opentable(url: str, max_reviews: Optional[int] = None, headless: bool = True) -> Dict[str, Any]:
     """
-    Convenience function to scrape OpenTable reviews.
-    
-    FIXED: Only returns reviews with actual text content.
+    Convenience function to scrape OpenTable reviews with retry logic.
     """
     scraper = OpenTableScraper(headless=headless)
     return scraper.scrape_reviews(url, max_reviews)
 
 
 if __name__ == "__main__":
-    # Test the scraper
-    test_url = "https://www.opentable.ca/r/dockside-restaurant-vancouver-vancouver"
-    result = scrape_opentable(test_url, max_reviews=50)
+    # Test
+    test_url = "https://www.opentable.ca/r/dockside-restaurant-vancouver"
+    result = scrape_opentable(test_url, max_reviews=30)
     
     print(f"\n{'='*60}")
-    print(f"Results:")
-    print(f"  Success: {result.get('success')}")
-    print(f"  Total valid reviews: {result.get('total_reviews')}")
-    if result.get('stats'):
-        print(f"  Empty skipped: {result['stats'].get('empty_skipped', 0)}")
+    print(f"Success: {result.get('success')}")
+    print(f"Reviews: {result.get('total_reviews', 0)}")
+    if result.get('error'):
+        print(f"Error: {result.get('error')}")
     print(f"{'='*60}")
