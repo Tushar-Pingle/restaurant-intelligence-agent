@@ -416,7 +416,7 @@ def translate_aspect_performance(aspects: dict, restaurant_name: str) -> str:
 
 
 def generate_chart(items: list, title: str) -> Optional[str]:
-    """Generate sentiment chart - top 10 by mentions."""
+    """Generate sentiment chart - top 10 by mentions, highest at TOP."""
     if not items:
         return None
     
@@ -432,7 +432,10 @@ def generate_chart(items: list, title: str) -> Optional[str]:
         NEUTRAL = '#f59e0b'
         NEGATIVE = '#ef4444'
         
+        # Sort by mention_count descending, then REVERSE for display
+        # (so highest mentions appear at TOP of horizontal bar chart)
         sorted_items = sorted(items, key=lambda x: x.get('mention_count', 0), reverse=True)[:10]
+        sorted_items = sorted_items[::-1]  # Reverse so highest is at top
         
         names = [f"{item.get('name', '?')[:18]} ({item.get('mention_count', 0)})" for item in sorted_items]
         sentiments = [item.get('sentiment', 0) for item in sorted_items]
@@ -619,7 +622,10 @@ def get_aspect_detail(aspect_name: str, state: dict) -> str:
 # ============================================================================
 
 def generate_pdf_report(state: dict) -> Optional[str]:
-    """Generate PDF report from analysis state - FIXED VERSION."""
+    """
+    Generate professional PDF report from analysis state.
+    Uses ReportLab with custom styling for a polished output.
+    """
     if not state:
         print("[PDF] No state provided")
         return None
@@ -628,189 +634,422 @@ def generate_pdf_report(state: dict) -> Optional[str]:
         from reportlab.lib.pagesizes import letter
         from reportlab.lib.units import inch
         from reportlab.lib import colors
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+        from reportlab.lib.colors import HexColor
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, HRFlowable
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.enums import TA_CENTER
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT
         
+        # Color scheme
+        PRIMARY = HexColor('#2563eb')
+        PRIMARY_LIGHT = HexColor('#dbeafe')
+        POSITIVE = HexColor('#10b981')
+        POSITIVE_LIGHT = HexColor('#d1fae5')
+        WARNING = HexColor('#f59e0b')
+        WARNING_LIGHT = HexColor('#fef3c7')
+        NEGATIVE = HexColor('#ef4444')
+        NEGATIVE_LIGHT = HexColor('#fee2e2')
+        TEXT_DARK = HexColor('#1f2937')
+        TEXT_LIGHT = HexColor('#6b7280')
+        BACKGROUND = HexColor('#f9fafb')
+        BORDER = HexColor('#e5e7eb')
+        
+        # Extract data
         restaurant_name = state.get('restaurant_name', 'Restaurant')
+        source = state.get('source', 'unknown').replace('_', ' ').title()
+        menu = state.get('menu_analysis', {})
+        aspects = state.get('aspect_analysis', {})
+        insights = state.get('insights', {})
+        raw_reviews = state.get('raw_reviews', [])
+        
+        food_items = menu.get('food_items', [])
+        drinks = menu.get('drinks', [])
+        all_menu = food_items + drinks
+        aspect_list = aspects.get('aspects', [])
+        
+        # Create file
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_name = restaurant_name.lower().replace(" ", "_").replace("/", "_").replace("&", "and")[:30]
         output_path = os.path.join(tempfile.gettempdir(), f"{safe_name}_report_{timestamp}.pdf")
         
-        print(f"[PDF] Generating report for {restaurant_name} at {output_path}")
+        print(f"[PDF] Generating professional report for {restaurant_name}")
         
-        doc = SimpleDocTemplate(output_path, pagesize=letter,
-                               rightMargin=0.75*inch, leftMargin=0.75*inch,
-                               topMargin=0.75*inch, bottomMargin=0.75*inch)
+        doc = SimpleDocTemplate(
+            output_path,
+            pagesize=letter,
+            rightMargin=0.75*inch,
+            leftMargin=0.75*inch,
+            topMargin=0.75*inch,
+            bottomMargin=0.75*inch
+        )
         
         styles = getSampleStyleSheet()
         
         # Custom styles
-        title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'],
-                                    fontSize=24, textColor=colors.HexColor('#2196F3'),
-                                    alignment=TA_CENTER, spaceAfter=20)
+        styles.add(ParagraphStyle('CoverTitle', parent=styles['Heading1'],
+                                 fontSize=32, textColor=PRIMARY, alignment=TA_CENTER,
+                                 spaceAfter=10, fontName='Helvetica-Bold'))
         
-        heading_style = ParagraphStyle('CustomHeading', parent=styles['Heading2'],
-                                      fontSize=14, textColor=colors.HexColor('#1f2937'),
-                                      spaceBefore=15, spaceAfter=10)
+        styles.add(ParagraphStyle('CoverSubtitle', parent=styles['Normal'],
+                                 fontSize=16, textColor=TEXT_LIGHT, alignment=TA_CENTER,
+                                 spaceAfter=30, fontName='Helvetica'))
         
-        body_style = ParagraphStyle('CustomBody', parent=styles['Normal'],
-                                   fontSize=10, textColor=colors.HexColor('#374151'),
-                                   spaceAfter=8)
+        styles.add(ParagraphStyle('CoverRestaurant', parent=styles['Heading1'],
+                                 fontSize=24, textColor=TEXT_DARK, alignment=TA_CENTER,
+                                 spaceAfter=15, fontName='Helvetica-Bold'))
+        
+        styles.add(ParagraphStyle('SectionHeader', parent=styles['Heading1'],
+                                 fontSize=18, textColor=PRIMARY, spaceBefore=20,
+                                 spaceAfter=12, fontName='Helvetica-Bold'))
+        
+        styles.add(ParagraphStyle('SubHeader', parent=styles['Heading2'],
+                                 fontSize=14, textColor=TEXT_DARK, spaceBefore=15,
+                                 spaceAfter=8, fontName='Helvetica-Bold'))
+        
+        styles.add(ParagraphStyle('BodyText', parent=styles['Normal'],
+                                 fontSize=10, textColor=TEXT_DARK, spaceAfter=8,
+                                 leading=14, fontName='Helvetica'))
+        
+        styles.add(ParagraphStyle('Bullet', parent=styles['Normal'],
+                                 fontSize=10, textColor=TEXT_DARK, leftIndent=20,
+                                 spaceAfter=5, fontName='Helvetica'))
+        
+        styles.add(ParagraphStyle('Quote', parent=styles['Normal'],
+                                 fontSize=10, textColor=TEXT_LIGHT, leftIndent=20,
+                                 rightIndent=20, spaceAfter=10, fontName='Helvetica-Oblique'))
+        
+        styles.add(ParagraphStyle('Footer', parent=styles['Normal'],
+                                 fontSize=8, textColor=TEXT_LIGHT, alignment=TA_CENTER))
+        
+        styles.add(ParagraphStyle('PriorityHigh', parent=styles['Normal'],
+                                 fontSize=10, textColor=NEGATIVE, leftIndent=20,
+                                 spaceAfter=5, fontName='Helvetica-Bold'))
+        
+        styles.add(ParagraphStyle('PriorityMedium', parent=styles['Normal'],
+                                 fontSize=10, textColor=WARNING, leftIndent=20,
+                                 spaceAfter=5, fontName='Helvetica-Bold'))
+        
+        styles.add(ParagraphStyle('PriorityLow', parent=styles['Normal'],
+                                 fontSize=10, textColor=POSITIVE, leftIndent=20,
+                                 spaceAfter=5, fontName='Helvetica-Bold'))
         
         elements = []
         
-        # Title
-        elements.append(Paragraph("🍽️ Restaurant Intelligence Report", title_style))
-        elements.append(Paragraph(restaurant_name, ParagraphStyle('RestName', parent=styles['Heading2'],
-                                                                  fontSize=18, alignment=TA_CENTER)))
-        elements.append(Paragraph(f"Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", 
-                                 ParagraphStyle('Date', parent=styles['Normal'], alignment=TA_CENTER,
-                                               textColor=colors.grey)))
-        elements.append(Spacer(1, 30))
+        # ==================== COVER PAGE ====================
+        elements.append(Spacer(1, 1.5*inch))
+        elements.append(Paragraph("RESTAURANT", styles['CoverTitle']))
+        elements.append(Paragraph("INTELLIGENCE REPORT", styles['CoverTitle']))
+        elements.append(Spacer(1, 0.3*inch))
+        elements.append(Paragraph("AI-Powered Customer Review Analysis", styles['CoverSubtitle']))
+        elements.append(HRFlowable(width="100%", thickness=1, color=BORDER, spaceBefore=10, spaceAfter=10))
+        elements.append(Spacer(1, 0.5*inch))
+        elements.append(Paragraph(restaurant_name, styles['CoverRestaurant']))
+        elements.append(Spacer(1, 0.3*inch))
+        elements.append(Paragraph(f"Data Source: {source}", styles['Footer']))
+        elements.append(Spacer(1, 0.5*inch))
         
-        # Stats
-        menu = state.get('menu_analysis', {})
-        aspects = state.get('aspect_analysis', {})
-        raw_reviews = state.get('raw_reviews', [])
-        source = state.get('source', 'unknown')
-        
-        food_items = menu.get('food_items', [])
-        drinks = menu.get('drinks', [])
-        aspect_list = aspects.get('aspects', [])
-        
-        elements.append(Paragraph("📊 Executive Summary", heading_style))
-        
-        stats_data = [
-            ['Metric', 'Value'],
-            ['Source Platform', source.replace('_', ' ').title()],
-            ['Reviews Analyzed', str(len(raw_reviews))],
-            ['Menu Items Found', f"{len(food_items) + len(drinks)} ({len(food_items)} food, {len(drinks)} drinks)"],
-            ['Aspects Analyzed', str(len(aspect_list))],
-        ]
-        
-        stats_table = Table(stats_data, colWidths=[2.5*inch, 3*inch])
+        # Stats boxes
+        stats_data = [[
+            str(len(raw_reviews)), str(len(all_menu)), str(len(aspect_list))
+        ], [
+            "Reviews", "Menu Items", "Aspects"
+        ]]
+        stats_table = Table(stats_data, colWidths=[2*inch, 2*inch, 2*inch])
         stats_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2196F3')),
+            ('BACKGROUND', (0, 0), (-1, -1), BACKGROUND),
+            ('TEXTCOLOR', (0, 0), (-1, 0), PRIMARY),
+            ('TEXTCOLOR', (0, 1), (-1, 1), TEXT_LIGHT),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 24),
+            ('FONTSIZE', (0, 1), (-1, 1), 10),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('TOPPADDING', (0, 0), (-1, -1), 15),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
+            ('BOX', (0, 0), (-1, -1), 1, BORDER),
+        ]))
+        elements.append(stats_table)
+        elements.append(Spacer(1, 1*inch))
+        elements.append(Paragraph(f"Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", styles['Footer']))
+        elements.append(Paragraph("Powered by Claude AI • Restaurant Intelligence Agent", styles['Footer']))
+        elements.append(PageBreak())
+        
+        # ==================== EXECUTIVE SUMMARY ====================
+        elements.append(Paragraph("Executive Summary", styles['SectionHeader']))
+        elements.append(HRFlowable(width="100%", thickness=1, color=BORDER, spaceBefore=5, spaceAfter=15))
+        
+        # Calculate sentiment
+        all_sentiments = [item.get('sentiment', 0) for item in all_menu]
+        avg_sentiment = sum(all_sentiments) / len(all_sentiments) if all_sentiments else 0
+        
+        sent_label = "Excellent" if avg_sentiment > 0.5 else "Good" if avg_sentiment > 0.3 else "Positive" if avg_sentiment > 0 else "Mixed" if avg_sentiment > -0.3 else "Needs Attention"
+        sent_color = POSITIVE if avg_sentiment > 0.3 else WARNING if avg_sentiment > -0.3 else NEGATIVE
+        sent_bg = POSITIVE_LIGHT if avg_sentiment > 0.3 else WARNING_LIGHT if avg_sentiment > -0.3 else NEGATIVE_LIGHT
+        
+        # Sentiment box
+        sent_data = [[f"Overall Sentiment: {avg_sentiment:+.2f}", sent_label]]
+        sent_table = Table(sent_data, colWidths=[3.5*inch, 2*inch])
+        sent_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), sent_bg),
+            ('TEXTCOLOR', (0, 0), (-1, -1), sent_color),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 14),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('TOPPADDING', (0, 0), (-1, -1), 15),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
+            ('BOX', (0, 0), (-1, -1), 2, sent_color),
+        ]))
+        elements.append(sent_table)
+        elements.append(Spacer(1, 15))
+        
+        # Key highlights
+        elements.append(Paragraph("Key Highlights", styles['SubHeader']))
+        top_items = sorted(all_menu, key=lambda x: x.get('sentiment', 0), reverse=True)[:3]
+        if top_items:
+            elements.append(Paragraph("✅ <b>Top Performing Items:</b>", styles['BodyText']))
+            for item in top_items:
+                elements.append(Paragraph(f"    • {item.get('name', '?').title()} (sentiment: {item.get('sentiment', 0):+.2f})", styles['Bullet']))
+        
+        concern_items = [i for i in all_menu if i.get('sentiment', 0) < -0.2]
+        if concern_items:
+            elements.append(Spacer(1, 10))
+            elements.append(Paragraph("⚠️ <b>Items Needing Attention:</b>", styles['BodyText']))
+            for item in sorted(concern_items, key=lambda x: x.get('sentiment', 0))[:3]:
+                elements.append(Paragraph(f"    • {item.get('name', '?').title()} (sentiment: {item.get('sentiment', 0):+.2f})", styles['Bullet']))
+        
+        elements.append(Spacer(1, 15))
+        
+        # Summary stats
+        stars = len([i for i in all_menu if i.get('sentiment', 0) > 0.5])
+        good = len([i for i in all_menu if 0.2 < i.get('sentiment', 0) <= 0.5])
+        mixed = len([i for i in all_menu if -0.2 <= i.get('sentiment', 0) <= 0.2])
+        concerns = len([i for i in all_menu if i.get('sentiment', 0) < -0.2])
+        
+        summary_data = [
+            ['Metric', 'Value', 'Details'],
+            ['Reviews Analyzed', str(len(raw_reviews)), f'From {source}'],
+            ['Menu Items', str(len(all_menu)), f'{len(food_items)} food, {len(drinks)} drinks'],
+            ['Customer Favorites', str(stars), 'Sentiment > 0.5'],
+            ['Performing Well', str(good), 'Sentiment 0.2 - 0.5'],
+            ['Mixed Reviews', str(mixed), 'Sentiment -0.2 - 0.2'],
+            ['Needs Attention', str(concerns), 'Sentiment < -0.2'],
+        ]
+        summary_table = Table(summary_data, colWidths=[2*inch, 1.3*inch, 2.5*inch])
+        summary_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), PRIMARY),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
-            ('TOPPADDING', (0, 0), (-1, 0), 10),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f3f4f6')),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e5e7eb')),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 10),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+            ('ALIGN', (1, 0), (1, -1), 'CENTER'),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, BACKGROUND]),
+            ('GRID', (0, 0), (-1, -1), 0.5, BORDER),
         ]))
-        elements.append(stats_table)
-        elements.append(Spacer(1, 20))
+        elements.append(summary_table)
+        elements.append(PageBreak())
         
-        # Top Menu Items
-        if food_items or drinks:
-            elements.append(Paragraph("🍽️ Top Menu Items (by mentions)", heading_style))
-            all_menu = food_items + drinks
-            sorted_menu = sorted(all_menu, key=lambda x: x.get('mention_count', 0), reverse=True)[:10]
+        # ==================== MENU ANALYSIS ====================
+        elements.append(Paragraph("Menu Performance Analysis", styles['SectionHeader']))
+        elements.append(HRFlowable(width="100%", thickness=1, color=BORDER, spaceBefore=5, spaceAfter=15))
+        
+        if all_menu:
+            elements.append(Paragraph(
+                f"Analysis of <b>{len(all_menu)}</b> menu items ({len(food_items)} food, {len(drinks)} drinks) based on {len(raw_reviews)} customer reviews.",
+                styles['BodyText']
+            ))
+            elements.append(Spacer(1, 10))
             
-            menu_data = [['Item', 'Sentiment', 'Mentions', 'Status']]
-            for item in sorted_menu:
+            sorted_menu = sorted(all_menu, key=lambda x: x.get('mention_count', 0), reverse=True)[:20]
+            menu_data = [['#', 'Item', 'Sentiment', 'Mentions', 'Status']]
+            for i, item in enumerate(sorted_menu, 1):
                 sentiment = item.get('sentiment', 0)
                 status = '✓ Positive' if sentiment > 0.3 else '~ Mixed' if sentiment > -0.3 else '✗ Negative'
-                menu_data.append([
-                    item.get('name', '?').title()[:25],
-                    f"{sentiment:+.2f}",
-                    str(item.get('mention_count', 0)),
-                    status
-                ])
+                menu_data.append([str(i), item.get('name', '?').title()[:22], f"{sentiment:+.2f}", str(item.get('mention_count', 0)), status])
             
-            menu_table = Table(menu_data, colWidths=[2*inch, 1*inch, 0.8*inch, 1.2*inch])
+            menu_table = Table(menu_data, colWidths=[0.4*inch, 2.2*inch, 1*inch, 0.9*inch, 1.1*inch])
             menu_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#10b981')),
+                ('BACKGROUND', (0, 0), (-1, 0), POSITIVE),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                 ('FONTSIZE', (0, 0), (-1, -1), 9),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+                ('ALIGN', (2, 0), (3, -1), 'CENTER'),
                 ('TOPPADDING', (0, 0), (-1, -1), 6),
-                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f9fafb')]),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e5e7eb')),
-                ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, BACKGROUND]),
+                ('GRID', (0, 0), (-1, -1), 0.5, BORDER),
             ]))
             elements.append(menu_table)
-            elements.append(Spacer(1, 20))
+        elements.append(Spacer(1, 20))
         
-        # Aspects
+        # ==================== ASPECT ANALYSIS ====================
+        elements.append(Paragraph("Customer Experience Aspects", styles['SectionHeader']))
+        elements.append(HRFlowable(width="100%", thickness=1, color=BORDER, spaceBefore=5, spaceAfter=15))
+        
         if aspect_list:
-            elements.append(Paragraph("📊 Customer Experience Aspects", heading_style))
-            sorted_aspects = sorted(aspect_list, key=lambda x: x.get('mention_count', 0), reverse=True)[:10]
-            
-            aspect_data = [['Aspect', 'Sentiment', 'Mentions', 'Status']]
-            for aspect in sorted_aspects:
+            sorted_aspects = sorted(aspect_list, key=lambda x: x.get('mention_count', 0), reverse=True)[:20]
+            aspect_data = [['#', 'Aspect', 'Sentiment', 'Mentions', 'Status']]
+            for i, aspect in enumerate(sorted_aspects, 1):
                 sentiment = aspect.get('sentiment', 0)
                 status = '✓ Strength' if sentiment > 0.3 else '~ Neutral' if sentiment > -0.3 else '✗ Weakness'
-                aspect_data.append([
-                    aspect.get('name', '?').title()[:25],
-                    f"{sentiment:+.2f}",
-                    str(aspect.get('mention_count', 0)),
-                    status
-                ])
+                aspect_data.append([str(i), aspect.get('name', '?').title()[:22], f"{sentiment:+.2f}", str(aspect.get('mention_count', 0)), status])
             
-            aspect_table = Table(aspect_data, colWidths=[2*inch, 1*inch, 0.8*inch, 1.2*inch])
+            aspect_table = Table(aspect_data, colWidths=[0.4*inch, 2.2*inch, 1*inch, 0.9*inch, 1.1*inch])
             aspect_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f59e0b')),
+                ('BACKGROUND', (0, 0), (-1, 0), WARNING),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                 ('FONTSIZE', (0, 0), (-1, -1), 9),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+                ('ALIGN', (2, 0), (3, -1), 'CENTER'),
                 ('TOPPADDING', (0, 0), (-1, -1), 6),
-                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f9fafb')]),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e5e7eb')),
-                ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, BACKGROUND]),
+                ('GRID', (0, 0), (-1, -1), 0.5, BORDER),
             ]))
             elements.append(aspect_table)
-            elements.append(Spacer(1, 20))
+        elements.append(PageBreak())
         
-        # Insights
-        insights = state.get('insights', {})
+        # ==================== CHEF INSIGHTS ====================
+        elements.append(Paragraph("🍳 Chef Insights", styles['SectionHeader']))
+        elements.append(HRFlowable(width="100%", thickness=1, color=BORDER, spaceBefore=5, spaceAfter=15))
         
-        chef_insights = insights.get('chef', {})
-        if chef_insights:
-            elements.append(Paragraph("🍳 Chef Insights", heading_style))
-            if chef_insights.get('summary'):
-                elements.append(Paragraph(f"<b>Summary:</b> {chef_insights['summary']}", body_style))
-            if chef_insights.get('strengths'):
-                strengths = chef_insights['strengths']
+        chef_data = insights.get('chef', {})
+        if chef_data:
+            if chef_data.get('summary'):
+                elements.append(Paragraph("Summary", styles['SubHeader']))
+                elements.append(Paragraph(str(chef_data['summary']), styles['BodyText']))
+            
+            if chef_data.get('strengths'):
+                elements.append(Paragraph("✅ Strengths", styles['SubHeader']))
+                strengths = chef_data['strengths']
                 if isinstance(strengths, list):
-                    for s in strengths[:3]:
+                    for s in strengths[:8]:  # Show up to 8 strengths
                         text = s.get('action', str(s)) if isinstance(s, dict) else str(s)
-                        elements.append(Paragraph(f"✓ {text}", body_style))
-            elements.append(Spacer(1, 10))
-        
-        manager_insights = insights.get('manager', {})
-        if manager_insights:
-            elements.append(Paragraph("📊 Manager Insights", heading_style))
-            if manager_insights.get('summary'):
-                elements.append(Paragraph(f"<b>Summary:</b> {manager_insights['summary']}", body_style))
-            if manager_insights.get('recommendations'):
-                recs = manager_insights['recommendations']
+                        elements.append(Paragraph(f"• {text}", styles['Bullet']))
+            
+            if chef_data.get('concerns'):
+                elements.append(Paragraph("⚠️ Areas of Concern", styles['SubHeader']))
+                concerns = chef_data['concerns']
+                if isinstance(concerns, list):
+                    for c in concerns[:5]:  # Show up to 5 concerns
+                        text = c.get('action', str(c)) if isinstance(c, dict) else str(c)
+                        elements.append(Paragraph(f"• {text}", styles['Bullet']))
+            
+            if chef_data.get('recommendations'):
+                elements.append(Paragraph("💡 Recommendations", styles['SubHeader']))
+                recs = chef_data['recommendations']
                 if isinstance(recs, list):
-                    for r in recs[:3]:
+                    for r in recs[:8]:  # Show up to 8 recommendations
                         if isinstance(r, dict):
-                            priority = r.get('priority', '')
+                            priority = r.get('priority', 'medium').lower()
                             action = r.get('action', str(r))
-                            elements.append(Paragraph(f"[{priority.upper()}] {action}", body_style))
+                            style_name = 'PriorityHigh' if priority == 'high' else 'PriorityMedium' if priority == 'medium' else 'PriorityLow'
+                            elements.append(Paragraph(f"[{priority.upper()}] {action}", styles[style_name]))
                         else:
-                            elements.append(Paragraph(f"• {r}", body_style))
+                            elements.append(Paragraph(f"• {r}", styles['Bullet']))
+        else:
+            elements.append(Paragraph("Chef insights will be available after full analysis.", styles['BodyText']))
         
-        # Footer
+        elements.append(Spacer(1, 20))
+        
+        # ==================== MANAGER INSIGHTS ====================
+        elements.append(Paragraph("📊 Manager Insights", styles['SectionHeader']))
+        elements.append(HRFlowable(width="100%", thickness=1, color=BORDER, spaceBefore=5, spaceAfter=15))
+        
+        manager_data = insights.get('manager', {})
+        if manager_data:
+            if manager_data.get('summary'):
+                elements.append(Paragraph("Summary", styles['SubHeader']))
+                elements.append(Paragraph(str(manager_data['summary']), styles['BodyText']))
+            
+            if manager_data.get('strengths'):
+                elements.append(Paragraph("✅ Operational Strengths", styles['SubHeader']))
+                strengths = manager_data['strengths']
+                if isinstance(strengths, list):
+                    for s in strengths[:8]:  # Show up to 8 strengths
+                        text = s.get('action', str(s)) if isinstance(s, dict) else str(s)
+                        elements.append(Paragraph(f"• {text}", styles['Bullet']))
+            
+            if manager_data.get('concerns'):
+                elements.append(Paragraph("⚠️ Operational Concerns", styles['SubHeader']))
+                concerns = manager_data['concerns']
+                if isinstance(concerns, list):
+                    for c in concerns[:5]:  # Show up to 5 concerns
+                        text = c.get('action', str(c)) if isinstance(c, dict) else str(c)
+                        elements.append(Paragraph(f"• {text}", styles['Bullet']))
+            
+            if manager_data.get('recommendations'):
+                elements.append(Paragraph("💡 Action Items", styles['SubHeader']))
+                recs = manager_data['recommendations']
+                if isinstance(recs, list):
+                    for r in recs[:8]:  # Show up to 8 recommendations
+                        if isinstance(r, dict):
+                            priority = r.get('priority', 'medium').lower()
+                            action = r.get('action', str(r))
+                            style_name = 'PriorityHigh' if priority == 'high' else 'PriorityMedium' if priority == 'medium' else 'PriorityLow'
+                            elements.append(Paragraph(f"[{priority.upper()}] {action}", styles[style_name]))
+                        else:
+                            elements.append(Paragraph(f"• {r}", styles['Bullet']))
+        else:
+            elements.append(Paragraph("Manager insights will be available after full analysis.", styles['BodyText']))
+        
+        elements.append(PageBreak())
+        
+        # ==================== CUSTOMER FEEDBACK HIGHLIGHTS ====================
+        elements.append(Paragraph("Customer Feedback Highlights", styles['SectionHeader']))
+        elements.append(HRFlowable(width="100%", thickness=1, color=BORDER, spaceBefore=5, spaceAfter=15))
+        
+        positive_reviews = []
+        negative_reviews = []
+        
+        for review in raw_reviews[:50]:
+            if isinstance(review, dict):
+                text = review.get('text', '') or review.get('review_text', '')
+            else:
+                text = str(review)
+            
+            if not text or len(text) < 30:
+                continue
+            
+            text_lower = text.lower()
+            pos_words = ['amazing', 'excellent', 'fantastic', 'great', 'awesome', 'delicious', 'perfect', 'loved', 'best']
+            neg_words = ['terrible', 'horrible', 'awful', 'bad', 'worst', 'disappointing', 'poor', 'rude']
+            
+            pos_count = sum(1 for w in pos_words if w in text_lower)
+            neg_count = sum(1 for w in neg_words if w in text_lower)
+            
+            if pos_count > neg_count and len(positive_reviews) < 3:
+                positive_reviews.append(text[:180])
+            elif neg_count > pos_count and len(negative_reviews) < 3:
+                negative_reviews.append(text[:180])
+        
+        elements.append(Paragraph("✅ Positive Feedback", styles['SubHeader']))
+        if positive_reviews:
+            for review in positive_reviews:
+                elements.append(Paragraph(f'"{review}..."', styles['Quote']))
+        else:
+            elements.append(Paragraph("Detailed positive feedback samples not available.", styles['BodyText']))
+        
+        elements.append(Spacer(1, 15))
+        
+        elements.append(Paragraph("⚠️ Critical Feedback", styles['SubHeader']))
+        if negative_reviews:
+            for review in negative_reviews:
+                elements.append(Paragraph(f'"{review}..."', styles['Quote']))
+        else:
+            elements.append(Paragraph("No significant negative feedback identified. Great job!", styles['BodyText']))
+        
+        # ==================== FOOTER ====================
         elements.append(Spacer(1, 30))
-        elements.append(Paragraph("Generated by Restaurant Intelligence Agent | Powered by Claude AI",
-                                 ParagraphStyle('Footer', parent=styles['Normal'],
-                                               fontSize=8, textColor=colors.grey, alignment=TA_CENTER)))
+        elements.append(HRFlowable(width="100%", thickness=1, color=BORDER, spaceBefore=10, spaceAfter=10))
+        elements.append(Paragraph(f"Report generated for {restaurant_name}", styles['Footer']))
+        elements.append(Paragraph(f"Generated on {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", styles['Footer']))
+        elements.append(Paragraph("Restaurant Intelligence Agent • Powered by Claude AI", styles['Footer']))
+        elements.append(Paragraph("© 2025 - Built for Anthropic MCP Hackathon", styles['Footer']))
         
         # Build PDF
         doc.build(elements)
-        print(f"[PDF] Successfully generated: {output_path}")
+        print(f"[PDF] Successfully generated professional report: {output_path}")
         return output_path
         
     except Exception as e:
