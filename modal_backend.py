@@ -33,6 +33,7 @@ image = (
         "matplotlib",
         "fastapi[standard]",
         "httpx",
+        "fastmcp",  # Required by src/mcp_integrations modules
     )
     .add_local_python_source("src")
 )
