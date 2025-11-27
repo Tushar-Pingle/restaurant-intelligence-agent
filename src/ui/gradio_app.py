@@ -351,8 +351,8 @@ def format_insights(insights: dict, role: str) -> str:
 
 def translate_menu_performance(menu: dict, restaurant_name: str) -> str:
     """
-    Create DETAILED and ACTIONABLE summary of menu performance.
-    Shows what customers actually said about the food.
+    Create simple summary of menu performance.
+    Keep it clean - detailed info is in the dropdown.
     """
     food_items = menu.get('food_items', [])
     drinks = menu.get('drinks', [])
@@ -361,144 +361,57 @@ def translate_menu_performance(menu: dict, restaurant_name: str) -> str:
     if not all_items:
         return f"*No menu data available for {restaurant_name} yet.*"
     
-    # Sort by mentions to get most talked about items
-    sorted_by_mentions = sorted(all_items, key=lambda x: x.get('mention_count', 0), reverse=True)
+    # Count categories
+    stars = len([i for i in all_items if i.get('sentiment', 0) > 0.5])
+    good = len([i for i in all_items if 0.2 < i.get('sentiment', 0) <= 0.5])
+    mixed = len([i for i in all_items if -0.2 <= i.get('sentiment', 0) <= 0.2])
+    concerns = len([i for i in all_items if i.get('sentiment', 0) < -0.2])
     
-    # Categorize items
-    stars = [i for i in all_items if i.get('sentiment', 0) > 0.5]
-    good = [i for i in all_items if 0.2 < i.get('sentiment', 0) <= 0.5]
-    mixed = [i for i in all_items if -0.2 <= i.get('sentiment', 0) <= 0.2]
-    concerns = [i for i in all_items if i.get('sentiment', 0) < -0.2]
-    
-    # Build detailed summary
-    summary = f"## 🍽️ Menu Performance for {restaurant_name}\n\n"
-    summary += f"**Total Items Analyzed:** {len(all_items)} ({len(food_items)} food, {len(drinks)} drinks)\n\n"
-    
-    # Most talked about items
-    if sorted_by_mentions:
-        summary += "### 📢 Most Mentioned Items\n"
-        for item in sorted_by_mentions[:5]:
-            name = item.get('name', '?').title()
-            mentions = item.get('mention_count', 0)
-            sentiment = item.get('sentiment', 0)
-            emoji = "🟢" if sentiment > 0.3 else "🟡" if sentiment > -0.3 else "🔴"
-            summary += f"- **{name}** ({mentions} mentions) {emoji} {sentiment:+.2f}\n"
-        summary += "\n"
-    
-    # Customer favorites with details
-    if stars:
-        summary += "### 🌟 Customer Favorites (Highly Praised)\n"
-        for item in sorted(stars, key=lambda x: x.get('sentiment', 0), reverse=True)[:5]:
-            name = item.get('name', '?').title()
-            sentiment = item.get('sentiment', 0)
-            mentions = item.get('mention_count', 0)
-            item_summary = item.get('summary', '')
-            
-            summary += f"**{name}** — Sentiment: {sentiment:+.2f} ({mentions} mentions)\n"
-            if item_summary:
-                summary += f"> *{item_summary[:150]}{'...' if len(item_summary) > 150 else ''}*\n"
-            summary += "\n"
-    
-    # Items needing attention with details
-    if concerns:
-        summary += "### ⚠️ Items Needing Attention\n"
-        for item in sorted(concerns, key=lambda x: x.get('sentiment', 0))[:5]:
-            name = item.get('name', '?').title()
-            sentiment = item.get('sentiment', 0)
-            mentions = item.get('mention_count', 0)
-            item_summary = item.get('summary', '')
-            
-            summary += f"**{name}** — Sentiment: {sentiment:+.2f} ({mentions} mentions)\n"
-            if item_summary:
-                summary += f"> *{item_summary[:150]}{'...' if len(item_summary) > 150 else ''}*\n"
-            summary += "\n"
-    
-    # Quick action items
-    summary += "### 🎯 Quick Actions\n"
-    if stars:
-        top_star = max(stars, key=lambda x: x.get('mention_count', 0))
-        summary += f"- **Promote:** Feature **{top_star.get('name', '?').title()}** in marketing - customers love it!\n"
-    if concerns:
-        worst = min(concerns, key=lambda x: x.get('sentiment', 0))
-        summary += f"- **Investigate:** Review recipe/preparation for **{worst.get('name', '?').title()}**\n"
-    if mixed:
-        summary += f"- **Monitor:** {len(mixed)} items have mixed feedback - track closely\n"
-    
+    # Simple summary
+    summary = f"""### 🍽️ Menu Overview for {restaurant_name}
+
+**{len(all_items)} items analyzed** ({len(food_items)} food, {len(drinks)} drinks)
+
+| Category | Count |
+|----------|-------|
+| 🌟 Customer Favorites | {stars} |
+| ✅ Performing Well | {good} |
+| 🟡 Mixed Reviews | {mixed} |
+| ⚠️ Needs Attention | {concerns} |
+
+👇 **Select an item from the dropdown below to see detailed customer feedback.**
+"""
     return summary
 
 
 def translate_aspect_performance(aspects: dict, restaurant_name: str) -> str:
     """
-    Create DETAILED and ACTIONABLE summary of aspect performance.
-    Shows what customers said about service, ambiance, etc.
+    Create simple summary of aspect performance.
+    Keep it clean - detailed info is in the dropdown.
     """
     aspect_list = aspects.get('aspects', [])
     
     if not aspect_list:
         return f"*No aspect data available for {restaurant_name} yet.*"
     
-    # Sort by mentions
-    sorted_by_mentions = sorted(aspect_list, key=lambda x: x.get('mention_count', 0), reverse=True)
+    # Count categories
+    strengths = len([a for a in aspect_list if a.get('sentiment', 0) > 0.3])
+    neutral = len([a for a in aspect_list if -0.3 <= a.get('sentiment', 0) <= 0.3])
+    weaknesses = len([a for a in aspect_list if a.get('sentiment', 0) < -0.3])
     
-    # Categorize
-    strengths = [a for a in aspect_list if a.get('sentiment', 0) > 0.3]
-    neutral = [a for a in aspect_list if -0.3 <= a.get('sentiment', 0) <= 0.3]
-    weaknesses = [a for a in aspect_list if a.get('sentiment', 0) < -0.3]
-    
-    # Build detailed summary
-    summary = f"## 📊 Customer Experience Analysis for {restaurant_name}\n\n"
-    summary += f"**Total Aspects Analyzed:** {len(aspect_list)}\n\n"
-    
-    # Most discussed aspects
-    if sorted_by_mentions:
-        summary += "### 📢 Most Discussed Aspects\n"
-        for aspect in sorted_by_mentions[:5]:
-            name = aspect.get('name', '?').title()
-            mentions = aspect.get('mention_count', 0)
-            sentiment = aspect.get('sentiment', 0)
-            emoji = "🟢" if sentiment > 0.3 else "🟡" if sentiment > -0.3 else "🔴"
-            summary += f"- **{name}** ({mentions} mentions) {emoji} {sentiment:+.2f}\n"
-        summary += "\n"
-    
-    # Strengths with details
-    if strengths:
-        summary += "### 💪 Strengths (What's Working Well)\n"
-        for aspect in sorted(strengths, key=lambda x: x.get('sentiment', 0), reverse=True)[:5]:
-            name = aspect.get('name', '?').title()
-            sentiment = aspect.get('sentiment', 0)
-            mentions = aspect.get('mention_count', 0)
-            aspect_summary = aspect.get('summary', '')
-            
-            summary += f"**{name}** — Sentiment: {sentiment:+.2f} ({mentions} mentions)\n"
-            if aspect_summary:
-                summary += f"> *{aspect_summary[:150]}{'...' if len(aspect_summary) > 150 else ''}*\n"
-            summary += "\n"
-    
-    # Weaknesses with details
-    if weaknesses:
-        summary += "### 📉 Areas for Improvement\n"
-        for aspect in sorted(weaknesses, key=lambda x: x.get('sentiment', 0))[:5]:
-            name = aspect.get('name', '?').title()
-            sentiment = aspect.get('sentiment', 0)
-            mentions = aspect.get('mention_count', 0)
-            aspect_summary = aspect.get('summary', '')
-            
-            summary += f"**{name}** — Sentiment: {sentiment:+.2f} ({mentions} mentions)\n"
-            if aspect_summary:
-                summary += f"> *{aspect_summary[:150]}{'...' if len(aspect_summary) > 150 else ''}*\n"
-            summary += "\n"
-    
-    # Actionable recommendations
-    summary += "### 🎯 Recommended Actions\n"
-    if strengths:
-        top_strength = max(strengths, key=lambda x: x.get('mention_count', 0))
-        summary += f"- **Maintain:** Keep up the great **{top_strength.get('name', '?').title()}** - customers notice!\n"
-    if weaknesses:
-        worst = min(weaknesses, key=lambda x: x.get('sentiment', 0))
-        summary += f"- **Priority Fix:** Address **{worst.get('name', '?').title()}** issues immediately\n"
-    if neutral:
-        summary += f"- **Opportunity:** {len(neutral)} aspects have room for improvement to become strengths\n"
-    
+    # Simple summary
+    summary = f"""### 📊 Customer Experience Overview for {restaurant_name}
+
+**{len(aspect_list)} aspects analyzed**
+
+| Category | Count |
+|----------|-------|
+| 💪 Strengths | {strengths} |
+| 🟡 Neutral | {neutral} |
+| 📉 Needs Work | {weaknesses} |
+
+👇 **Select an aspect from the dropdown below to see detailed customer feedback.**
+"""
     return summary
 
 
