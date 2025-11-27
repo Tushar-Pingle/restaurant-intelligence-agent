@@ -1,4 +1,4 @@
-name: Run Python script
+name: Deploy to HuggingFace Space
 
 on:
   push:
@@ -6,23 +6,37 @@ on:
       - main
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.9'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-    - name: Install Gradio
-      run: python -m pip install gradio
+      - name: Install huggingface_hub
+        run: pip install huggingface_hub
 
-    - name: Log in to Hugging Face
-      run: python -c 'import huggingface_hub; huggingface_hub.login(token="${{ secrets.hf_token }}")'
-
-    - name: Deploy to Spaces
-      run: gradio deploy
+      - name: Upload to HuggingFace Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - << 'EOF'
+          import os
+          from huggingface_hub import HfApi
+          
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          
+          # Upload the entire repo to the Space
+          api.upload_folder(
+              folder_path=".",
+              repo_id="TushP/restaurant-intelligence-agent",
+              repo_type="space",
+              ignore_patterns=["*.git*", "__pycache__", "*.pyc", "venv", ".env", "*.ipynb"]
+          )
+          
+          print("✅ Successfully deployed to HuggingFace Space!")
+          EOF
