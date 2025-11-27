@@ -128,41 +128,47 @@ def calculate_review_sentiment(text: str) -> float:
     return (pos - neg) / max(pos + neg, 1)
 
 
-def generate_trend_chart(raw_reviews: List[Dict], restaurant_name: str) -> Optional[str]:
-    """Generate Rating vs Sentiment trend chart."""
+def generate_trend_chart(trend_data: List[Dict], restaurant_name: str) -> Optional[str]:
+    """
+    Generate Rating vs Sentiment trend chart.
+    
+    UPDATED: Now uses pre-calculated trend_data from backend.
+    Format: [{"date": "2 days ago", "rating": 4.5, "sentiment": 0.6}, ...]
+    """
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     import matplotlib.dates as mdates
     
-    if not raw_reviews or len(raw_reviews) < 3:
+    if not trend_data or len(trend_data) < 3:
         return None
     
     dated_reviews = []
-    for r in raw_reviews:
+    for r in trend_data:
         if not isinstance(r, dict):
             continue
         date = parse_opentable_date(r.get('date', ''))
         if date:
-            rating = float(r.get('rating', 0) or r.get('overall_rating', 0) or 0)
-            text = r.get('text', '') or r.get('review_text', '')
+            rating = float(r.get('rating', 0) or 0)
+            sentiment = float(r.get('sentiment', 0) or 0)  # Already calculated!
             dated_reviews.append({
                 'date': date,
                 'rating': rating if rating > 0 else 3.5,
-                'sentiment': calculate_review_sentiment(text)
+                'sentiment': sentiment
             })
     
-    if len(dated_reviews) < 3 and len(raw_reviews) >= 3:
+    # Fallback: if no dates parsed, use sequential ordering
+    if len(dated_reviews) < 3 and len(trend_data) >= 3:
         dated_reviews = []
-        for i, r in enumerate(raw_reviews):
+        for i, r in enumerate(trend_data):
             if not isinstance(r, dict):
                 continue
-            rating = float(r.get('rating', 0) or r.get('overall_rating', 0) or 3.5)
-            text = r.get('text', '') or r.get('review_text', '')
+            rating = float(r.get('rating', 0) or 3.5)
+            sentiment = float(r.get('sentiment', 0) or 0)
             dated_reviews.append({
                 'date': datetime.now() - timedelta(days=i),
                 'rating': rating if rating > 0 else 3.5,
-                'sentiment': calculate_review_sentiment(text)
+                'sentiment': sentiment
             })
     
     if len(dated_reviews) < 3:
@@ -246,26 +252,36 @@ def generate_trend_chart(raw_reviews: List[Dict], restaurant_name: str) -> Optio
         return None
 
 
-def generate_trend_insight(raw_reviews: List[Dict], restaurant_name: str) -> str:
-    """Generate text insight from trend data."""
-    if not raw_reviews or len(raw_reviews) < 3:
+def generate_trend_insight(trend_data: List[Dict], restaurant_name: str) -> str:
+    """
+    Generate text insight from trend data.
+    
+    UPDATED: Now uses pre-calculated trend_data from backend.
+    Format: [{"date": "...", "rating": 4.5, "sentiment": 0.6}, ...]
+    """
+    if not trend_data or len(trend_data) < 3:
         return "Not enough data to analyze trends (need 3+ reviews)."
     
     ratings = []
     sentiments = []
-    for r in raw_reviews:
+    for r in trend_data:
         if isinstance(r, dict):
             rating = float(r.get('rating', 0) or r.get('overall_rating', 0) or 0)
             if rating > 0:
                 ratings.append(rating)
-            text = r.get('text', '') or r.get('review_text', '')
-            sentiments.append(calculate_review_sentiment(text))
+            # Use pre-calculated sentiment if available, otherwise calculate
+            sentiment = r.get('sentiment')
+            if sentiment is not None:
+                sentiments.append(float(sentiment))
+            else:
+                text = r.get('text', '') or r.get('review_text', '')
+                sentiments.append(calculate_review_sentiment(text))
     
     if not ratings:
         return "No rating data available."
     
     avg_rating = sum(ratings) / len(ratings)
-    avg_sentiment = sum(sentiments) / len(sentiments)
+    avg_sentiment = sum(sentiments) / len(sentiments) if sentiments else 0
     
     insight = f"**{restaurant_name}** has an average rating of **{avg_rating:.1f} stars** "
     
@@ -659,7 +675,8 @@ def generate_pdf_report(state: dict) -> Optional[str]:
         menu = state.get('menu_analysis', {})
         aspects = state.get('aspect_analysis', {})
         insights = state.get('insights', {})
-        raw_reviews = state.get('raw_reviews', [])
+        # Use trend_data (slim) or fall back to raw_reviews for backward compatibility
+        trend_data = state.get('trend_data', state.get('raw_reviews', []))
         
         food_items = menu.get('food_items', [])
         drinks = menu.get('drinks', [])
@@ -684,7 +701,7 @@ def generate_pdf_report(state: dict) -> Optional[str]:
         
         styles = getSampleStyleSheet()
         
-        # Custom styles
+        # Custom styles - use 'Custom' prefix to avoid conflicts with default styles
         styles.add(ParagraphStyle('CoverTitle', parent=styles['Heading1'],
                                  fontSize=32, textColor=PRIMARY, alignment=TA_CENTER,
                                  spaceAfter=10, fontName='Helvetica-Bold'))
@@ -705,7 +722,8 @@ def generate_pdf_report(state: dict) -> Optional[str]:
                                  fontSize=14, textColor=TEXT_DARK, spaceBefore=15,
                                  spaceAfter=8, fontName='Helvetica-Bold'))
         
-        styles.add(ParagraphStyle('BodyText', parent=styles['Normal'],
+        # Use 'CustomBody' instead of 'BodyText' (which already exists)
+        styles.add(ParagraphStyle('CustomBody', parent=styles['Normal'],
                                  fontSize=10, textColor=TEXT_DARK, spaceAfter=8,
                                  leading=14, fontName='Helvetica'))
         
@@ -717,7 +735,7 @@ def generate_pdf_report(state: dict) -> Optional[str]:
                                  fontSize=10, textColor=TEXT_LIGHT, leftIndent=20,
                                  rightIndent=20, spaceAfter=10, fontName='Helvetica-Oblique'))
         
-        styles.add(ParagraphStyle('Footer', parent=styles['Normal'],
+        styles.add(ParagraphStyle('CustomFooter', parent=styles['Normal'],
                                  fontSize=8, textColor=TEXT_LIGHT, alignment=TA_CENTER))
         
         styles.add(ParagraphStyle('PriorityHigh', parent=styles['Normal'],
@@ -744,12 +762,12 @@ def generate_pdf_report(state: dict) -> Optional[str]:
         elements.append(Spacer(1, 0.5*inch))
         elements.append(Paragraph(restaurant_name, styles['CoverRestaurant']))
         elements.append(Spacer(1, 0.3*inch))
-        elements.append(Paragraph(f"Data Source: {source}", styles['Footer']))
+        elements.append(Paragraph(f"Data Source: {source}", styles['CustomFooter']))
         elements.append(Spacer(1, 0.5*inch))
         
         # Stats boxes
         stats_data = [[
-            str(len(raw_reviews)), str(len(all_menu)), str(len(aspect_list))
+            str(len(trend_data)), str(len(all_menu)), str(len(aspect_list))
         ], [
             "Reviews", "Menu Items", "Aspects"
         ]]
@@ -768,8 +786,8 @@ def generate_pdf_report(state: dict) -> Optional[str]:
         ]))
         elements.append(stats_table)
         elements.append(Spacer(1, 1*inch))
-        elements.append(Paragraph(f"Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", styles['Footer']))
-        elements.append(Paragraph("Powered by Claude AI • Restaurant Intelligence Agent", styles['Footer']))
+        elements.append(Paragraph(f"Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", styles['CustomFooter']))
+        elements.append(Paragraph("Powered by Claude AI • Restaurant Intelligence Agent", styles['CustomFooter']))
         elements.append(PageBreak())
         
         # ==================== EXECUTIVE SUMMARY ====================
@@ -804,14 +822,14 @@ def generate_pdf_report(state: dict) -> Optional[str]:
         elements.append(Paragraph("Key Highlights", styles['SubHeader']))
         top_items = sorted(all_menu, key=lambda x: x.get('sentiment', 0), reverse=True)[:3]
         if top_items:
-            elements.append(Paragraph("✅ <b>Top Performing Items:</b>", styles['BodyText']))
+            elements.append(Paragraph("✅ <b>Top Performing Items:</b>", styles['CustomBody']))
             for item in top_items:
                 elements.append(Paragraph(f"    • {item.get('name', '?').title()} (sentiment: {item.get('sentiment', 0):+.2f})", styles['Bullet']))
         
         concern_items = [i for i in all_menu if i.get('sentiment', 0) < -0.2]
         if concern_items:
             elements.append(Spacer(1, 10))
-            elements.append(Paragraph("⚠️ <b>Items Needing Attention:</b>", styles['BodyText']))
+            elements.append(Paragraph("⚠️ <b>Items Needing Attention:</b>", styles['CustomBody']))
             for item in sorted(concern_items, key=lambda x: x.get('sentiment', 0))[:3]:
                 elements.append(Paragraph(f"    • {item.get('name', '?').title()} (sentiment: {item.get('sentiment', 0):+.2f})", styles['Bullet']))
         
@@ -825,7 +843,7 @@ def generate_pdf_report(state: dict) -> Optional[str]:
         
         summary_data = [
             ['Metric', 'Value', 'Details'],
-            ['Reviews Analyzed', str(len(raw_reviews)), f'From {source}'],
+            ['Reviews Analyzed', str(len(trend_data)), f'From {source}'],
             ['Menu Items', str(len(all_menu)), f'{len(food_items)} food, {len(drinks)} drinks'],
             ['Customer Favorites', str(stars), 'Sentiment > 0.5'],
             ['Performing Well', str(good), 'Sentiment 0.2 - 0.5'],
@@ -853,8 +871,8 @@ def generate_pdf_report(state: dict) -> Optional[str]:
         
         if all_menu:
             elements.append(Paragraph(
-                f"Analysis of <b>{len(all_menu)}</b> menu items ({len(food_items)} food, {len(drinks)} drinks) based on {len(raw_reviews)} customer reviews.",
-                styles['BodyText']
+                f"Analysis of <b>{len(all_menu)}</b> menu items ({len(food_items)} food, {len(drinks)} drinks) based on {len(trend_data)} customer reviews.",
+                styles['CustomBody']
             ))
             elements.append(Spacer(1, 10))
             
@@ -917,7 +935,7 @@ def generate_pdf_report(state: dict) -> Optional[str]:
         if chef_data:
             if chef_data.get('summary'):
                 elements.append(Paragraph("Summary", styles['SubHeader']))
-                elements.append(Paragraph(str(chef_data['summary']), styles['BodyText']))
+                elements.append(Paragraph(str(chef_data['summary']), styles['CustomBody']))
             
             if chef_data.get('strengths'):
                 elements.append(Paragraph("✅ Strengths", styles['SubHeader']))
@@ -948,7 +966,7 @@ def generate_pdf_report(state: dict) -> Optional[str]:
                         else:
                             elements.append(Paragraph(f"• {r}", styles['Bullet']))
         else:
-            elements.append(Paragraph("Chef insights will be available after full analysis.", styles['BodyText']))
+            elements.append(Paragraph("Chef insights will be available after full analysis.", styles['CustomBody']))
         
         elements.append(Spacer(1, 20))
         
@@ -960,7 +978,7 @@ def generate_pdf_report(state: dict) -> Optional[str]:
         if manager_data:
             if manager_data.get('summary'):
                 elements.append(Paragraph("Summary", styles['SubHeader']))
-                elements.append(Paragraph(str(manager_data['summary']), styles['BodyText']))
+                elements.append(Paragraph(str(manager_data['summary']), styles['CustomBody']))
             
             if manager_data.get('strengths'):
                 elements.append(Paragraph("✅ Operational Strengths", styles['SubHeader']))
@@ -991,7 +1009,7 @@ def generate_pdf_report(state: dict) -> Optional[str]:
                         else:
                             elements.append(Paragraph(f"• {r}", styles['Bullet']))
         else:
-            elements.append(Paragraph("Manager insights will be available after full analysis.", styles['BodyText']))
+            elements.append(Paragraph("Manager insights will be available after full analysis.", styles['CustomBody']))
         
         elements.append(PageBreak())
         
@@ -1002,25 +1020,37 @@ def generate_pdf_report(state: dict) -> Optional[str]:
         positive_reviews = []
         negative_reviews = []
         
-        for review in raw_reviews[:50]:
-            if isinstance(review, dict):
-                text = review.get('text', '') or review.get('review_text', '')
-            else:
-                text = str(review)
-            
-            if not text or len(text) < 30:
-                continue
-            
-            text_lower = text.lower()
-            pos_words = ['amazing', 'excellent', 'fantastic', 'great', 'awesome', 'delicious', 'perfect', 'loved', 'best']
-            neg_words = ['terrible', 'horrible', 'awful', 'bad', 'worst', 'disappointing', 'poor', 'rude']
-            
-            pos_count = sum(1 for w in pos_words if w in text_lower)
-            neg_count = sum(1 for w in neg_words if w in text_lower)
-            
-            if pos_count > neg_count and len(positive_reviews) < 3:
+        # Extract sample reviews from menu items and aspects (they have related_reviews with text)
+        all_related_reviews = []
+        
+        # Get reviews from menu items
+        for item in all_menu:
+            for r in item.get('related_reviews', [])[:2]:
+                if isinstance(r, dict):
+                    text = r.get('review_text', r.get('text', ''))
+                else:
+                    text = str(r)
+                if text and len(text) > 30:
+                    sentiment = item.get('sentiment', 0)
+                    all_related_reviews.append({'text': text, 'sentiment': sentiment})
+        
+        # Get reviews from aspects
+        for aspect in aspect_list:
+            for r in aspect.get('related_reviews', [])[:2]:
+                if isinstance(r, dict):
+                    text = r.get('review_text', r.get('text', ''))
+                else:
+                    text = str(r)
+                if text and len(text) > 30:
+                    sentiment = aspect.get('sentiment', 0)
+                    all_related_reviews.append({'text': text, 'sentiment': sentiment})
+        
+        # Sort by sentiment to get best positive and worst negative
+        for review in sorted(all_related_reviews, key=lambda x: x['sentiment'], reverse=True):
+            text = review['text']
+            if review['sentiment'] > 0.2 and len(positive_reviews) < 3:
                 positive_reviews.append(text[:180])
-            elif neg_count > pos_count and len(negative_reviews) < 3:
+            elif review['sentiment'] < -0.2 and len(negative_reviews) < 3:
                 negative_reviews.append(text[:180])
         
         elements.append(Paragraph("✅ Positive Feedback", styles['SubHeader']))
@@ -1028,7 +1058,7 @@ def generate_pdf_report(state: dict) -> Optional[str]:
             for review in positive_reviews:
                 elements.append(Paragraph(f'"{review}..."', styles['Quote']))
         else:
-            elements.append(Paragraph("Detailed positive feedback samples not available.", styles['BodyText']))
+            elements.append(Paragraph("Detailed positive feedback samples not available.", styles['CustomBody']))
         
         elements.append(Spacer(1, 15))
         
@@ -1037,15 +1067,15 @@ def generate_pdf_report(state: dict) -> Optional[str]:
             for review in negative_reviews:
                 elements.append(Paragraph(f'"{review}..."', styles['Quote']))
         else:
-            elements.append(Paragraph("No significant negative feedback identified. Great job!", styles['BodyText']))
+            elements.append(Paragraph("No significant negative feedback identified. Great job!", styles['CustomBody']))
         
         # ==================== FOOTER ====================
         elements.append(Spacer(1, 30))
         elements.append(HRFlowable(width="100%", thickness=1, color=BORDER, spaceBefore=10, spaceAfter=10))
-        elements.append(Paragraph(f"Report generated for {restaurant_name}", styles['Footer']))
-        elements.append(Paragraph(f"Generated on {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", styles['Footer']))
-        elements.append(Paragraph("Restaurant Intelligence Agent • Powered by Claude AI", styles['Footer']))
-        elements.append(Paragraph("© 2025 - Built for Anthropic MCP Hackathon", styles['Footer']))
+        elements.append(Paragraph(f"Report generated for {restaurant_name}", styles['CustomFooter']))
+        elements.append(Paragraph(f"Generated on {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", styles['CustomFooter']))
+        elements.append(Paragraph("Restaurant Intelligence Agent • Powered by Claude AI", styles['CustomFooter']))
+        elements.append(Paragraph("© 2025 - Built for Anthropic MCP Hackathon", styles['CustomFooter']))
         
         # Build PDF
         doc.build(elements)
@@ -1144,7 +1174,7 @@ AMBIANCE_WORDS = {'ambiance', 'atmosphere', 'vibe', 'decor', 'noise', 'loud', 'q
 
 
 def find_relevant_reviews(question: str, state: dict, top_k: int = 8) -> List[str]:
-    """Find relevant reviews for the question."""
+    """Find relevant reviews for the question using menu/aspect related_reviews."""
     if not state:
         return []
     
@@ -1153,7 +1183,6 @@ def find_relevant_reviews(question: str, state: dict, top_k: int = 8) -> List[st
     
     menu = state.get('menu_analysis', {})
     aspects = state.get('aspect_analysis', {})
-    raw_reviews = state.get('raw_reviews', [])
     
     all_items = menu.get('food_items', []) + menu.get('drinks', [])
     all_aspects = aspects.get('aspects', [])
@@ -1195,26 +1224,22 @@ def find_relevant_reviews(question: str, state: dict, top_k: int = 8) -> List[st
                 if text not in relevant_reviews:
                     relevant_reviews.append(text)
     
-    # Fallback: use raw reviews
-    if not relevant_reviews and raw_reviews:
-        for r in raw_reviews[:10]:
-            if isinstance(r, dict):
-                text = r.get('text', '') or r.get('review_text', '')
-            else:
-                text = str(r)
-            if text and len(text) > 20:
-                # Check if any question word appears in review
-                if any(w in text.lower() for w in q_words):
+    # Fallback: if still no reviews, gather from all items/aspects
+    if not relevant_reviews:
+        # Collect from top items by mentions
+        sorted_items = sorted(all_items, key=lambda x: x.get('mention_count', 0), reverse=True)
+        for item in sorted_items[:5]:
+            for r in item.get('related_reviews', [])[:2]:
+                text = r.get('review_text', str(r)) if isinstance(r, dict) else str(r)
+                if text and len(text) > 20 and text not in relevant_reviews:
                     relevant_reviews.append(text)
         
-        # If still nothing, just use first few reviews
-        if not relevant_reviews:
-            for r in raw_reviews[:5]:
-                if isinstance(r, dict):
-                    text = r.get('text', '') or r.get('review_text', '')
-                else:
-                    text = str(r)
-                if text and len(text) > 20:
+        # Also from top aspects
+        sorted_aspects = sorted(all_aspects, key=lambda x: x.get('mention_count', 0), reverse=True)
+        for aspect in sorted_aspects[:5]:
+            for r in aspect.get('related_reviews', [])[:2]:
+                text = r.get('review_text', str(r)) if isinstance(r, dict) else str(r)
+                if text and len(text) > 20 and text not in relevant_reviews:
                     relevant_reviews.append(text)
     
     return relevant_reviews[:top_k]
@@ -1342,7 +1367,7 @@ EXAMPLE_QUESTIONS = [
 # ============================================================================
 
 def analyze_restaurant(url: str, review_count: int):
-    """Main analysis function - calls Modal API."""
+    """Main analysis function - calls Modal API with robust error handling."""
     
     empty = {}
     default_summary = "Run analysis to see performance overview."
@@ -1376,23 +1401,56 @@ def analyze_restaurant(url: str, review_count: int):
     
     try:
         print(f"[ANALYZE] {platform_emoji} Analyzing {restaurant_name} from {platform}...")
+        print(f"[ANALYZE] Calling Modal API: {MODAL_API_URL}/analyze")
         
-        response = requests.post(
+        # Use a session with retry logic
+        import requests
+        from requests.adapters import HTTPAdapter
+        from urllib3.util.retry import Retry
+        
+        session = requests.Session()
+        retries = Retry(
+            total=2,
+            backoff_factor=1,
+            status_forcelist=[502, 503, 504],
+            allowed_methods=["POST"]
+        )
+        session.mount("https://", HTTPAdapter(max_retries=retries))
+        
+        # Make request with streaming disabled for stability
+        response = session.post(
             f"{MODAL_API_URL}/analyze",
             json={"url": url, "max_reviews": review_count},
-            timeout=1800
+            timeout=(30, 600),  # 30s connect, 600s read (10 min)
+            headers={"Connection": "keep-alive"}
         )
         
+        print(f"[ANALYZE] Response status: {response.status_code}")
+        
         if response.status_code != 200:
+            error_text = response.text[:500] if response.text else "No error details"
+            print(f"[ANALYZE] Error response: {error_text}")
             return (
-                f"❌ **API Error ({response.status_code}):** {response.text[:200]}",
+                f"❌ **API Error ({response.status_code}):** {error_text[:200]}",
                 None, "No trend data available.",
                 default_summary, None, default_insight, empty_dropdown, default_detail,
                 default_summary, None, default_insight, empty_dropdown, default_detail,
                 empty
             )
         
-        data = response.json()
+        # Parse response
+        try:
+            data = response.json()
+            print(f"[ANALYZE] Response received, success={data.get('success')}")
+        except Exception as json_err:
+            print(f"[ANALYZE] JSON parse error: {json_err}")
+            return (
+                f"❌ **Parse Error:** Could not parse API response. Try again.",
+                None, "No trend data available.",
+                default_summary, None, default_insight, empty_dropdown, default_detail,
+                default_summary, None, default_insight, empty_dropdown, default_detail,
+                empty
+            )
         
         if not data.get("success"):
             return (
@@ -1406,24 +1464,29 @@ def analyze_restaurant(url: str, review_count: int):
         menu = data.get('menu_analysis', {})
         aspects = data.get('aspect_analysis', {})
         insights = data.get('insights', {})
-        raw_reviews = data.get('raw_reviews', [])
+        
+        # Use slim trend_data (pre-calculated sentiment, no text)
+        # Falls back to raw_reviews for backward compatibility
+        trend_data = data.get('trend_data', data.get('raw_reviews', []))
         
         food_items = menu.get('food_items', [])
         drinks = menu.get('drinks', [])
         aspect_list = aspects.get('aspects', [])
         all_menu = food_items + drinks
         
+        print(f"[ANALYZE] Data extracted: {len(all_menu)} menu items, {len(aspect_list)} aspects, {len(trend_data)} trend points")
+        
         state = {
             "menu_analysis": menu,
             "aspect_analysis": aspects,
             "insights": insights,
             "restaurant_name": restaurant_name,
-            "raw_reviews": raw_reviews,
+            "trend_data": trend_data,  # Store for PDF if needed
             "source": platform
         }
         
-        trend_chart = generate_trend_chart(raw_reviews, restaurant_name)
-        trend_insight = generate_trend_insight(raw_reviews, restaurant_name)
+        trend_chart = generate_trend_chart(trend_data, restaurant_name)
+        trend_insight = generate_trend_insight(trend_data, restaurant_name)
         
         # Use improved detailed summaries
         menu_summary = translate_menu_performance(menu, restaurant_name)
@@ -1448,12 +1511,14 @@ def analyze_restaurant(url: str, review_count: int):
 
 **📊 Summary:**
 • Source: **{platform.replace('_', ' ').title()}**
-• Reviews analyzed: **{review_count}**
+• Reviews analyzed: **{len(trend_data)}**
 • Menu items found: **{len(all_menu)}** ({len(food_items)} food, {len(drinks)} drinks)
 • Aspects discovered: **{len(aspect_list)}**
 
 👇 **Explore the tabs below for detailed insights!**
 """
+        
+        print(f"[ANALYZE] ✅ Analysis complete for {restaurant_name}")
         
         return (
             status,
@@ -1464,8 +1529,18 @@ def analyze_restaurant(url: str, review_count: int):
         )
         
     except requests.exceptions.Timeout:
+        print("[ANALYZE] ❌ Timeout error")
         return (
             "❌ **Timeout:** Request took too long. Try with fewer reviews (50-100).",
+            None, "No trend data available.",
+            default_summary, None, default_insight, empty_dropdown, default_detail,
+            default_summary, None, default_insight, empty_dropdown, default_detail,
+            empty
+        )
+    except requests.exceptions.ConnectionError as ce:
+        print(f"[ANALYZE] ❌ Connection error: {ce}")
+        return (
+            "❌ **Connection Error:** Could not reach analysis server. Please try again in a moment.",
             None, "No trend data available.",
             default_summary, None, default_insight, empty_dropdown, default_detail,
             default_summary, None, default_insight, empty_dropdown, default_detail,
@@ -1474,8 +1549,9 @@ def analyze_restaurant(url: str, review_count: int):
     except Exception as e:
         import traceback
         traceback.print_exc()
+        print(f"[ANALYZE] ❌ Exception: {e}")
         return (
-            f"❌ **Error:** {str(e)}",
+            f"❌ **Error:** {str(e)[:200]}",
             None, "No trend data available.",
             default_summary, None, default_insight, empty_dropdown, default_detail,
             default_summary, None, default_insight, empty_dropdown, default_detail,
