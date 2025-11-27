@@ -5,10 +5,11 @@ Professional UI with cards, plain English summaries, polished layout
 Hackathon: Anthropic MCP 1st Birthday - Track 2 (Productivity)
 Author: Tushar Pingle
 
-VERSION 3.0 FEATURES:
-1. Multi-platform support (OpenTable + Google Maps)
-2. PDF Report Export (download + email)
-3. All previous fixes and refinements
+VERSION 4.0 FIXES:
+1. Fixed Q&A "proxies" error with Anthropic SDK
+2. Fixed PDF download functionality
+3. Improved summaries to be more detailed and actionable
+4. Multi-platform support (OpenTable + Google Maps)
 """
 
 import gradio as gr
@@ -78,17 +79,14 @@ def parse_opentable_date(date_str: str) -> Optional[datetime]:
     date_str = str(date_str).lower().strip()
     today = datetime.now()
     
-    # "Dined X day(s) ago" or "X day(s) ago"
     day_match = re.search(r'(\d+)\s*days?\s*ago', date_str)
     if day_match:
         return today - timedelta(days=int(day_match.group(1)))
     
-    # "X week(s) ago"
     week_match = re.search(r'(\d+)\s*weeks?\s*ago', date_str)
     if week_match:
         return today - timedelta(weeks=int(week_match.group(1)))
     
-    # "X month(s) ago"
     month_match = re.search(r'(\d+)\s*months?\s*ago', date_str)
     if month_match:
         return today - timedelta(days=int(month_match.group(1)) * 30)
@@ -98,7 +96,6 @@ def parse_opentable_date(date_str: str) -> Optional[datetime]:
     if 'today' in date_str:
         return today
     
-    # Simple formats
     simple_day = re.search(r'^(\d+)\s*day', date_str)
     if simple_day:
         return today - timedelta(days=int(simple_day.group(1)))
@@ -141,7 +138,6 @@ def generate_trend_chart(raw_reviews: List[Dict], restaurant_name: str) -> Optio
     if not raw_reviews or len(raw_reviews) < 3:
         return None
     
-    # Parse and prepare data
     dated_reviews = []
     for r in raw_reviews:
         if not isinstance(r, dict):
@@ -156,7 +152,6 @@ def generate_trend_chart(raw_reviews: List[Dict], restaurant_name: str) -> Optio
                 'sentiment': calculate_review_sentiment(text)
             })
     
-    # Fallback: synthetic dates
     if len(dated_reviews) < 3 and len(raw_reviews) >= 3:
         dated_reviews = []
         for i, r in enumerate(raw_reviews):
@@ -173,7 +168,6 @@ def generate_trend_chart(raw_reviews: List[Dict], restaurant_name: str) -> Optio
     if len(dated_reviews) < 3:
         return None
     
-    # Sort and group by week
     dated_reviews.sort(key=lambda x: x['date'])
     weekly = {}
     for r in dated_reviews:
@@ -196,7 +190,6 @@ def generate_trend_chart(raw_reviews: List[Dict], restaurant_name: str) -> Optio
     if len(dates) < 2:
         return None
     
-    # Dark theme
     BG = '#1f2937'
     TEXT = '#e5e7eb'
     GRID = '#374151'
@@ -295,7 +288,7 @@ def generate_trend_insight(raw_reviews: List[Dict], restaurant_name: str) -> str
 
 
 # ============================================================================
-# HELPER FUNCTIONS
+# HELPER FUNCTIONS - IMPROVED SUMMARIES
 # ============================================================================
 
 def clean_insight_text(data) -> str:
@@ -357,7 +350,10 @@ def format_insights(insights: dict, role: str) -> str:
 
 
 def translate_menu_performance(menu: dict, restaurant_name: str) -> str:
-    """Create plain English summary of menu performance."""
+    """
+    Create DETAILED and ACTIONABLE summary of menu performance.
+    Shows what customers actually said about the food.
+    """
     food_items = menu.get('food_items', [])
     drinks = menu.get('drinks', [])
     all_items = food_items + drinks
@@ -365,40 +361,143 @@ def translate_menu_performance(menu: dict, restaurant_name: str) -> str:
     if not all_items:
         return f"*No menu data available for {restaurant_name} yet.*"
     
+    # Sort by mentions to get most talked about items
+    sorted_by_mentions = sorted(all_items, key=lambda x: x.get('mention_count', 0), reverse=True)
+    
+    # Categorize items
     stars = [i for i in all_items if i.get('sentiment', 0) > 0.5]
+    good = [i for i in all_items if 0.2 < i.get('sentiment', 0) <= 0.5]
+    mixed = [i for i in all_items if -0.2 <= i.get('sentiment', 0) <= 0.2]
     concerns = [i for i in all_items if i.get('sentiment', 0) < -0.2]
     
-    summary = f"**{restaurant_name}** has **{len(all_items)}** menu items analyzed "
-    summary += f"({len(food_items)} food, {len(drinks)} drinks).\n\n"
+    # Build detailed summary
+    summary = f"## 🍽️ Menu Performance for {restaurant_name}\n\n"
+    summary += f"**Total Items Analyzed:** {len(all_items)} ({len(food_items)} food, {len(drinks)} drinks)\n\n"
     
+    # Most talked about items
+    if sorted_by_mentions:
+        summary += "### 📢 Most Mentioned Items\n"
+        for item in sorted_by_mentions[:5]:
+            name = item.get('name', '?').title()
+            mentions = item.get('mention_count', 0)
+            sentiment = item.get('sentiment', 0)
+            emoji = "🟢" if sentiment > 0.3 else "🟡" if sentiment > -0.3 else "🔴"
+            summary += f"- **{name}** ({mentions} mentions) {emoji} {sentiment:+.2f}\n"
+        summary += "\n"
+    
+    # Customer favorites with details
     if stars:
-        top = sorted(stars, key=lambda x: x.get('sentiment', 0), reverse=True)[:3]
-        summary += "🌟 **Customer Favorites:** " + ", ".join([i.get('name', '?') for i in top]) + "\n\n"
+        summary += "### 🌟 Customer Favorites (Highly Praised)\n"
+        for item in sorted(stars, key=lambda x: x.get('sentiment', 0), reverse=True)[:5]:
+            name = item.get('name', '?').title()
+            sentiment = item.get('sentiment', 0)
+            mentions = item.get('mention_count', 0)
+            item_summary = item.get('summary', '')
+            
+            summary += f"**{name}** — Sentiment: {sentiment:+.2f} ({mentions} mentions)\n"
+            if item_summary:
+                summary += f"> *{item_summary[:150]}{'...' if len(item_summary) > 150 else ''}*\n"
+            summary += "\n"
     
+    # Items needing attention with details
     if concerns:
-        summary += "⚠️ **Needs Attention:** " + ", ".join([i.get('name', '?') for i in concerns[:3]]) + "\n"
+        summary += "### ⚠️ Items Needing Attention\n"
+        for item in sorted(concerns, key=lambda x: x.get('sentiment', 0))[:5]:
+            name = item.get('name', '?').title()
+            sentiment = item.get('sentiment', 0)
+            mentions = item.get('mention_count', 0)
+            item_summary = item.get('summary', '')
+            
+            summary += f"**{name}** — Sentiment: {sentiment:+.2f} ({mentions} mentions)\n"
+            if item_summary:
+                summary += f"> *{item_summary[:150]}{'...' if len(item_summary) > 150 else ''}*\n"
+            summary += "\n"
+    
+    # Quick action items
+    summary += "### 🎯 Quick Actions\n"
+    if stars:
+        top_star = max(stars, key=lambda x: x.get('mention_count', 0))
+        summary += f"- **Promote:** Feature **{top_star.get('name', '?').title()}** in marketing - customers love it!\n"
+    if concerns:
+        worst = min(concerns, key=lambda x: x.get('sentiment', 0))
+        summary += f"- **Investigate:** Review recipe/preparation for **{worst.get('name', '?').title()}**\n"
+    if mixed:
+        summary += f"- **Monitor:** {len(mixed)} items have mixed feedback - track closely\n"
     
     return summary
 
 
 def translate_aspect_performance(aspects: dict, restaurant_name: str) -> str:
-    """Create plain English summary of aspect performance."""
+    """
+    Create DETAILED and ACTIONABLE summary of aspect performance.
+    Shows what customers said about service, ambiance, etc.
+    """
     aspect_list = aspects.get('aspects', [])
     
     if not aspect_list:
         return f"*No aspect data available for {restaurant_name} yet.*"
     
+    # Sort by mentions
+    sorted_by_mentions = sorted(aspect_list, key=lambda x: x.get('mention_count', 0), reverse=True)
+    
+    # Categorize
     strengths = [a for a in aspect_list if a.get('sentiment', 0) > 0.3]
-    weaknesses = [a for a in aspect_list if a.get('sentiment', 0) < -0.1]
+    neutral = [a for a in aspect_list if -0.3 <= a.get('sentiment', 0) <= 0.3]
+    weaknesses = [a for a in aspect_list if a.get('sentiment', 0) < -0.3]
     
-    summary = f"**{restaurant_name}** was evaluated on **{len(aspect_list)}** aspects.\n\n"
+    # Build detailed summary
+    summary = f"## 📊 Customer Experience Analysis for {restaurant_name}\n\n"
+    summary += f"**Total Aspects Analyzed:** {len(aspect_list)}\n\n"
     
+    # Most discussed aspects
+    if sorted_by_mentions:
+        summary += "### 📢 Most Discussed Aspects\n"
+        for aspect in sorted_by_mentions[:5]:
+            name = aspect.get('name', '?').title()
+            mentions = aspect.get('mention_count', 0)
+            sentiment = aspect.get('sentiment', 0)
+            emoji = "🟢" if sentiment > 0.3 else "🟡" if sentiment > -0.3 else "🔴"
+            summary += f"- **{name}** ({mentions} mentions) {emoji} {sentiment:+.2f}\n"
+        summary += "\n"
+    
+    # Strengths with details
     if strengths:
-        top = sorted(strengths, key=lambda x: x.get('sentiment', 0), reverse=True)[:3]
-        summary += "💪 **Strengths:** " + ", ".join([a.get('name', '?').title() for a in top]) + "\n\n"
+        summary += "### 💪 Strengths (What's Working Well)\n"
+        for aspect in sorted(strengths, key=lambda x: x.get('sentiment', 0), reverse=True)[:5]:
+            name = aspect.get('name', '?').title()
+            sentiment = aspect.get('sentiment', 0)
+            mentions = aspect.get('mention_count', 0)
+            aspect_summary = aspect.get('summary', '')
+            
+            summary += f"**{name}** — Sentiment: {sentiment:+.2f} ({mentions} mentions)\n"
+            if aspect_summary:
+                summary += f"> *{aspect_summary[:150]}{'...' if len(aspect_summary) > 150 else ''}*\n"
+            summary += "\n"
     
+    # Weaknesses with details
     if weaknesses:
-        summary += "📉 **Areas to Improve:** " + ", ".join([a.get('name', '?').title() for a in weaknesses[:3]]) + "\n"
+        summary += "### 📉 Areas for Improvement\n"
+        for aspect in sorted(weaknesses, key=lambda x: x.get('sentiment', 0))[:5]:
+            name = aspect.get('name', '?').title()
+            sentiment = aspect.get('sentiment', 0)
+            mentions = aspect.get('mention_count', 0)
+            aspect_summary = aspect.get('summary', '')
+            
+            summary += f"**{name}** — Sentiment: {sentiment:+.2f} ({mentions} mentions)\n"
+            if aspect_summary:
+                summary += f"> *{aspect_summary[:150]}{'...' if len(aspect_summary) > 150 else ''}*\n"
+            summary += "\n"
+    
+    # Actionable recommendations
+    summary += "### 🎯 Recommended Actions\n"
+    if strengths:
+        top_strength = max(strengths, key=lambda x: x.get('mention_count', 0))
+        summary += f"- **Maintain:** Keep up the great **{top_strength.get('name', '?').title()}** - customers notice!\n"
+    if weaknesses:
+        worst = min(weaknesses, key=lambda x: x.get('sentiment', 0))
+        summary += f"- **Priority Fix:** Address **{worst.get('name', '?').title()}** issues immediately\n"
+    if neutral:
+        summary += f"- **Opportunity:** {len(neutral)} aspects have room for improvement to become strengths\n"
     
     return summary
 
@@ -483,17 +582,16 @@ def extract_restaurant_name(url: str) -> str:
             path = url.split('?')[0].rstrip('/')
             return path.split('/')[-1].replace('-', ' ').title()
         elif 'google' in url.lower():
-            # Try to extract from Google Maps URL
             if '/place/' in url:
                 place = url.split('/place/')[1].split('/')[0]
-                return place.replace('+', ' ').replace('%20', ' ')
+                return place.replace('+', ' ').replace('%20', ' ').replace('%26', '&')
         return "Restaurant"
     except:
         return "Restaurant"
 
 
 def get_item_detail(item_name: str, state: dict) -> str:
-    """Get details for a selected menu item."""
+    """Get DETAILED feedback for a selected menu item."""
     if not item_name or not state:
         return "Select an item to see details."
     
@@ -505,22 +603,51 @@ def get_item_detail(item_name: str, state: dict) -> str:
         if item.get('name', '').lower() == clean_name:
             sentiment = item.get('sentiment', 0)
             mentions = item.get('mention_count', 0)
-            summary = item.get('summary', 'No detailed summary available.')
+            summary = item.get('summary', '')
+            related_reviews = item.get('related_reviews', [])
             
             emoji = "🟢" if sentiment > 0.3 else "🟡" if sentiment > -0.3 else "🔴"
             
-            return f"""### {clean_name.title()}
+            detail = f"""### {clean_name.title()}
 
-{emoji} **Sentiment:** {sentiment:+.2f} | **Mentions:** {mentions}
+{emoji} **Sentiment Score:** {sentiment:+.2f} | **Total Mentions:** {mentions}
 
-**Customer Feedback:**
-{summary}
+---
+
+**📝 What Customers Are Saying:**
+
+{summary if summary else 'No detailed summary available.'}
+
 """
+            # Add sample reviews if available
+            if related_reviews:
+                detail += "\n**💬 Sample Reviews:**\n\n"
+                for i, review in enumerate(related_reviews[:3]):
+                    if isinstance(review, dict):
+                        text = review.get('review_text', str(review))
+                    else:
+                        text = str(review)
+                    if text and len(text) > 20:
+                        detail += f"> *\"{text[:200]}{'...' if len(text) > 200 else ''}\"*\n\n"
+            
+            # Add actionable insight
+            detail += "\n**🎯 Recommended Action:**\n"
+            if sentiment > 0.5:
+                detail += f"This is a **star performer**! Consider featuring {clean_name.title()} in promotions and training staff to recommend it."
+            elif sentiment > 0.2:
+                detail += f"Customers generally like {clean_name.title()}. Monitor feedback and maintain quality."
+            elif sentiment > -0.2:
+                detail += f"Mixed feedback on {clean_name.title()}. Review recent complaints and consider recipe adjustments."
+            else:
+                detail += f"⚠️ **Urgent:** {clean_name.title()} has significant negative feedback. Review preparation process and consider temporary removal while issues are addressed."
+            
+            return detail
+    
     return f"No details found for '{item_name}'."
 
 
 def get_aspect_detail(aspect_name: str, state: dict) -> str:
-    """Get details for a selected aspect."""
+    """Get DETAILED feedback for a selected aspect."""
     if not aspect_name or not state:
         return "Select an aspect to see details."
     
@@ -531,107 +658,264 @@ def get_aspect_detail(aspect_name: str, state: dict) -> str:
         if aspect.get('name', '').lower() == clean_name:
             sentiment = aspect.get('sentiment', 0)
             mentions = aspect.get('mention_count', 0)
-            summary = aspect.get('summary', 'No detailed summary available.')
+            summary = aspect.get('summary', '')
+            related_reviews = aspect.get('related_reviews', [])
             
             emoji = "🟢" if sentiment > 0.3 else "🟡" if sentiment > -0.3 else "🔴"
             
-            return f"""### {clean_name.title()}
+            detail = f"""### {clean_name.title()}
 
-{emoji} **Sentiment:** {sentiment:+.2f} | **Mentions:** {mentions}
+{emoji} **Sentiment Score:** {sentiment:+.2f} | **Total Mentions:** {mentions}
 
-**Customer Feedback:**
-{summary}
+---
+
+**📝 Customer Feedback Summary:**
+
+{summary if summary else 'No detailed summary available.'}
+
 """
+            # Add sample reviews if available
+            if related_reviews:
+                detail += "\n**💬 What Customers Said:**\n\n"
+                for i, review in enumerate(related_reviews[:3]):
+                    if isinstance(review, dict):
+                        text = review.get('review_text', str(review))
+                    else:
+                        text = str(review)
+                    if text and len(text) > 20:
+                        detail += f"> *\"{text[:200]}{'...' if len(text) > 200 else ''}\"*\n\n"
+            
+            # Add actionable insight
+            detail += "\n**🎯 Recommended Action:**\n"
+            if sentiment > 0.5:
+                detail += f"**{clean_name.title()}** is a major strength! Maintain current standards and use in marketing."
+            elif sentiment > 0.2:
+                detail += f"**{clean_name.title()}** is performing well. Look for opportunities to make it exceptional."
+            elif sentiment > -0.2:
+                detail += f"**{clean_name.title()}** has mixed reviews. Identify specific pain points and address them."
+            else:
+                detail += f"⚠️ **Priority Issue:** **{clean_name.title()}** is hurting the business. Immediate action needed - consider staff training, process changes, or operational review."
+            
+            return detail
+    
     return f"No details found for '{aspect_name}'."
 
 
 # ============================================================================
-# PDF GENERATION
+# PDF GENERATION - FIXED
 # ============================================================================
 
 def generate_pdf_report(state: dict) -> Optional[str]:
-    """Generate PDF report from analysis state."""
+    """Generate PDF report from analysis state - FIXED VERSION."""
     if not state:
+        print("[PDF] No state provided")
         return None
     
-    try:
-        from src.reports.pdf_generator import generate_pdf_report as gen_pdf
-        
-        restaurant_name = state.get('restaurant_name', 'Restaurant')
-        
-        # Create report
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        safe_name = restaurant_name.lower().replace(" ", "_").replace("/", "_")[:30]
-        output_path = os.path.join(tempfile.gettempdir(), f"{safe_name}_report_{timestamp}.pdf")
-        
-        pdf_path = gen_pdf(state, restaurant_name, output_path)
-        return pdf_path
-    
-    except ImportError:
-        # Fallback: simple text-based PDF
-        return generate_simple_pdf(state)
-    except Exception as e:
-        print(f"PDF generation error: {e}")
-        return None
-
-
-def generate_simple_pdf(state: dict) -> Optional[str]:
-    """Fallback: Generate simple PDF using basic reportlab."""
     try:
         from reportlab.lib.pagesizes import letter
-        from reportlab.pdfgen import canvas
         from reportlab.lib.units import inch
+        from reportlab.lib import colors
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.enums import TA_CENTER
         
         restaurant_name = state.get('restaurant_name', 'Restaurant')
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_path = os.path.join(tempfile.gettempdir(), f"report_{timestamp}.pdf")
+        safe_name = restaurant_name.lower().replace(" ", "_").replace("/", "_").replace("&", "and")[:30]
+        output_path = os.path.join(tempfile.gettempdir(), f"{safe_name}_report_{timestamp}.pdf")
         
-        c = canvas.Canvas(output_path, pagesize=letter)
-        width, height = letter
+        print(f"[PDF] Generating report for {restaurant_name} at {output_path}")
+        
+        doc = SimpleDocTemplate(output_path, pagesize=letter,
+                               rightMargin=0.75*inch, leftMargin=0.75*inch,
+                               topMargin=0.75*inch, bottomMargin=0.75*inch)
+        
+        styles = getSampleStyleSheet()
+        
+        # Custom styles
+        title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'],
+                                    fontSize=24, textColor=colors.HexColor('#2196F3'),
+                                    alignment=TA_CENTER, spaceAfter=20)
+        
+        heading_style = ParagraphStyle('CustomHeading', parent=styles['Heading2'],
+                                      fontSize=14, textColor=colors.HexColor('#1f2937'),
+                                      spaceBefore=15, spaceAfter=10)
+        
+        body_style = ParagraphStyle('CustomBody', parent=styles['Normal'],
+                                   fontSize=10, textColor=colors.HexColor('#374151'),
+                                   spaceAfter=8)
+        
+        elements = []
         
         # Title
-        c.setFont("Helvetica-Bold", 24)
-        c.drawCentredString(width/2, height - inch, "Restaurant Intelligence Report")
-        
-        c.setFont("Helvetica", 16)
-        c.drawCentredString(width/2, height - 1.5*inch, restaurant_name)
-        
-        c.setFont("Helvetica", 10)
-        c.drawCentredString(width/2, height - 2*inch, f"Generated: {datetime.now().strftime('%B %d, %Y')}")
+        elements.append(Paragraph("🍽️ Restaurant Intelligence Report", title_style))
+        elements.append(Paragraph(restaurant_name, ParagraphStyle('RestName', parent=styles['Heading2'],
+                                                                  fontSize=18, alignment=TA_CENTER)))
+        elements.append(Paragraph(f"Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", 
+                                 ParagraphStyle('Date', parent=styles['Normal'], alignment=TA_CENTER,
+                                               textColor=colors.grey)))
+        elements.append(Spacer(1, 30))
         
         # Stats
         menu = state.get('menu_analysis', {})
         aspects = state.get('aspect_analysis', {})
         raw_reviews = state.get('raw_reviews', [])
+        source = state.get('source', 'unknown')
         
-        y = height - 3*inch
-        c.setFont("Helvetica-Bold", 12)
-        c.drawString(inch, y, "Summary Statistics:")
-        
-        y -= 0.3*inch
-        c.setFont("Helvetica", 10)
-        c.drawString(inch, y, f"• Reviews Analyzed: {len(raw_reviews)}")
-        
-        y -= 0.25*inch
         food_items = menu.get('food_items', [])
         drinks = menu.get('drinks', [])
-        c.drawString(inch, y, f"• Menu Items: {len(food_items) + len(drinks)}")
+        aspect_list = aspects.get('aspects', [])
         
-        y -= 0.25*inch
-        c.drawString(inch, y, f"• Aspects Analyzed: {len(aspects.get('aspects', []))}")
+        elements.append(Paragraph("📊 Executive Summary", heading_style))
         
-        c.save()
+        stats_data = [
+            ['Metric', 'Value'],
+            ['Source Platform', source.replace('_', ' ').title()],
+            ['Reviews Analyzed', str(len(raw_reviews))],
+            ['Menu Items Found', f"{len(food_items) + len(drinks)} ({len(food_items)} food, {len(drinks)} drinks)"],
+            ['Aspects Analyzed', str(len(aspect_list))],
+        ]
+        
+        stats_table = Table(stats_data, colWidths=[2.5*inch, 3*inch])
+        stats_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2196F3')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+            ('TOPPADDING', (0, 0), (-1, 0), 10),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f3f4f6')),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e5e7eb')),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 10),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+        ]))
+        elements.append(stats_table)
+        elements.append(Spacer(1, 20))
+        
+        # Top Menu Items
+        if food_items or drinks:
+            elements.append(Paragraph("🍽️ Top Menu Items (by mentions)", heading_style))
+            all_menu = food_items + drinks
+            sorted_menu = sorted(all_menu, key=lambda x: x.get('mention_count', 0), reverse=True)[:10]
+            
+            menu_data = [['Item', 'Sentiment', 'Mentions', 'Status']]
+            for item in sorted_menu:
+                sentiment = item.get('sentiment', 0)
+                status = '✓ Positive' if sentiment > 0.3 else '~ Mixed' if sentiment > -0.3 else '✗ Negative'
+                menu_data.append([
+                    item.get('name', '?').title()[:25],
+                    f"{sentiment:+.2f}",
+                    str(item.get('mention_count', 0)),
+                    status
+                ])
+            
+            menu_table = Table(menu_data, colWidths=[2*inch, 1*inch, 0.8*inch, 1.2*inch])
+            menu_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#10b981')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f9fafb')]),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e5e7eb')),
+                ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+            ]))
+            elements.append(menu_table)
+            elements.append(Spacer(1, 20))
+        
+        # Aspects
+        if aspect_list:
+            elements.append(Paragraph("📊 Customer Experience Aspects", heading_style))
+            sorted_aspects = sorted(aspect_list, key=lambda x: x.get('mention_count', 0), reverse=True)[:10]
+            
+            aspect_data = [['Aspect', 'Sentiment', 'Mentions', 'Status']]
+            for aspect in sorted_aspects:
+                sentiment = aspect.get('sentiment', 0)
+                status = '✓ Strength' if sentiment > 0.3 else '~ Neutral' if sentiment > -0.3 else '✗ Weakness'
+                aspect_data.append([
+                    aspect.get('name', '?').title()[:25],
+                    f"{sentiment:+.2f}",
+                    str(aspect.get('mention_count', 0)),
+                    status
+                ])
+            
+            aspect_table = Table(aspect_data, colWidths=[2*inch, 1*inch, 0.8*inch, 1.2*inch])
+            aspect_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f59e0b')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f9fafb')]),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e5e7eb')),
+                ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+            ]))
+            elements.append(aspect_table)
+            elements.append(Spacer(1, 20))
+        
+        # Insights
+        insights = state.get('insights', {})
+        
+        chef_insights = insights.get('chef', {})
+        if chef_insights:
+            elements.append(Paragraph("🍳 Chef Insights", heading_style))
+            if chef_insights.get('summary'):
+                elements.append(Paragraph(f"<b>Summary:</b> {chef_insights['summary']}", body_style))
+            if chef_insights.get('strengths'):
+                strengths = chef_insights['strengths']
+                if isinstance(strengths, list):
+                    for s in strengths[:3]:
+                        text = s.get('action', str(s)) if isinstance(s, dict) else str(s)
+                        elements.append(Paragraph(f"✓ {text}", body_style))
+            elements.append(Spacer(1, 10))
+        
+        manager_insights = insights.get('manager', {})
+        if manager_insights:
+            elements.append(Paragraph("📊 Manager Insights", heading_style))
+            if manager_insights.get('summary'):
+                elements.append(Paragraph(f"<b>Summary:</b> {manager_insights['summary']}", body_style))
+            if manager_insights.get('recommendations'):
+                recs = manager_insights['recommendations']
+                if isinstance(recs, list):
+                    for r in recs[:3]:
+                        if isinstance(r, dict):
+                            priority = r.get('priority', '')
+                            action = r.get('action', str(r))
+                            elements.append(Paragraph(f"[{priority.upper()}] {action}", body_style))
+                        else:
+                            elements.append(Paragraph(f"• {r}", body_style))
+        
+        # Footer
+        elements.append(Spacer(1, 30))
+        elements.append(Paragraph("Generated by Restaurant Intelligence Agent | Powered by Claude AI",
+                                 ParagraphStyle('Footer', parent=styles['Normal'],
+                                               fontSize=8, textColor=colors.grey, alignment=TA_CENTER)))
+        
+        # Build PDF
+        doc.build(elements)
+        print(f"[PDF] Successfully generated: {output_path}")
         return output_path
+        
     except Exception as e:
-        print(f"Simple PDF error: {e}")
+        print(f"[PDF] Error generating report: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 
 def download_pdf(state: dict) -> Optional[str]:
     """Generate PDF and return path for download."""
     if not state:
+        print("[PDF] No state for download")
         return None
-    return generate_pdf_report(state)
+    
+    pdf_path = generate_pdf_report(state)
+    print(f"[PDF] Download path: {pdf_path}")
+    return pdf_path
 
 
 def send_email_report(email: str, state: dict) -> str:
@@ -642,19 +926,16 @@ def send_email_report(email: str, state: dict) -> str:
     if not email or '@' not in email:
         return "❌ Please enter a valid email address."
     
-    # Check if email is configured
     if not SMTP_USER or not SMTP_PASSWORD:
         return "⚠️ Email sending is not configured. Please download the PDF instead."
     
     try:
-        # Generate PDF
         pdf_path = generate_pdf_report(state)
         if not pdf_path:
             return "❌ Failed to generate PDF report."
         
         restaurant_name = state.get('restaurant_name', 'Restaurant')
         
-        # Create email
         msg = MIMEMultipart()
         msg['From'] = EMAIL_FROM
         msg['To'] = email
@@ -670,18 +951,13 @@ This report includes:
 - Menu Performance Analysis
 - Customer Experience Aspects
 - Chef & Manager Insights
-- Trend Analysis
 
 Generated by Restaurant Intelligence Agent
 Powered by Claude AI
-
-Best regards,
-Restaurant Intelligence Agent
         """
         
         msg.attach(MIMEText(body, 'plain'))
         
-        # Attach PDF
         with open(pdf_path, 'rb') as f:
             part = MIMEBase('application', 'octet-stream')
             part.set_payload(f.read())
@@ -690,13 +966,11 @@ Restaurant Intelligence Agent
         part.add_header('Content-Disposition', f'attachment; filename="{restaurant_name}_report.pdf"')
         msg.attach(part)
         
-        # Send email
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
             server.starttls()
             server.login(SMTP_USER, SMTP_PASSWORD)
             server.send_message(msg)
         
-        # Clean up temp file
         try:
             os.remove(pdf_path)
         except:
@@ -709,7 +983,7 @@ Restaurant Intelligence Agent
 
 
 # ============================================================================
-# RAG Q&A FUNCTIONS
+# RAG Q&A FUNCTIONS - FIXED PROXIES ERROR
 # ============================================================================
 
 FOOD_WORDS = {'food', 'dish', 'dishes', 'menu', 'eat', 'taste', 'flavor', 'best', 'try', 'order', 'recommend'}
@@ -717,7 +991,7 @@ SERVICE_WORDS = {'service', 'staff', 'waiter', 'server', 'waitress', 'attentive'
 AMBIANCE_WORDS = {'ambiance', 'atmosphere', 'vibe', 'decor', 'noise', 'loud', 'quiet', 'romantic', 'cozy'}
 
 
-def find_relevant_reviews(question: str, state: dict, top_k: int = 6) -> List[str]:
+def find_relevant_reviews(question: str, state: dict, top_k: int = 8) -> List[str]:
     """Find relevant reviews for the question."""
     if not state:
         return []
@@ -727,12 +1001,14 @@ def find_relevant_reviews(question: str, state: dict, top_k: int = 6) -> List[st
     
     menu = state.get('menu_analysis', {})
     aspects = state.get('aspect_analysis', {})
+    raw_reviews = state.get('raw_reviews', [])
     
     all_items = menu.get('food_items', []) + menu.get('drinks', [])
     all_aspects = aspects.get('aspects', [])
     
     relevant_reviews = []
     
+    # Search in menu items
     for item in all_items:
         name = item.get('name', '').lower()
         if name in q or any(w in name for w in q_words):
@@ -741,6 +1017,7 @@ def find_relevant_reviews(question: str, state: dict, top_k: int = 6) -> List[st
                 if text not in relevant_reviews and len(text) > 20:
                     relevant_reviews.append(text)
     
+    # Search in aspects
     for aspect in all_aspects:
         name = aspect.get('name', '').lower()
         if name in q or any(w in name for w in q_words):
@@ -749,6 +1026,7 @@ def find_relevant_reviews(question: str, state: dict, top_k: int = 6) -> List[st
                 if text not in relevant_reviews and len(text) > 20:
                     relevant_reviews.append(text)
     
+    # Category-based search
     if q_words & SERVICE_WORDS:
         for aspect in all_aspects:
             if any(w in aspect.get('name', '').lower() for w in ['service', 'staff', 'wait']):
@@ -765,45 +1043,102 @@ def find_relevant_reviews(question: str, state: dict, top_k: int = 6) -> List[st
                 if text not in relevant_reviews:
                     relevant_reviews.append(text)
     
-    if not relevant_reviews:
-        for item in all_items[:5]:
-            for r in item.get('related_reviews', [])[:1]:
-                text = r.get('review_text', str(r)) if isinstance(r, dict) else str(r)
-                if len(text) > 20:
+    # Fallback: use raw reviews
+    if not relevant_reviews and raw_reviews:
+        for r in raw_reviews[:10]:
+            if isinstance(r, dict):
+                text = r.get('text', '') or r.get('review_text', '')
+            else:
+                text = str(r)
+            if text and len(text) > 20:
+                # Check if any question word appears in review
+                if any(w in text.lower() for w in q_words):
+                    relevant_reviews.append(text)
+        
+        # If still nothing, just use first few reviews
+        if not relevant_reviews:
+            for r in raw_reviews[:5]:
+                if isinstance(r, dict):
+                    text = r.get('text', '') or r.get('review_text', '')
+                else:
+                    text = str(r)
+                if text and len(text) > 20:
                     relevant_reviews.append(text)
     
     return relevant_reviews[:top_k]
 
 
 def generate_answer_with_claude(question: str, reviews: list, restaurant_name: str) -> str:
-    """Generate answer using Claude."""
+    """
+    Generate answer using Claude - FIXED PROXIES ERROR.
+    Uses direct HTTP request as fallback.
+    """
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
-        return "⚠️ API key not configured."
+        return "⚠️ API key not configured for AI-powered answers."
     
     reviews_text = ""
-    for i, review in enumerate(reviews[:6], 1):
-        text = str(review)[:250] + "..." if len(str(review)) > 250 else str(review)
+    for i, review in enumerate(reviews[:8], 1):
+        text = str(review)[:300] + "..." if len(str(review)) > 300 else str(review)
         reviews_text += f"\n[Review {i}]: {text}\n"
     
-    prompt = f"""Answer about {restaurant_name} based on these reviews:
+    prompt = f"""You are a helpful assistant answering questions about {restaurant_name} based on customer reviews.
 
-REVIEWS:
+CUSTOMER REVIEWS:
 {reviews_text}
 
 QUESTION: {question}
 
-Answer concisely (2-4 sentences) based ONLY on the reviews above."""
+Instructions:
+- Answer based ONLY on the reviews provided above
+- Be specific - mention actual dishes, staff behavior, or details from the reviews
+- If reviews mention specific examples, include them
+- Keep your answer helpful and concise (3-5 sentences)
+- If the reviews don't contain relevant information, say so honestly
 
+Answer:"""
+
+    # Try Anthropic SDK first
     try:
         from anthropic import Anthropic
         client = Anthropic(api_key=api_key)
         response = client.messages.create(
             model="claude-sonnet-4-20250514",
-            max_tokens=300,
+            max_tokens=400,
             messages=[{"role": "user", "content": prompt}]
         )
         return response.content[0].text
+    except TypeError as e:
+        if 'proxies' in str(e):
+            print("[RAG] Anthropic SDK proxies error, using HTTP fallback...")
+            # Fallback to direct HTTP request
+            try:
+                import httpx
+                
+                response = httpx.post(
+                    "https://api.anthropic.com/v1/messages",
+                    headers={
+                        "Content-Type": "application/json",
+                        "X-API-Key": api_key,
+                        "anthropic-version": "2023-06-01"
+                    },
+                    json={
+                        "model": "claude-sonnet-4-20250514",
+                        "max_tokens": 400,
+                        "messages": [{"role": "user", "content": prompt}]
+                    },
+                    timeout=30.0
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    return data['content'][0]['text']
+                else:
+                    return f"⚠️ API error: {response.status_code}"
+            except Exception as http_e:
+                return f"⚠️ Could not generate answer: {str(http_e)}"
+        else:
+            return f"⚠️ Could not generate answer: {str(e)}"
     except Exception as e:
         return f"⚠️ Could not generate answer: {str(e)}"
 
@@ -816,17 +1151,18 @@ def answer_question(question: str, state: dict) -> str:
         return "⚠️ Please analyze a restaurant first."
     
     restaurant = state.get("restaurant_name", "the restaurant")
-    relevant_reviews = find_relevant_reviews(question, state, top_k=6)
+    relevant_reviews = find_relevant_reviews(question, state, top_k=8)
     
     if not relevant_reviews:
         return f"""**Q:** {question}
 
-**A:** I couldn't find relevant reviews.
+**A:** I couldn't find relevant reviews to answer this question.
 
 💡 **Try asking:**
 • "What are the best dishes?"
 • "How is the service?"
 • "Is it good for a date?"
+• "What do customers like most?"
 """
     
     answer = generate_answer_with_claude(question, relevant_reviews, restaurant)
@@ -836,7 +1172,7 @@ def answer_question(question: str, state: dict) -> str:
 **A:** {answer}
 
 ---
-*🤖 AI-generated answer based on {len(relevant_reviews)} reviews*"""
+*🤖 Based on {len(relevant_reviews)} customer reviews*"""
 
 
 EXAMPLE_QUESTIONS = [
@@ -862,7 +1198,6 @@ def analyze_restaurant(url: str, review_count: int):
     default_detail = "Select an item to see details."
     empty_dropdown = gr.update(choices=[], value=None)
     
-    # Validation
     if not url or not url.strip():
         return (
             "❌ **Error:** Please enter a restaurant URL.",
@@ -938,6 +1273,7 @@ def analyze_restaurant(url: str, review_count: int):
         trend_chart = generate_trend_chart(raw_reviews, restaurant_name)
         trend_insight = generate_trend_insight(raw_reviews, restaurant_name)
         
+        # Use improved detailed summaries
         menu_summary = translate_menu_performance(menu, restaurant_name)
         aspect_summary = translate_aspect_performance(aspects, restaurant_name)
         
@@ -1122,7 +1458,6 @@ Download a comprehensive PDF report or have it emailed directly to you.
                 
                 gr.Markdown("---")
                 
-                # Download Section
                 gr.Markdown("#### 📥 Download PDF Report")
                 gr.Markdown("Get a professional PDF with all analysis results, charts, and recommendations.")
                 
@@ -1130,10 +1465,10 @@ Download a comprehensive PDF report or have it emailed directly to you.
                     download_btn = gr.Button("📄 Generate & Download PDF", variant="primary", size="lg")
                 
                 pdf_output = gr.File(label="Download Your Report", visible=True)
+                download_status = gr.Markdown(value="")
                 
                 gr.Markdown("---")
                 
-                # Email Section
                 gr.Markdown("#### 📧 Email Report")
                 gr.Markdown("Enter your email address to receive the PDF report directly in your inbox.")
                 
