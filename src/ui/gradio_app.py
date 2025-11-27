@@ -701,52 +701,53 @@ def generate_pdf_report(state: dict) -> Optional[str]:
         
         styles = getSampleStyleSheet()
         
-        # Custom styles - use 'Custom' prefix to avoid conflicts with default styles
-        styles.add(ParagraphStyle('CoverTitle', parent=styles['Heading1'],
+        # Custom styles - ALL use unique names to avoid conflicts with ReportLab defaults
+        # ReportLab defaults include: Normal, BodyText, Italic, Heading1-6, Title, Bullet, Definition, Code
+        
+        styles.add(ParagraphStyle('RIACoverTitle', parent=styles['Heading1'],
                                  fontSize=32, textColor=PRIMARY, alignment=TA_CENTER,
                                  spaceAfter=10, fontName='Helvetica-Bold'))
         
-        styles.add(ParagraphStyle('CoverSubtitle', parent=styles['Normal'],
+        styles.add(ParagraphStyle('RIACoverSubtitle', parent=styles['Normal'],
                                  fontSize=16, textColor=TEXT_LIGHT, alignment=TA_CENTER,
                                  spaceAfter=30, fontName='Helvetica'))
         
-        styles.add(ParagraphStyle('CoverRestaurant', parent=styles['Heading1'],
+        styles.add(ParagraphStyle('RIACoverRestaurant', parent=styles['Heading1'],
                                  fontSize=24, textColor=TEXT_DARK, alignment=TA_CENTER,
                                  spaceAfter=15, fontName='Helvetica-Bold'))
         
-        styles.add(ParagraphStyle('SectionHeader', parent=styles['Heading1'],
+        styles.add(ParagraphStyle('RIASectionHeader', parent=styles['Heading1'],
                                  fontSize=18, textColor=PRIMARY, spaceBefore=20,
                                  spaceAfter=12, fontName='Helvetica-Bold'))
         
-        styles.add(ParagraphStyle('SubHeader', parent=styles['Heading2'],
+        styles.add(ParagraphStyle('RIASubHeader', parent=styles['Heading2'],
                                  fontSize=14, textColor=TEXT_DARK, spaceBefore=15,
                                  spaceAfter=8, fontName='Helvetica-Bold'))
         
-        # Use 'CustomBody' instead of 'BodyText' (which already exists)
-        styles.add(ParagraphStyle('CustomBody', parent=styles['Normal'],
+        styles.add(ParagraphStyle('RIABody', parent=styles['Normal'],
                                  fontSize=10, textColor=TEXT_DARK, spaceAfter=8,
                                  leading=14, fontName='Helvetica'))
         
-        styles.add(ParagraphStyle('Bullet', parent=styles['Normal'],
+        styles.add(ParagraphStyle('RIABullet', parent=styles['Normal'],
                                  fontSize=10, textColor=TEXT_DARK, leftIndent=20,
                                  spaceAfter=5, fontName='Helvetica'))
         
-        styles.add(ParagraphStyle('Quote', parent=styles['Normal'],
+        styles.add(ParagraphStyle('RIAQuote', parent=styles['Normal'],
                                  fontSize=10, textColor=TEXT_LIGHT, leftIndent=20,
                                  rightIndent=20, spaceAfter=10, fontName='Helvetica-Oblique'))
         
-        styles.add(ParagraphStyle('CustomFooter', parent=styles['Normal'],
+        styles.add(ParagraphStyle('RIAFooter', parent=styles['Normal'],
                                  fontSize=8, textColor=TEXT_LIGHT, alignment=TA_CENTER))
         
-        styles.add(ParagraphStyle('PriorityHigh', parent=styles['Normal'],
+        styles.add(ParagraphStyle('RIAPriorityHigh', parent=styles['Normal'],
                                  fontSize=10, textColor=NEGATIVE, leftIndent=20,
                                  spaceAfter=5, fontName='Helvetica-Bold'))
         
-        styles.add(ParagraphStyle('PriorityMedium', parent=styles['Normal'],
+        styles.add(ParagraphStyle('RIAPriorityMedium', parent=styles['Normal'],
                                  fontSize=10, textColor=WARNING, leftIndent=20,
                                  spaceAfter=5, fontName='Helvetica-Bold'))
         
-        styles.add(ParagraphStyle('PriorityLow', parent=styles['Normal'],
+        styles.add(ParagraphStyle('RIAPriorityLow', parent=styles['Normal'],
                                  fontSize=10, textColor=POSITIVE, leftIndent=20,
                                  spaceAfter=5, fontName='Helvetica-Bold'))
         
@@ -754,15 +755,15 @@ def generate_pdf_report(state: dict) -> Optional[str]:
         
         # ==================== COVER PAGE ====================
         elements.append(Spacer(1, 1.5*inch))
-        elements.append(Paragraph("RESTAURANT", styles['CoverTitle']))
-        elements.append(Paragraph("INTELLIGENCE REPORT", styles['CoverTitle']))
+        elements.append(Paragraph("RESTAURANT", styles['RIACoverTitle']))
+        elements.append(Paragraph("INTELLIGENCE REPORT", styles['RIACoverTitle']))
         elements.append(Spacer(1, 0.3*inch))
-        elements.append(Paragraph("AI-Powered Customer Review Analysis", styles['CoverSubtitle']))
+        elements.append(Paragraph("AI-Powered Customer Review Analysis", styles['RIACoverSubtitle']))
         elements.append(HRFlowable(width="100%", thickness=1, color=BORDER, spaceBefore=10, spaceAfter=10))
         elements.append(Spacer(1, 0.5*inch))
-        elements.append(Paragraph(restaurant_name, styles['CoverRestaurant']))
+        elements.append(Paragraph(restaurant_name, styles['RIACoverRestaurant']))
         elements.append(Spacer(1, 0.3*inch))
-        elements.append(Paragraph(f"Data Source: {source}", styles['CustomFooter']))
+        elements.append(Paragraph(f"Data Source: {source}", styles['RIAFooter']))
         elements.append(Spacer(1, 0.5*inch))
         
         # Stats boxes
@@ -786,12 +787,12 @@ def generate_pdf_report(state: dict) -> Optional[str]:
         ]))
         elements.append(stats_table)
         elements.append(Spacer(1, 1*inch))
-        elements.append(Paragraph(f"Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", styles['CustomFooter']))
-        elements.append(Paragraph("Powered by Claude AI • Restaurant Intelligence Agent", styles['CustomFooter']))
+        elements.append(Paragraph(f"Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", styles['RIAFooter']))
+        elements.append(Paragraph("Powered by Claude AI • Restaurant Intelligence Agent", styles['RIAFooter']))
         elements.append(PageBreak())
         
         # ==================== EXECUTIVE SUMMARY ====================
-        elements.append(Paragraph("Executive Summary", styles['SectionHeader']))
+        elements.append(Paragraph("Executive Summary", styles['RIASectionHeader']))
         elements.append(HRFlowable(width="100%", thickness=1, color=BORDER, spaceBefore=5, spaceAfter=15))
         
         # Calculate sentiment
@@ -819,19 +820,19 @@ def generate_pdf_report(state: dict) -> Optional[str]:
         elements.append(Spacer(1, 15))
         
         # Key highlights
-        elements.append(Paragraph("Key Highlights", styles['SubHeader']))
+        elements.append(Paragraph("Key Highlights", styles['RIASubHeader']))
         top_items = sorted(all_menu, key=lambda x: x.get('sentiment', 0), reverse=True)[:3]
         if top_items:
-            elements.append(Paragraph("✅ <b>Top Performing Items:</b>", styles['CustomBody']))
+            elements.append(Paragraph("✅ <b>Top Performing Items:</b>", styles['RIABody']))
             for item in top_items:
-                elements.append(Paragraph(f"    • {item.get('name', '?').title()} (sentiment: {item.get('sentiment', 0):+.2f})", styles['Bullet']))
+                elements.append(Paragraph(f"    • {item.get('name', '?').title()} (sentiment: {item.get('sentiment', 0):+.2f})", styles['RIABullet']))
         
         concern_items = [i for i in all_menu if i.get('sentiment', 0) < -0.2]
         if concern_items:
             elements.append(Spacer(1, 10))
-            elements.append(Paragraph("⚠️ <b>Items Needing Attention:</b>", styles['CustomBody']))
+            elements.append(Paragraph("⚠️ <b>Items Needing Attention:</b>", styles['RIABody']))
             for item in sorted(concern_items, key=lambda x: x.get('sentiment', 0))[:3]:
-                elements.append(Paragraph(f"    • {item.get('name', '?').title()} (sentiment: {item.get('sentiment', 0):+.2f})", styles['Bullet']))
+                elements.append(Paragraph(f"    • {item.get('name', '?').title()} (sentiment: {item.get('sentiment', 0):+.2f})", styles['RIABullet']))
         
         elements.append(Spacer(1, 15))
         
@@ -866,13 +867,13 @@ def generate_pdf_report(state: dict) -> Optional[str]:
         elements.append(PageBreak())
         
         # ==================== MENU ANALYSIS ====================
-        elements.append(Paragraph("Menu Performance Analysis", styles['SectionHeader']))
+        elements.append(Paragraph("Menu Performance Analysis", styles['RIASectionHeader']))
         elements.append(HRFlowable(width="100%", thickness=1, color=BORDER, spaceBefore=5, spaceAfter=15))
         
         if all_menu:
             elements.append(Paragraph(
                 f"Analysis of <b>{len(all_menu)}</b> menu items ({len(food_items)} food, {len(drinks)} drinks) based on {len(trend_data)} customer reviews.",
-                styles['CustomBody']
+                styles['RIABody']
             ))
             elements.append(Spacer(1, 10))
             
@@ -900,7 +901,7 @@ def generate_pdf_report(state: dict) -> Optional[str]:
         elements.append(Spacer(1, 20))
         
         # ==================== ASPECT ANALYSIS ====================
-        elements.append(Paragraph("Customer Experience Aspects", styles['SectionHeader']))
+        elements.append(Paragraph("Customer Experience Aspects", styles['RIASectionHeader']))
         elements.append(HRFlowable(width="100%", thickness=1, color=BORDER, spaceBefore=5, spaceAfter=15))
         
         if aspect_list:
@@ -928,33 +929,33 @@ def generate_pdf_report(state: dict) -> Optional[str]:
         elements.append(PageBreak())
         
         # ==================== CHEF INSIGHTS ====================
-        elements.append(Paragraph("🍳 Chef Insights", styles['SectionHeader']))
+        elements.append(Paragraph("🍳 Chef Insights", styles['RIASectionHeader']))
         elements.append(HRFlowable(width="100%", thickness=1, color=BORDER, spaceBefore=5, spaceAfter=15))
         
         chef_data = insights.get('chef', {})
         if chef_data:
             if chef_data.get('summary'):
-                elements.append(Paragraph("Summary", styles['SubHeader']))
-                elements.append(Paragraph(str(chef_data['summary']), styles['CustomBody']))
+                elements.append(Paragraph("Summary", styles['RIASubHeader']))
+                elements.append(Paragraph(str(chef_data['summary']), styles['RIABody']))
             
             if chef_data.get('strengths'):
-                elements.append(Paragraph("✅ Strengths", styles['SubHeader']))
+                elements.append(Paragraph("✅ Strengths", styles['RIASubHeader']))
                 strengths = chef_data['strengths']
                 if isinstance(strengths, list):
                     for s in strengths[:8]:  # Show up to 8 strengths
                         text = s.get('action', str(s)) if isinstance(s, dict) else str(s)
-                        elements.append(Paragraph(f"• {text}", styles['Bullet']))
+                        elements.append(Paragraph(f"• {text}", styles['RIABullet']))
             
             if chef_data.get('concerns'):
-                elements.append(Paragraph("⚠️ Areas of Concern", styles['SubHeader']))
+                elements.append(Paragraph("⚠️ Areas of Concern", styles['RIASubHeader']))
                 concerns = chef_data['concerns']
                 if isinstance(concerns, list):
                     for c in concerns[:5]:  # Show up to 5 concerns
                         text = c.get('action', str(c)) if isinstance(c, dict) else str(c)
-                        elements.append(Paragraph(f"• {text}", styles['Bullet']))
+                        elements.append(Paragraph(f"• {text}", styles['RIABullet']))
             
             if chef_data.get('recommendations'):
-                elements.append(Paragraph("💡 Recommendations", styles['SubHeader']))
+                elements.append(Paragraph("💡 Recommendations", styles['RIASubHeader']))
                 recs = chef_data['recommendations']
                 if isinstance(recs, list):
                     for r in recs[:8]:  # Show up to 8 recommendations
@@ -964,40 +965,40 @@ def generate_pdf_report(state: dict) -> Optional[str]:
                             style_name = 'PriorityHigh' if priority == 'high' else 'PriorityMedium' if priority == 'medium' else 'PriorityLow'
                             elements.append(Paragraph(f"[{priority.upper()}] {action}", styles[style_name]))
                         else:
-                            elements.append(Paragraph(f"• {r}", styles['Bullet']))
+                            elements.append(Paragraph(f"• {r}", styles['RIABullet']))
         else:
-            elements.append(Paragraph("Chef insights will be available after full analysis.", styles['CustomBody']))
+            elements.append(Paragraph("Chef insights will be available after full analysis.", styles['RIABody']))
         
         elements.append(Spacer(1, 20))
         
         # ==================== MANAGER INSIGHTS ====================
-        elements.append(Paragraph("📊 Manager Insights", styles['SectionHeader']))
+        elements.append(Paragraph("📊 Manager Insights", styles['RIASectionHeader']))
         elements.append(HRFlowable(width="100%", thickness=1, color=BORDER, spaceBefore=5, spaceAfter=15))
         
         manager_data = insights.get('manager', {})
         if manager_data:
             if manager_data.get('summary'):
-                elements.append(Paragraph("Summary", styles['SubHeader']))
-                elements.append(Paragraph(str(manager_data['summary']), styles['CustomBody']))
+                elements.append(Paragraph("Summary", styles['RIASubHeader']))
+                elements.append(Paragraph(str(manager_data['summary']), styles['RIABody']))
             
             if manager_data.get('strengths'):
-                elements.append(Paragraph("✅ Operational Strengths", styles['SubHeader']))
+                elements.append(Paragraph("✅ Operational Strengths", styles['RIASubHeader']))
                 strengths = manager_data['strengths']
                 if isinstance(strengths, list):
                     for s in strengths[:8]:  # Show up to 8 strengths
                         text = s.get('action', str(s)) if isinstance(s, dict) else str(s)
-                        elements.append(Paragraph(f"• {text}", styles['Bullet']))
+                        elements.append(Paragraph(f"• {text}", styles['RIABullet']))
             
             if manager_data.get('concerns'):
-                elements.append(Paragraph("⚠️ Operational Concerns", styles['SubHeader']))
+                elements.append(Paragraph("⚠️ Operational Concerns", styles['RIASubHeader']))
                 concerns = manager_data['concerns']
                 if isinstance(concerns, list):
                     for c in concerns[:5]:  # Show up to 5 concerns
                         text = c.get('action', str(c)) if isinstance(c, dict) else str(c)
-                        elements.append(Paragraph(f"• {text}", styles['Bullet']))
+                        elements.append(Paragraph(f"• {text}", styles['RIABullet']))
             
             if manager_data.get('recommendations'):
-                elements.append(Paragraph("💡 Action Items", styles['SubHeader']))
+                elements.append(Paragraph("💡 Action Items", styles['RIASubHeader']))
                 recs = manager_data['recommendations']
                 if isinstance(recs, list):
                     for r in recs[:8]:  # Show up to 8 recommendations
@@ -1007,14 +1008,14 @@ def generate_pdf_report(state: dict) -> Optional[str]:
                             style_name = 'PriorityHigh' if priority == 'high' else 'PriorityMedium' if priority == 'medium' else 'PriorityLow'
                             elements.append(Paragraph(f"[{priority.upper()}] {action}", styles[style_name]))
                         else:
-                            elements.append(Paragraph(f"• {r}", styles['Bullet']))
+                            elements.append(Paragraph(f"• {r}", styles['RIABullet']))
         else:
-            elements.append(Paragraph("Manager insights will be available after full analysis.", styles['CustomBody']))
+            elements.append(Paragraph("Manager insights will be available after full analysis.", styles['RIABody']))
         
         elements.append(PageBreak())
         
         # ==================== CUSTOMER FEEDBACK HIGHLIGHTS ====================
-        elements.append(Paragraph("Customer Feedback Highlights", styles['SectionHeader']))
+        elements.append(Paragraph("Customer Feedback Highlights", styles['RIASectionHeader']))
         elements.append(HRFlowable(width="100%", thickness=1, color=BORDER, spaceBefore=5, spaceAfter=15))
         
         positive_reviews = []
@@ -1053,29 +1054,29 @@ def generate_pdf_report(state: dict) -> Optional[str]:
             elif review['sentiment'] < -0.2 and len(negative_reviews) < 3:
                 negative_reviews.append(text[:180])
         
-        elements.append(Paragraph("✅ Positive Feedback", styles['SubHeader']))
+        elements.append(Paragraph("✅ Positive Feedback", styles['RIASubHeader']))
         if positive_reviews:
             for review in positive_reviews:
-                elements.append(Paragraph(f'"{review}..."', styles['Quote']))
+                elements.append(Paragraph(f'"{review}..."', styles['RIAQuote']))
         else:
-            elements.append(Paragraph("Detailed positive feedback samples not available.", styles['CustomBody']))
+            elements.append(Paragraph("Detailed positive feedback samples not available.", styles['RIABody']))
         
         elements.append(Spacer(1, 15))
         
-        elements.append(Paragraph("⚠️ Critical Feedback", styles['SubHeader']))
+        elements.append(Paragraph("⚠️ Critical Feedback", styles['RIASubHeader']))
         if negative_reviews:
             for review in negative_reviews:
-                elements.append(Paragraph(f'"{review}..."', styles['Quote']))
+                elements.append(Paragraph(f'"{review}..."', styles['RIAQuote']))
         else:
-            elements.append(Paragraph("No significant negative feedback identified. Great job!", styles['CustomBody']))
+            elements.append(Paragraph("No significant negative feedback identified. Great job!", styles['RIABody']))
         
         # ==================== FOOTER ====================
         elements.append(Spacer(1, 30))
         elements.append(HRFlowable(width="100%", thickness=1, color=BORDER, spaceBefore=10, spaceAfter=10))
-        elements.append(Paragraph(f"Report generated for {restaurant_name}", styles['CustomFooter']))
-        elements.append(Paragraph(f"Generated on {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", styles['CustomFooter']))
-        elements.append(Paragraph("Restaurant Intelligence Agent • Powered by Claude AI", styles['CustomFooter']))
-        elements.append(Paragraph("© 2025 - Built for Anthropic MCP Hackathon", styles['CustomFooter']))
+        elements.append(Paragraph(f"Report generated for {restaurant_name}", styles['RIAFooter']))
+        elements.append(Paragraph(f"Generated on {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", styles['RIAFooter']))
+        elements.append(Paragraph("Restaurant Intelligence Agent • Powered by Claude AI", styles['RIAFooter']))
+        elements.append(Paragraph("© 2025 - Built for Anthropic MCP Hackathon", styles['RIAFooter']))
         
         # Build PDF
         doc.build(elements)
