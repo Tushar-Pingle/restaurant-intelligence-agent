@@ -175,10 +175,23 @@ def scrape_restaurant_modal(url: str, max_reviews: int = 100) -> Dict[str, Any]:
     df = process_reviews(result)
     reviews = clean_reviews_for_ai(df["review_text"].tolist(), verbose=False)
     
+    # Include raw review data with dates and ratings for trend analysis
+    raw_reviews = []
+    for _, row in df.iterrows():
+        raw_reviews.append({
+            "date": str(row.get("date", "")),
+            "rating": float(row.get("overall_rating", 0) or 0),
+            "food_rating": float(row.get("food_rating", 0) or 0),
+            "service_rating": float(row.get("service_rating", 0) or 0),
+            "ambience_rating": float(row.get("ambience_rating", 0) or 0),
+            "text": str(row.get("review_text", ""))
+        })
+    
     return {
         "success": True,
         "total_reviews": len(reviews),
         "reviews": reviews,
+        "raw_reviews": raw_reviews,
         "metadata": result.get("metadata", {}),
     }
 
@@ -202,6 +215,18 @@ def full_analysis_modal(url: str, max_reviews: int = 100) -> Dict[str, Any]:
     df = process_reviews(result)
     reviews = clean_reviews_for_ai(df["review_text"].tolist(), verbose=False)
     
+    # Extract raw review data with dates and ratings for trend analysis
+    raw_reviews = []
+    for _, row in df.iterrows():
+        raw_reviews.append({
+            "date": str(row.get("date", "")),
+            "rating": float(row.get("overall_rating", 0) or 0),
+            "food_rating": float(row.get("food_rating", 0) or 0),
+            "service_rating": float(row.get("service_rating", 0) or 0),
+            "ambience_rating": float(row.get("ambience_rating", 0) or 0),
+            "text": str(row.get("review_text", ""))
+        })
+    
     restaurant_name = url.split("/")[-1].split("?")[0].replace("-", " ").title()
     
     # Analyze
@@ -214,6 +239,9 @@ def full_analysis_modal(url: str, max_reviews: int = 100) -> Dict[str, Any]:
     
     # Store in MCP cache for Q&A
     REVIEW_INDEX[restaurant_name] = reviews
+    
+    # Add raw reviews for trend analysis
+    analysis['raw_reviews'] = raw_reviews
     
     return analysis
 

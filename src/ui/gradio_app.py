@@ -9,9 +9,13 @@ Author: Tushar Pingle
 import gradio as gr
 import os
 import ast
+import re
 import requests
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Dict, Any
 import tempfile
+from datetime import datetime, timedelta
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 
 # ============================================================================
 # CONFIGURATION
@@ -21,6 +25,194 @@ MODAL_API_URL = os.getenv(
     "MODAL_API_URL",
     "https://tushar-pingle--restaurant-intelligence-fastapi-app.modal.run"
 )
+
+# ============================================================================
+# TREND CHART - Rating vs Sentiment Over Time
+# ============================================================================
+
+def parse_opentable_date(date_str: str) -> Optional[datetime]:
+    """Parse OpenTable date formats like 'Dined 1 day ago', 'Dined 2 weeks ago'."""
+    if not date_str:
+        return None
+    
+    date_str = date_str.lower().strip()
+    today = datetime.now()
+    
+    # "Dined X day(s) ago"
+    day_match = re.search(r'(\d+)\s*days?\s*ago', date_str)
+    if day_match:
+        return today - timedelta(days=int(day_match.group(1)))
+    
+    # "Dined X week(s) ago"
+    week_match = re.search(r'(\d+)\s*weeks?\s*ago', date_str)
+    if week_match:
+        return today - timedelta(weeks=int(week_match.group(1)))
+    
+    if 'yesterday' in date_str:
+        return today - timedelta(days=1)
+    if 'today' in date_str:
+        return today
+    
+    return None
+
+
+def calculate_review_sentiment(text: str) -> float:
+    """Simple sentiment calculation from review text."""
+    if not text:
+        return 0.0
+    text = text.lower()
+    
+    positive = ['amazing', 'excellent', 'fantastic', 'great', 'awesome', 'delicious', 
+                'perfect', 'outstanding', 'loved', 'beautiful', 'fresh', 'friendly', 'best']
+    negative = ['terrible', 'horrible', 'awful', 'bad', 'worst', 'disappointing', 
+                'poor', 'overpriced', 'slow', 'rude', 'cold', 'bland', 'mediocre']
+    
+    pos = sum(1 for w in positive if w in text)
+    neg = sum(1 for w in negative if w in text)
+    
+    if pos + neg == 0:
+        return 0.0
+    return (pos - neg) / max(pos + neg, 1)
+
+
+def generate_trend_chart(raw_reviews: List[Dict], restaurant_name: str) -> Optional[str]:
+    """Generate Rating vs Sentiment trend chart."""
+    if not raw_reviews or len(raw_reviews) < 3:
+        return None
+    
+    # Parse and prepare data
+    dated_reviews = []
+    for r in raw_reviews:
+        date = parse_opentable_date(r.get('date', ''))
+        if date:
+            dated_reviews.append({
+                'date': date,
+                'rating': float(r.get('rating', 0) or 0),
+                'sentiment': calculate_review_sentiment(r.get('text', ''))
+            })
+    
+    if len(dated_reviews) < 3:
+        return None
+    
+    # Sort and group by week
+    dated_reviews.sort(key=lambda x: x['date'])
+    
+    weekly = {}
+    for r in dated_reviews:
+        week = r['date'] - timedelta(days=r['date'].weekday())
+        key = week.strftime('%Y-%m-%d')
+        if key not in weekly:
+            weekly[key] = {'date': week, 'ratings': [], 'sentiments': []}
+        weekly[key]['ratings'].append(r['rating'])
+        weekly[key]['sentiments'].append(r['sentiment'])
+    
+    # Calculate averages
+    dates = []
+    ratings = []
+    sentiments = []
+    for k in sorted(weekly.keys()):
+        w = weekly[k]
+        dates.append(w['date'])
+        ratings.append(sum(w['ratings']) / len(w['ratings']))
+        sentiments.append(sum(w['sentiments']) / len(w['sentiments']))
+    
+    if len(dates) < 2:
+        return None
+    
+    # Dark theme colors
+    BG = '#1f2937'
+    TEXT = '#e5e7eb'
+    GRID = '#374151'
+    RATING_COLOR = '#f59e0b'
+    SENTIMENT_COLOR = '#10b981'
+    
+    fig, ax1 = plt.subplots(figsize=(10, 5))
+    fig.patch.set_facecolor(BG)
+    ax1.set_facecolor(BG)
+    
+    # Rating line
+    ax1.plot(dates, ratings, color=RATING_COLOR, linewidth=2.5, marker='o', 
+             markersize=6, label='Avg Rating (Stars)')
+    ax1.fill_between(dates, ratings, alpha=0.2, color=RATING_COLOR)
+    ax1.set_ylabel('Rating (1-5)', fontsize=11, color=RATING_COLOR)
+    ax1.tick_params(axis='y', labelcolor=RATING_COLOR)
+    ax1.tick_params(axis='x', colors=TEXT)
+    ax1.set_ylim(1, 5)
+    
+    # Sentiment line (scaled)
+    ax2 = ax1.twinx()
+    ax2.set_facecolor(BG)
+    sent_scaled = [(s + 1) * 2 + 1 for s in sentiments]
+    ax2.plot(dates, sent_scaled, color=SENTIMENT_COLOR, linewidth=2.5, 
+             marker='s', markersize=6, linestyle='--', label='Sentiment')
+    ax2.fill_between(dates, sent_scaled, alpha=0.15, color=SENTIMENT_COLOR)
+    ax2.set_ylabel('Sentiment', fontsize=11, color=SENTIMENT_COLOR)
+    ax2.tick_params(axis='y', labelcolor=SENTIMENT_COLOR)
+    ax2.set_ylim(1, 5)
+    
+    ax1.set_title(f'📊 Rating vs Sentiment Trend', fontsize=13, fontweight='bold', color=TEXT)
+    ax1.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))
+    plt.setp(ax1.xaxis.get_majorticklabels(), rotation=45, ha='right', color=TEXT)
+    ax1.grid(True, alpha=0.3, color=GRID)
+    
+    for spine in ax1.spines.values():
+        spine.set_color(GRID)
+    for spine in ax2.spines.values():
+        spine.set_color(GRID)
+    
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper left',
+               facecolor=BG, edgecolor=GRID, labelcolor=TEXT, fontsize=9)
+    
+    plt.tight_layout()
+    
+    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
+        plt.savefig(f.name, dpi=120, bbox_inches='tight', facecolor=BG)
+        plt.close()
+        return f.name
+
+
+def generate_trend_insight(raw_reviews: List[Dict], restaurant_name: str) -> str:
+    """Generate text insight from trend data."""
+    if not raw_reviews or len(raw_reviews) < 3:
+        return "Not enough data to analyze trends (need 3+ reviews with dates)."
+    
+    # Calculate overall averages
+    ratings = [float(r.get('rating', 0) or 0) for r in raw_reviews if r.get('rating')]
+    sentiments = [calculate_review_sentiment(r.get('text', '')) for r in raw_reviews]
+    
+    if not ratings:
+        return "No rating data available for trend analysis."
+    
+    avg_rating = sum(ratings) / len(ratings)
+    avg_sentiment = sum(sentiments) / len(sentiments) if sentiments else 0
+    
+    insights = []
+    
+    # Overall assessment
+    if avg_rating >= 4.0:
+        insights.append(f"⭐ **Strong ratings** - Average {avg_rating:.1f} stars")
+    elif avg_rating >= 3.0:
+        insights.append(f"⭐ **Moderate ratings** - Average {avg_rating:.1f} stars")
+    else:
+        insights.append(f"⭐ **Lower ratings** - Average {avg_rating:.1f} stars")
+    
+    # Sentiment assessment
+    if avg_sentiment > 0.2:
+        insights.append(f"😊 **Positive sentiment** - Customers express satisfaction")
+    elif avg_sentiment < -0.2:
+        insights.append(f"😟 **Negative sentiment** - Reviews show concerns")
+    else:
+        insights.append(f"😐 **Mixed sentiment** - Varied customer experiences")
+    
+    # Disconnect detection
+    if avg_rating >= 4.0 and avg_sentiment < 0:
+        insights.append(f"⚠️ **Disconnect detected**: High ratings but negative sentiment - customers may rate generously despite complaints")
+    elif avg_rating < 3.5 and avg_sentiment > 0.2:
+        insights.append(f"💡 **Opportunity**: Lower ratings but positive sentiment - reviews mention good experiences")
+    
+    return "\n\n".join(insights)
 
 # ============================================================================
 # SENTIMENT TRANSLATOR - Plain English Summaries
@@ -336,19 +528,25 @@ def analyze_restaurant(url: str, review_count: int):
         menu = data.get('menu_analysis', {})
         aspects = data.get('aspect_analysis', {})
         insights = data.get('insights', {})
+        raw_reviews = data.get('raw_reviews', [])
         
         food_items = menu.get('food_items', [])
         drinks = menu.get('drinks', [])
         aspect_list = aspects.get('aspects', [])
         all_menu = food_items + drinks
         
-        # State
+        # State (includes raw_reviews for trend chart)
         state = {
             "menu_analysis": menu,
             "aspect_analysis": aspects,
             "insights": insights,
-            "restaurant_name": restaurant_name
+            "restaurant_name": restaurant_name,
+            "raw_reviews": raw_reviews
         }
+        
+        # Generate trend chart and insight
+        trend_chart = generate_trend_chart(raw_reviews, restaurant_name)
+        trend_insight = generate_trend_insight(raw_reviews, restaurant_name)
         
         # Plain English Summaries
         menu_summary = translate_menu_performance(menu, restaurant_name)
@@ -384,6 +582,7 @@ def analyze_restaurant(url: str, review_count: int):
             status,
             menu_summary, chef_chart, chef_insights, chef_dropdown_update, default_detail,
             aspect_summary, manager_chart, manager_insights, manager_dropdown_update, default_detail,
+            trend_chart, trend_insight,
             state
         )
         
@@ -392,6 +591,7 @@ def analyze_restaurant(url: str, review_count: int):
             "❌ **Timeout:** Request took too long. Try with fewer reviews (20-50).",
             default_summary, None, default_insight, empty_dropdown, default_detail,
             default_summary, None, default_insight, empty_dropdown, default_detail,
+            None, "No trend data available.",
             empty
         )
     except Exception as e:
@@ -399,6 +599,7 @@ def analyze_restaurant(url: str, review_count: int):
             f"❌ **Error:** {str(e)}",
             default_summary, None, default_insight, empty_dropdown, default_detail,
             default_summary, None, default_insight, empty_dropdown, default_detail,
+            None, "No trend data available.",
             empty
         )
 
@@ -780,6 +981,25 @@ service quality, ambiance, value, or any other aspect of the dining experience.
                 )
                 
                 clear_btn.click(fn=lambda: ("", ""), outputs=[question_input, answer_output])
+            
+            # ========== TRENDS TAB ==========
+            with gr.Tab("📈 Trends"):
+                
+                gr.Markdown("""
+### Rating vs Sentiment Over Time
+
+This chart reveals the **disconnect** between what customers **rate** (stars) 
+vs what they **say** (sentiment). A restaurant with high ratings but negative 
+sentiment could be a warning sign!
+                """)
+                
+                trend_chart = gr.Image(label="Rating vs Sentiment Trend", height=400)
+                
+                gr.Markdown("---")
+                
+                trend_insight = gr.Markdown(
+                    value="*Run analysis to see trend insights.*"
+                )
         
         # ==================== FOOTER ====================
         gr.Markdown("---")
@@ -803,6 +1023,7 @@ service quality, ambiance, value, or any other aspect of the dining experience.
                 status_box,
                 chef_summary, chef_chart, chef_insights, chef_dropdown, chef_detail,
                 manager_summary, manager_chart, manager_insights, manager_dropdown, manager_detail,
+                trend_chart, trend_insight,
                 analysis_state
             ]
         )

@@ -57,29 +57,55 @@ def batch_generate_summaries(
     drinks = menu_data.get('drinks', [])
     aspects = aspect_data.get('aspects', [])
     
-    # Build compact prompt with all items
-    prompt = f"""Analyze these items from {restaurant_name} and provide brief summaries.
+    # Build compact prompt with all items including related reviews for context
+    food_data = []
+    for f in food_items[:15]:
+        reviews_sample = [r.get('review_text', str(r))[:100] if isinstance(r, dict) else str(r)[:100] 
+                        for r in f.get('related_reviews', [])[:2]]
+        food_data.append({
+            'name': f['name'],
+            'sentiment': f.get('sentiment', 0),
+            'mentions': f.get('mention_count', 0),
+            'sample_reviews': reviews_sample
+        })
+    
+    aspect_data_list = []
+    for a in aspects[:15]:
+        reviews_sample = [r.get('review_text', str(r))[:100] if isinstance(r, dict) else str(r)[:100] 
+                        for r in a.get('related_reviews', [])[:2]]
+        aspect_data_list.append({
+            'name': a['name'],
+            'sentiment': a.get('sentiment', 0),
+            'mentions': a.get('mention_count', 0),
+            'sample_reviews': reviews_sample
+        })
+    
+    prompt = f"""You are a restaurant review analyst. Generate brief, specific summaries for each item based on the data and sample reviews provided.
 
-FOOD ITEMS:
-{json.dumps([{'name': f['name'], 'sentiment': f.get('sentiment', 0), 'mentions': f.get('mention_count', 0)} for f in food_items[:15]], indent=2)}
+RESTAURANT: {restaurant_name}
 
-DRINKS:
-{json.dumps([{'name': d['name'], 'sentiment': d.get('sentiment', 0), 'mentions': d.get('mention_count', 0)} for d in drinks[:10]], indent=2)}
+MENU ITEMS:
+{json.dumps(food_data, indent=2)}
 
-ASPECTS:
-{json.dumps([{'name': a['name'], 'sentiment': a.get('sentiment', 0), 'mentions': a.get('mention_count', 0)} for a in aspects[:15]], indent=2)}
+SERVICE ASPECTS:
+{json.dumps(aspect_data_list, indent=2)}
 
-Return JSON with this EXACT structure:
+For each item, write a 2-3 sentence summary that:
+1. Describes what customers specifically said (use details from sample reviews)
+2. Reflects the sentiment score (positive/negative/mixed)
+3. Is written naturally, like a helpful review summary
+
+Return JSON with this EXACT structure (use exact item names as keys):
 {{
-    "food_summaries": {{"item_name": "2-3 sentence summary based on sentiment and mentions"}},
-    "drink_summaries": {{"drink_name": "2-3 sentence summary"}},
-    "aspect_summaries": {{"aspect_name": "2-3 sentence summary"}}
+    "food_summaries": {{
+        "exact_item_name": "Specific summary mentioning what customers loved or complained about..."
+    }},
+    "aspect_summaries": {{
+        "exact_aspect_name": "Specific summary about this service aspect..."
+    }}
 }}
 
-Be specific about what customers liked/disliked based on the sentiment scores.
-Positive sentiment (>0.3) = customers loved it
-Negative sentiment (<-0.3) = customers complained
-Neutral (-0.3 to 0.3) = mixed reviews"""
+IMPORTANT: Use the EXACT item/aspect names as keys in your response."""
 
     try:
         response = client.messages.create(
@@ -98,35 +124,93 @@ Neutral (-0.3 to 0.3) = mixed reviews"""
         
         summaries = json.loads(response_text.strip())
         
-        # Apply summaries to items
+        # Apply summaries with case-insensitive matching
         food_sums = summaries.get('food_summaries', {})
         drink_sums = summaries.get('drink_summaries', {})
         aspect_sums = summaries.get('aspect_summaries', {})
         
+        # Create lowercase key mappings
+        food_sums_lower = {k.lower(): v for k, v in food_sums.items()}
+        drink_sums_lower = {k.lower(): v for k, v in drink_sums.items()}
+        aspect_sums_lower = {k.lower(): v for k, v in aspect_sums.items()}
+        
         for item in food_items:
             name = item.get('name', '')
-            item['summary'] = food_sums.get(name, f"Customers mentioned {name} with {item.get('sentiment', 0):+.2f} sentiment.")
+            name_lower = name.lower()
+            # Try exact match first, then lowercase match
+            summary = food_sums.get(name) or food_sums_lower.get(name_lower)
+            if summary:
+                item['summary'] = summary
+            else:
+                # Generate a better fallback based on sentiment
+                s = item.get('sentiment', 0)
+                if s > 0.3:
+                    item['summary'] = f"Customers speak highly of the {name}. With a positive sentiment score of {s:+.2f}, this appears to be a popular choice among diners."
+                elif s < -0.3:
+                    item['summary'] = f"The {name} has received some criticism from customers. The negative sentiment ({s:+.2f}) suggests there may be room for improvement."
+                else:
+                    item['summary'] = f"The {name} receives mixed feedback from customers. Some enjoy it while others have reservations."
             item['related_reviews'] = item.get('related_reviews', [])[:3]
         
         for drink in drinks:
             name = drink.get('name', '')
-            drink['summary'] = drink_sums.get(name, f"Customers mentioned {name} with {drink.get('sentiment', 0):+.2f} sentiment.")
+            name_lower = name.lower()
+            summary = drink_sums.get(name) or drink_sums_lower.get(name_lower) or food_sums.get(name) or food_sums_lower.get(name_lower)
+            if summary:
+                drink['summary'] = summary
+            else:
+                s = drink.get('sentiment', 0)
+                if s > 0.3:
+                    drink['summary'] = f"The {name} is well-received by customers with positive reviews highlighting its quality."
+                elif s < -0.3:
+                    drink['summary'] = f"Some customers have expressed disappointment with the {name}."
+                else:
+                    drink['summary'] = f"The {name} receives varied opinions from customers."
             drink['related_reviews'] = drink.get('related_reviews', [])[:3]
         
         for aspect in aspects:
             name = aspect.get('name', '')
-            aspect['summary'] = aspect_sums.get(name, f"Customers discussed {name} with {aspect.get('sentiment', 0):+.2f} sentiment.")
+            name_lower = name.lower()
+            summary = aspect_sums.get(name) or aspect_sums_lower.get(name_lower)
+            if summary:
+                aspect['summary'] = summary
+            else:
+                s = aspect.get('sentiment', 0)
+                if s > 0.3:
+                    aspect['summary'] = f"Customers consistently praise the {name} at {restaurant_name}. This is clearly a strength of the restaurant."
+                elif s < -0.3:
+                    aspect['summary'] = f"The {name} has been a point of concern for some customers. Management may want to focus on improvements here."
+                else:
+                    aspect['summary'] = f"Customer opinions on {name} are mixed, with both positive and negative experiences reported."
             aspect['related_reviews'] = aspect.get('related_reviews', [])[:3]
         
     except Exception as e:
         print(f"⚠️ Batch summary error: {e}")
-        # Fallback: add basic summaries
+        # Better fallback summaries
         for item in food_items:
-            item['summary'] = f"Sentiment: {item.get('sentiment', 0):+.2f} across {item.get('mention_count', 0)} mentions."
+            s = item.get('sentiment', 0)
+            name = item.get('name', '')
+            if s > 0.3:
+                item['summary'] = f"Customers love the {name}! Positive reviews highlight its quality and taste."
+            elif s < -0.3:
+                item['summary'] = f"The {name} has received some negative feedback. Consider checking recent reviews for details."
+            else:
+                item['summary'] = f"The {name} gets mixed reviews - some customers enjoy it while others are less impressed."
+        
         for drink in drinks:
-            drink['summary'] = f"Sentiment: {drink.get('sentiment', 0):+.2f} across {drink.get('mention_count', 0)} mentions."
+            s = drink.get('sentiment', 0)
+            name = drink.get('name', '')
+            drink['summary'] = f"The {name} {'is popular with customers.' if s > 0.3 else 'receives mixed feedback.' if s > -0.3 else 'could use improvement.'}"
+        
         for aspect in aspects:
-            aspect['summary'] = f"Sentiment: {aspect.get('sentiment', 0):+.2f} across {aspect.get('mention_count', 0)} mentions."
+            s = aspect.get('sentiment', 0)
+            name = aspect.get('name', '')
+            if s > 0.3:
+                aspect['summary'] = f"Customers are impressed with the {name}. This is a strong point for the restaurant."
+            elif s < -0.3:
+                aspect['summary'] = f"The {name} has room for improvement based on customer feedback."
+            else:
+                aspect['summary'] = f"Customer experiences with {name} vary. Some are satisfied while others note areas for improvement."
     
     return menu_data, aspect_data
 
