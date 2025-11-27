@@ -1,6 +1,11 @@
 """
 Unified Review Analyzer - Single-pass extraction
 Extracts menu items, aspects, and sentiment in ONE API call per batch
+
+UPDATED: New sentiment scale
+- Positive: >= 0.6
+- Neutral: 0 to 0.59
+- Negative: < 0
 """
 
 from typing import List, Dict, Any
@@ -23,7 +28,7 @@ class UnifiedReviewAnalyzer:
     - Customer aspects (service, ambience, etc.)
     - Sentiment for each
     
-    Reduces API calls by 3x!
+    Reduces API calls by 3x compared to separate extraction!
     """
     
     def __init__(self, client: Anthropic, model: str):
@@ -41,9 +46,13 @@ class UnifiedReviewAnalyzer:
         
         Returns:
             {
-                "menu_items": {...},
-                "aspects": {...},
-                "overall_stats": {...}
+                "menu_analysis": {
+                    "food_items": [...],
+                    "drinks": [...]
+                },
+                "aspect_analysis": {
+                    "aspects": [...]
+                }
             }
         """
         print(f"🚀 Unified analysis: {len(reviews)} reviews in batches of {batch_size}...")
@@ -63,65 +72,73 @@ class UnifiedReviewAnalyzer:
             try:
                 batch_result = self._analyze_batch(batch, restaurant_name, start_index=i)
                 
-                # Merge menu items
+                # Merge food items
                 for item in batch_result.get('food_items', []):
-                    name = item['name']
+                    name = item.get('name', '').lower()
+                    if not name:
+                        continue
                     if name in all_food_items:
-                        all_food_items[name]['mention_count'] += item['mention_count']
+                        all_food_items[name]['mention_count'] += item.get('mention_count', 1)
                         all_food_items[name]['related_reviews'].extend(item.get('related_reviews', []))
+                        # Average sentiment
                         old_sent = all_food_items[name]['sentiment']
-                        new_sent = item['sentiment']
-                        all_food_items[name]['sentiment'] = (old_sent + new_sent) / 2
+                        new_sent = item.get('sentiment', 0)
+                        old_count = all_food_items[name]['mention_count'] - item.get('mention_count', 1)
+                        new_count = item.get('mention_count', 1)
+                        all_food_items[name]['sentiment'] = (old_sent * old_count + new_sent * new_count) / (old_count + new_count)
                     else:
                         all_food_items[name] = item
                 
                 # Merge drinks
-                for drink in batch_result.get('drinks', []):
-                    name = drink['name']
+                for item in batch_result.get('drinks', []):
+                    name = item.get('name', '').lower()
+                    if not name:
+                        continue
                     if name in all_drinks:
-                        all_drinks[name]['mention_count'] += drink['mention_count']
-                        all_drinks[name]['related_reviews'].extend(drink.get('related_reviews', []))
+                        all_drinks[name]['mention_count'] += item.get('mention_count', 1)
+                        all_drinks[name]['related_reviews'].extend(item.get('related_reviews', []))
                         old_sent = all_drinks[name]['sentiment']
-                        new_sent = drink['sentiment']
-                        all_drinks[name]['sentiment'] = (old_sent + new_sent) / 2
+                        new_sent = item.get('sentiment', 0)
+                        old_count = all_drinks[name]['mention_count'] - item.get('mention_count', 1)
+                        new_count = item.get('mention_count', 1)
+                        all_drinks[name]['sentiment'] = (old_sent * old_count + new_sent * new_count) / (old_count + new_count)
                     else:
-                        all_drinks[name] = drink
+                        all_drinks[name] = item
                 
                 # Merge aspects
                 for aspect in batch_result.get('aspects', []):
-                    name = aspect['name']
+                    name = aspect.get('name', '').lower()
+                    if not name:
+                        continue
                     if name in all_aspects:
-                        all_aspects[name]['mention_count'] += aspect['mention_count']
+                        all_aspects[name]['mention_count'] += aspect.get('mention_count', 1)
                         all_aspects[name]['related_reviews'].extend(aspect.get('related_reviews', []))
                         old_sent = all_aspects[name]['sentiment']
-                        new_sent = aspect['sentiment']
-                        all_aspects[name]['sentiment'] = (old_sent + new_sent) / 2
+                        new_sent = aspect.get('sentiment', 0)
+                        old_count = all_aspects[name]['mention_count'] - aspect.get('mention_count', 1)
+                        new_count = aspect.get('mention_count', 1)
+                        all_aspects[name]['sentiment'] = (old_sent * old_count + new_sent * new_count) / (old_count + new_count)
                     else:
                         all_aspects[name] = aspect
-                
+                        
             except Exception as e:
-                print(f"   ⚠️  Batch {batch_num} failed: {e}")
+                print(f"   ⚠️ Batch {batch_num} error: {e}")
                 continue
         
-        # Convert to lists and sort
-        food_items_list = sorted(list(all_food_items.values()), 
-                                key=lambda x: x['mention_count'], reverse=True)
-        drinks_list = sorted(list(all_drinks.values()), 
-                            key=lambda x: x['mention_count'], reverse=True)
-        aspects_list = sorted(list(all_aspects.values()), 
-                             key=lambda x: x['mention_count'], reverse=True)
+        # Convert to lists and sort by mention count
+        food_list = sorted(all_food_items.values(), key=lambda x: x.get('mention_count', 0), reverse=True)
+        drinks_list = sorted(all_drinks.values(), key=lambda x: x.get('mention_count', 0), reverse=True)
+        aspects_list = sorted(all_aspects.values(), key=lambda x: x.get('mention_count', 0), reverse=True)
         
-        print(f"✅ Discovered: {len(food_items_list)} food + {len(drinks_list)} drinks + {len(aspects_list)} aspects")
+        print(f"✅ Discovered: {len(food_list)} food + {len(drinks_list)} drinks + {len(aspects_list)} aspects")
         
         return {
             "menu_analysis": {
-                "food_items": food_items_list,
-                "drinks": drinks_list,
-                "total_extracted": len(food_items_list) + len(drinks_list)
+                "food_items": food_list,
+                "drinks": drinks_list
             },
             "aspect_analysis": {
-                "aspects": aspects_list,
-                "total_aspects": len(aspects_list)
+                "aspects": aspects_list
             }
         }
     
@@ -131,14 +148,15 @@ class UnifiedReviewAnalyzer:
         restaurant_name: str,
         start_index: int = 0
     ) -> Dict[str, Any]:
-        """Analyze a single batch - extract EVERYTHING in one call."""
+        """Analyze a single batch of reviews."""
+        
         prompt = self._build_unified_prompt(reviews, restaurant_name, start_index)
         
         try:
             response = call_claude_with_retry(
                 client=self.client,
                 model=self.model,
-                max_tokens=4000,  # Reduced since we're not returning full text
+                max_tokens=4000,
                 temperature=0.3,
                 messages=[{"role": "user", "content": prompt}]
             )
@@ -150,7 +168,7 @@ class UnifiedReviewAnalyzer:
             try:
                 data = json.loads(result_text)
             except json.JSONDecodeError as e:
-                print(f"   ⚠️  JSON parse error: {e}")
+                print(f"   ⚠️ JSON parse error: {e}")
                 return {"food_items": [], "drinks": [], "aspects": []}
             
             # Post-process: Add full review text back using indices
@@ -163,99 +181,13 @@ class UnifiedReviewAnalyzer:
             print(f"❌ Extraction error: {e}")
             return {"food_items": [], "drinks": [], "aspects": []}
     
-    def _map_reviews_to_items(
-        self,
-        data: Dict[str, Any],
-        reviews: List[str],
-        start_index: int
-    ) -> Dict[str, Any]:
-        """
-        Map review indices back to full review text.
-        
-        Claude returns just indices to avoid JSON breaking.
-        We add the full text back here.
-        """
-        # Process food items
-        for item in data.get('food_items', []):
-            review_indices = item.get('related_reviews', [])
-            if isinstance(review_indices, list) and review_indices:
-                # If it's already in full format, skip
-                if isinstance(review_indices[0], dict):
-                    continue
-                
-                # Map indices to full reviews
-                full_reviews = []
-                for idx in review_indices:
-                    if isinstance(idx, int) and 0 <= idx < len(reviews):
-                        full_reviews.append({
-                            "review_index": start_index + idx,
-                            "review_text": reviews[idx],
-                            "sentiment_context": reviews[idx][:200]  # First 200 chars as context
-                        })
-                
-                item['related_reviews'] = full_reviews
-        
-        # Process drinks
-        for drink in data.get('drinks', []):
-            review_indices = drink.get('related_reviews', [])
-            if isinstance(review_indices, list) and review_indices:
-                if isinstance(review_indices[0], dict):
-                    continue
-                
-                full_reviews = []
-                for idx in review_indices:
-                    if isinstance(idx, int) and 0 <= idx < len(reviews):
-                        full_reviews.append({
-                            "review_index": start_index + idx,
-                            "review_text": reviews[idx],
-                            "sentiment_context": reviews[idx][:200]
-                        })
-                
-                drink['related_reviews'] = full_reviews
-        
-        # Process aspects
-        for aspect in data.get('aspects', []):
-            review_indices = aspect.get('related_reviews', [])
-            if isinstance(review_indices, list) and review_indices:
-                if isinstance(review_indices[0], dict):
-                    continue
-                
-                full_reviews = []
-                for idx in review_indices:
-                    if isinstance(idx, int) and 0 <= idx < len(reviews):
-                        full_reviews.append({
-                            "review_index": start_index + idx,
-                            "review_text": reviews[idx],
-                            "sentiment_context": reviews[idx][:200]
-                        })
-                
-                aspect['related_reviews'] = full_reviews
-        
-        return data
-    
-    def _normalize_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Normalize all names to lowercase."""
-        for item in data.get('food_items', []):
-            if 'name' in item:
-                item['name'] = item['name'].lower()
-        
-        for drink in data.get('drinks', []):
-            if 'name' in drink:
-                drink['name'] = drink['name'].lower()
-        
-        for aspect in data.get('aspects', []):
-            if 'name' in aspect:
-                aspect['name'] = aspect['name'].lower()
-        
-        return data
-    
     def _build_unified_prompt(
         self,
         reviews: List[str],
         restaurant_name: str,
         start_index: int
     ) -> str:
-        """Build unified extraction prompt."""
+        """Build unified extraction prompt with NEW SENTIMENT SCALE."""
         numbered_reviews = []
         for i, review in enumerate(reviews):
             numbered_reviews.append(f"[Review {i}]: {review}")
@@ -272,20 +204,30 @@ YOUR TASK - Extract THREE things simultaneously:
 2. **ASPECTS** (what customers care about: service, ambience, etc.)
 3. **SENTIMENT** for each
 
+SENTIMENT SCALE (IMPORTANT):
+- **Positive (0.6 to 1.0):** Customer clearly enjoyed/praised this item or aspect
+- **Neutral (0.0 to 0.59):** Mixed feelings, okay but not exceptional, or simply mentioned without strong opinion
+- **Negative (-1.0 to -0.01):** Customer complained, criticized, or expressed disappointment
+
+Examples:
+- "The pasta was absolutely divine!" → 0.85 (Positive)
+- "The pasta was decent, nothing special" → 0.3 (Neutral)
+- "The pasta was undercooked and bland" → -0.6 (Negative)
+
 RULES:
 
 **MENU ITEMS:**
 - Specific items only: "salmon sushi", "miso soup", "sake"
 - Separate food from drinks
 - Lowercase names
-- Calculate sentiment per item
+- Calculate sentiment per item using the scale above
 
 **ASPECTS:**
 - What customers discuss: "service speed", "food quality", "ambience", "value"
 - Be specific: "service speed" not just "service"
 - Cuisine-specific welcome: "freshness", "authenticity", "presentation"
 - Lowercase names
-- Calculate sentiment per aspect
+- Calculate sentiment per aspect using the scale above
 
 **REVIEW LINKING:**
 - For EACH item/aspect, list which review NUMBERS mention it
@@ -298,7 +240,7 @@ OUTPUT (JSON) - IMPORTANT: Return ONLY review indices, NOT full text:
     {{
       "name": "salmon aburi sushi",
       "mention_count": 2,
-      "sentiment": 0.9,
+      "sentiment": 0.85,
       "category": "sushi",
       "related_reviews": [0, 5]
     }}
@@ -307,7 +249,7 @@ OUTPUT (JSON) - IMPORTANT: Return ONLY review indices, NOT full text:
     {{
       "name": "sake",
       "mention_count": 1,
-      "sentiment": 0.8,
+      "sentiment": 0.7,
       "category": "alcohol",
       "related_reviews": [3]
     }}
@@ -316,7 +258,7 @@ OUTPUT (JSON) - IMPORTANT: Return ONLY review indices, NOT full text:
     {{
       "name": "service speed",
       "mention_count": 3,
-      "sentiment": 0.6,
+      "sentiment": 0.65,
       "description": "How quickly food arrives",
       "related_reviews": [1, 2, 7]
     }}
@@ -328,7 +270,68 @@ CRITICAL:
 - DO NOT include review text or quotes
 - This prevents JSON parsing errors and saves tokens
 - Output ONLY valid JSON, no other text
+- Use the sentiment scale: >= 0.6 positive, 0-0.59 neutral, < 0 negative
 
 Extract everything:"""
         
         return prompt
+    
+    def _map_reviews_to_items(
+        self,
+        data: Dict[str, Any],
+        reviews: List[str],
+        start_index: int
+    ) -> Dict[str, Any]:
+        """
+        Map review indices back to full review text.
+        
+        Claude returns just indices to avoid JSON breaking.
+        We add the full text back here.
+        """
+        for item in data.get('food_items', []):
+            indices = item.get('related_reviews', [])
+            item['related_reviews'] = []
+            for idx in indices:
+                if isinstance(idx, int) and 0 <= idx < len(reviews):
+                    item['related_reviews'].append({
+                        'review_index': start_index + idx,
+                        'review_text': reviews[idx]
+                    })
+        
+        for item in data.get('drinks', []):
+            indices = item.get('related_reviews', [])
+            item['related_reviews'] = []
+            for idx in indices:
+                if isinstance(idx, int) and 0 <= idx < len(reviews):
+                    item['related_reviews'].append({
+                        'review_index': start_index + idx,
+                        'review_text': reviews[idx]
+                    })
+        
+        for aspect in data.get('aspects', []):
+            indices = aspect.get('related_reviews', [])
+            aspect['related_reviews'] = []
+            for idx in indices:
+                if isinstance(idx, int) and 0 <= idx < len(reviews):
+                    aspect['related_reviews'].append({
+                        'review_index': start_index + idx,
+                        'review_text': reviews[idx]
+                    })
+        
+        return data
+    
+    def _normalize_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize names to lowercase."""
+        for item in data.get('food_items', []):
+            if 'name' in item:
+                item['name'] = item['name'].lower()
+        
+        for drink in data.get('drinks', []):
+            if 'name' in drink:
+                drink['name'] = drink['name'].lower()
+        
+        for aspect in data.get('aspects', []):
+            if 'name' in aspect:
+                aspect['name'] = aspect['name'].lower()
+        
+        return data

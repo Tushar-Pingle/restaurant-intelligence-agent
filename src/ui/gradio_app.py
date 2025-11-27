@@ -5,11 +5,17 @@ Professional UI with cards, plain English summaries, polished layout
 Hackathon: Anthropic MCP 1st Birthday - Track 2 (Productivity)
 Author: Tushar Pingle
 
-VERSION 4.0 FIXES:
-1. Fixed Q&A "proxies" error with Anthropic SDK
-2. Fixed PDF download functionality
-3. Improved summaries to be more detailed and actionable
-4. Multi-platform support (OpenTable + Google Maps)
+VERSION 4.1 UPDATES:
+1. NEW SENTIMENT SCALE:
+   - 🟢 Positive: >= 0.6 (customers clearly enjoyed/praised)
+   - 🟡 Neutral: 0 to 0.59 (mixed feelings, average, okay)
+   - 🔴 Negative: < 0 (complaints, criticism, disappointment)
+
+2. Updated all thresholds throughout the app for consistency
+3. Improved Q&A prompt for balanced answers (pros AND cons)
+4. Fixed PDF style conflicts with RIA prefix
+5. Fixed Q&A "proxies" error with Anthropic SDK
+6. Multi-platform support (OpenTable + Google Maps)
 """
 
 import gradio as gr
@@ -285,13 +291,13 @@ def generate_trend_insight(trend_data: List[Dict], restaurant_name: str) -> str:
     
     insight = f"**{restaurant_name}** has an average rating of **{avg_rating:.1f} stars** "
     
-    if avg_sentiment > 0.3:
+    if avg_sentiment >= 0.6:
         insight += "with **positive sentiment**. "
         if avg_rating >= 4.0:
             insight += "✅ Ratings and sentiment are aligned!"
         else:
             insight += "🤔 Sentiment is positive but ratings are moderate."
-    elif avg_sentiment < -0.1:
+    elif avg_sentiment < 0:
         insight += "but with **concerning sentiment**. "
         if avg_rating >= 4.0:
             insight += "⚠️ **Warning:** High ratings but negative sentiment detected."
@@ -377,11 +383,10 @@ def translate_menu_performance(menu: dict, restaurant_name: str) -> str:
     if not all_items:
         return f"*No menu data available for {restaurant_name} yet.*"
     
-    # Count categories
-    stars = len([i for i in all_items if i.get('sentiment', 0) > 0.5])
-    good = len([i for i in all_items if 0.2 < i.get('sentiment', 0) <= 0.5])
-    mixed = len([i for i in all_items if -0.2 <= i.get('sentiment', 0) <= 0.2])
-    concerns = len([i for i in all_items if i.get('sentiment', 0) < -0.2])
+    # Count categories - NEW thresholds: >= 0.6 positive, 0-0.59 neutral, < 0 negative
+    stars = len([i for i in all_items if i.get('sentiment', 0) >= 0.6])
+    good = len([i for i in all_items if 0 <= i.get('sentiment', 0) < 0.6])
+    concerns = len([i for i in all_items if i.get('sentiment', 0) < 0])
     
     # Simple summary
     summary = f"""### 🍽️ Menu Overview for {restaurant_name}
@@ -390,10 +395,9 @@ def translate_menu_performance(menu: dict, restaurant_name: str) -> str:
 
 | Category | Count |
 |----------|-------|
-| 🌟 Customer Favorites | {stars} |
-| ✅ Performing Well | {good} |
-| 🟡 Mixed Reviews | {mixed} |
-| ⚠️ Needs Attention | {concerns} |
+| 🟢 Positive (≥0.6) | {stars} |
+| 🟡 Neutral (0 to 0.59) | {good} |
+| 🔴 Negative (<0) | {concerns} |
 
 👇 **Select an item from the dropdown below to see detailed customer feedback.**
 """
@@ -410,10 +414,10 @@ def translate_aspect_performance(aspects: dict, restaurant_name: str) -> str:
     if not aspect_list:
         return f"*No aspect data available for {restaurant_name} yet.*"
     
-    # Count categories
-    strengths = len([a for a in aspect_list if a.get('sentiment', 0) > 0.3])
-    neutral = len([a for a in aspect_list if -0.3 <= a.get('sentiment', 0) <= 0.3])
-    weaknesses = len([a for a in aspect_list if a.get('sentiment', 0) < -0.3])
+    # Count categories - NEW thresholds: >= 0.6 positive, 0-0.59 neutral, < 0 negative
+    strengths = len([a for a in aspect_list if a.get('sentiment', 0) >= 0.6])
+    neutral = len([a for a in aspect_list if 0 <= a.get('sentiment', 0) < 0.6])
+    weaknesses = len([a for a in aspect_list if a.get('sentiment', 0) < 0])
     
     # Simple summary
     summary = f"""### 📊 Customer Experience Overview for {restaurant_name}
@@ -422,9 +426,9 @@ def translate_aspect_performance(aspects: dict, restaurant_name: str) -> str:
 
 | Category | Count |
 |----------|-------|
-| 💪 Strengths | {strengths} |
-| 🟡 Neutral | {neutral} |
-| 📉 Needs Work | {weaknesses} |
+| 🟢 Strengths (≥0.6) | {strengths} |
+| 🟡 Neutral (0 to 0.59) | {neutral} |
+| 🔴 Weaknesses (<0) | {weaknesses} |
 
 👇 **Select an aspect from the dropdown below to see detailed customer feedback.**
 """
@@ -456,7 +460,8 @@ def generate_chart(items: list, title: str) -> Optional[str]:
         names = [f"{item.get('name', '?')[:18]} ({item.get('mention_count', 0)})" for item in sorted_items]
         sentiments = [item.get('sentiment', 0) for item in sorted_items]
         
-        colors = [POSITIVE if s > 0.3 else NEUTRAL if s > -0.3 else NEGATIVE for s in sentiments]
+        # NEW thresholds: >= 0.6 positive, >= 0 neutral, < 0 negative
+        colors = [POSITIVE if s >= 0.6 else NEUTRAL if s >= 0 else NEGATIVE for s in sentiments]
         
         fig, ax = plt.subplots(figsize=(10, max(5, len(names) * 0.5)))
         fig.patch.set_facecolor(BG_COLOR)
@@ -538,7 +543,8 @@ def get_item_detail(item_name: str, state: dict) -> str:
             summary = item.get('summary', '')
             related_reviews = item.get('related_reviews', [])
             
-            emoji = "🟢" if sentiment > 0.3 else "🟡" if sentiment > -0.3 else "🔴"
+            # NEW thresholds: >= 0.6 positive, >= 0 neutral, < 0 negative
+            emoji = "🟢" if sentiment >= 0.6 else "🟡" if sentiment >= 0 else "🔴"
             
             detail = f"""### {clean_name.title()}
 
@@ -562,16 +568,14 @@ def get_item_detail(item_name: str, state: dict) -> str:
                     if text and len(text) > 20:
                         detail += f"> *\"{text[:200]}{'...' if len(text) > 200 else ''}\"*\n\n"
             
-            # Add actionable insight
+            # Add actionable insight - NEW thresholds
             detail += "\n**🎯 Recommended Action:**\n"
-            if sentiment > 0.5:
+            if sentiment >= 0.6:
                 detail += f"This is a **star performer**! Consider featuring {clean_name.title()} in promotions and training staff to recommend it."
-            elif sentiment > 0.2:
-                detail += f"Customers generally like {clean_name.title()}. Monitor feedback and maintain quality."
-            elif sentiment > -0.2:
-                detail += f"Mixed feedback on {clean_name.title()}. Review recent complaints and consider recipe adjustments."
+            elif sentiment >= 0:
+                detail += f"Customers have neutral/mixed feelings about {clean_name.title()}. Monitor feedback and look for improvement opportunities."
             else:
-                detail += f"⚠️ **Urgent:** {clean_name.title()} has significant negative feedback. Review preparation process and consider temporary removal while issues are addressed."
+                detail += f"⚠️ **Attention Needed:** {clean_name.title()} has negative feedback. Review preparation process and address customer complaints."
             
             return detail
     
@@ -593,7 +597,8 @@ def get_aspect_detail(aspect_name: str, state: dict) -> str:
             summary = aspect.get('summary', '')
             related_reviews = aspect.get('related_reviews', [])
             
-            emoji = "🟢" if sentiment > 0.3 else "🟡" if sentiment > -0.3 else "🔴"
+            # NEW thresholds: >= 0.6 positive, >= 0 neutral, < 0 negative
+            emoji = "🟢" if sentiment >= 0.6 else "🟡" if sentiment >= 0 else "🔴"
             
             detail = f"""### {clean_name.title()}
 
@@ -617,16 +622,14 @@ def get_aspect_detail(aspect_name: str, state: dict) -> str:
                     if text and len(text) > 20:
                         detail += f"> *\"{text[:200]}{'...' if len(text) > 200 else ''}\"*\n\n"
             
-            # Add actionable insight
+            # Add actionable insight - NEW thresholds
             detail += "\n**🎯 Recommended Action:**\n"
-            if sentiment > 0.5:
+            if sentiment >= 0.6:
                 detail += f"**{clean_name.title()}** is a major strength! Maintain current standards and use in marketing."
-            elif sentiment > 0.2:
-                detail += f"**{clean_name.title()}** is performing well. Look for opportunities to make it exceptional."
-            elif sentiment > -0.2:
-                detail += f"**{clean_name.title()}** has mixed reviews. Identify specific pain points and address them."
+            elif sentiment >= 0:
+                detail += f"**{clean_name.title()}** has neutral/mixed reviews. Identify specific areas to improve and make it exceptional."
             else:
-                detail += f"⚠️ **Priority Issue:** **{clean_name.title()}** is hurting the business. Immediate action needed - consider staff training, process changes, or operational review."
+                detail += f"⚠️ **Priority Issue:** **{clean_name.title()}** needs attention. Address customer complaints and consider staff training or process changes."
             
             return detail
     
@@ -799,9 +802,10 @@ def generate_pdf_report(state: dict) -> Optional[str]:
         all_sentiments = [item.get('sentiment', 0) for item in all_menu]
         avg_sentiment = sum(all_sentiments) / len(all_sentiments) if all_sentiments else 0
         
-        sent_label = "Excellent" if avg_sentiment > 0.5 else "Good" if avg_sentiment > 0.3 else "Positive" if avg_sentiment > 0 else "Mixed" if avg_sentiment > -0.3 else "Needs Attention"
-        sent_color = POSITIVE if avg_sentiment > 0.3 else WARNING if avg_sentiment > -0.3 else NEGATIVE
-        sent_bg = POSITIVE_LIGHT if avg_sentiment > 0.3 else WARNING_LIGHT if avg_sentiment > -0.3 else NEGATIVE_LIGHT
+        # NEW thresholds: >= 0.6 positive, >= 0 neutral, < 0 negative
+        sent_label = "Excellent" if avg_sentiment >= 0.8 else "Positive" if avg_sentiment >= 0.6 else "Neutral" if avg_sentiment >= 0 else "Needs Attention"
+        sent_color = POSITIVE if avg_sentiment >= 0.6 else WARNING if avg_sentiment >= 0 else NEGATIVE
+        sent_bg = POSITIVE_LIGHT if avg_sentiment >= 0.6 else WARNING_LIGHT if avg_sentiment >= 0 else NEGATIVE_LIGHT
         
         # Sentiment box
         sent_data = [[f"Overall Sentiment: {avg_sentiment:+.2f}", sent_label]]
@@ -827,7 +831,8 @@ def generate_pdf_report(state: dict) -> Optional[str]:
             for item in top_items:
                 elements.append(Paragraph(f"    • {item.get('name', '?').title()} (sentiment: {item.get('sentiment', 0):+.2f})", styles['RIABullet']))
         
-        concern_items = [i for i in all_menu if i.get('sentiment', 0) < -0.2]
+        # NEW threshold: < 0 for concerns
+        concern_items = [i for i in all_menu if i.get('sentiment', 0) < 0]
         if concern_items:
             elements.append(Spacer(1, 10))
             elements.append(Paragraph("⚠️ <b>Items Needing Attention:</b>", styles['RIABody']))
@@ -836,20 +841,18 @@ def generate_pdf_report(state: dict) -> Optional[str]:
         
         elements.append(Spacer(1, 15))
         
-        # Summary stats
-        stars = len([i for i in all_menu if i.get('sentiment', 0) > 0.5])
-        good = len([i for i in all_menu if 0.2 < i.get('sentiment', 0) <= 0.5])
-        mixed = len([i for i in all_menu if -0.2 <= i.get('sentiment', 0) <= 0.2])
-        concerns = len([i for i in all_menu if i.get('sentiment', 0) < -0.2])
+        # Summary stats - NEW thresholds
+        positive = len([i for i in all_menu if i.get('sentiment', 0) >= 0.6])
+        neutral = len([i for i in all_menu if 0 <= i.get('sentiment', 0) < 0.6])
+        negative = len([i for i in all_menu if i.get('sentiment', 0) < 0])
         
         summary_data = [
             ['Metric', 'Value', 'Details'],
             ['Reviews Analyzed', str(len(trend_data)), f'From {source}'],
             ['Menu Items', str(len(all_menu)), f'{len(food_items)} food, {len(drinks)} drinks'],
-            ['Customer Favorites', str(stars), 'Sentiment > 0.5'],
-            ['Performing Well', str(good), 'Sentiment 0.2 - 0.5'],
-            ['Mixed Reviews', str(mixed), 'Sentiment -0.2 - 0.2'],
-            ['Needs Attention', str(concerns), 'Sentiment < -0.2'],
+            ['🟢 Positive', str(positive), 'Sentiment ≥ 0.6'],
+            ['🟡 Neutral', str(neutral), 'Sentiment 0 to 0.59'],
+            ['🔴 Negative', str(negative), 'Sentiment < 0'],
         ]
         summary_table = Table(summary_data, colWidths=[2*inch, 1.3*inch, 2.5*inch])
         summary_table.setStyle(TableStyle([
@@ -881,7 +884,8 @@ def generate_pdf_report(state: dict) -> Optional[str]:
             menu_data = [['#', 'Item', 'Sentiment', 'Mentions', 'Status']]
             for i, item in enumerate(sorted_menu, 1):
                 sentiment = item.get('sentiment', 0)
-                status = '✓ Positive' if sentiment > 0.3 else '~ Mixed' if sentiment > -0.3 else '✗ Negative'
+                # NEW thresholds: >= 0.6 positive, >= 0 neutral, < 0 negative
+                status = '✓ Positive' if sentiment >= 0.6 else '~ Neutral' if sentiment >= 0 else '✗ Negative'
                 menu_data.append([str(i), item.get('name', '?').title()[:22], f"{sentiment:+.2f}", str(item.get('mention_count', 0)), status])
             
             menu_table = Table(menu_data, colWidths=[0.4*inch, 2.2*inch, 1*inch, 0.9*inch, 1.1*inch])
@@ -909,7 +913,8 @@ def generate_pdf_report(state: dict) -> Optional[str]:
             aspect_data = [['#', 'Aspect', 'Sentiment', 'Mentions', 'Status']]
             for i, aspect in enumerate(sorted_aspects, 1):
                 sentiment = aspect.get('sentiment', 0)
-                status = '✓ Strength' if sentiment > 0.3 else '~ Neutral' if sentiment > -0.3 else '✗ Weakness'
+                # NEW thresholds: >= 0.6 positive, >= 0 neutral, < 0 negative
+                status = '✓ Strength' if sentiment >= 0.6 else '~ Neutral' if sentiment >= 0 else '✗ Weakness'
                 aspect_data.append([str(i), aspect.get('name', '?').title()[:22], f"{sentiment:+.2f}", str(aspect.get('mention_count', 0)), status])
             
             aspect_table = Table(aspect_data, colWidths=[0.4*inch, 2.2*inch, 1*inch, 0.9*inch, 1.1*inch])
@@ -1049,9 +1054,10 @@ def generate_pdf_report(state: dict) -> Optional[str]:
         # Sort by sentiment to get best positive and worst negative
         for review in sorted(all_related_reviews, key=lambda x: x['sentiment'], reverse=True):
             text = review['text']
-            if review['sentiment'] > 0.2 and len(positive_reviews) < 3:
+            # NEW thresholds: >= 0.6 for positive, < 0 for negative
+            if review['sentiment'] >= 0.6 and len(positive_reviews) < 3:
                 positive_reviews.append(text[:180])
-            elif review['sentiment'] < -0.2 and len(negative_reviews) < 3:
+            elif review['sentiment'] < 0 and len(negative_reviews) < 3:
                 negative_reviews.append(text[:180])
         
         elements.append(Paragraph("✅ Positive Feedback", styles['RIASubHeader']))
@@ -1273,6 +1279,9 @@ Instructions:
 - If reviews mention specific examples, include them
 - Keep your answer helpful and concise (3-5 sentences)
 - If the reviews don't contain relevant information, say so honestly
+- Provide BALANCED answers - mention both pros AND cons when relevant
+- If customers have mixed opinions, acknowledge both positive and negative feedback
+- Don't oversell or undersell - be honest about what customers actually said
 
 Answer:"""
 

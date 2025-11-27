@@ -2,7 +2,10 @@
 Restaurant Insights Generator - EXPANDED VERSION
 Generates role-specific insights for Chef and Manager personas.
 
-UPDATED: Now uses TOP 20 items/aspects instead of TOP 10 for more comprehensive insights.
+UPDATED v3: 
+- New sentiment scale (>= 0.6 positive, 0-0.59 neutral, < 0 negative)
+- Clearer guidance on strengths vs concerns
+- Top 20 items/aspects for comprehensive insights
 """
 
 import json
@@ -14,7 +17,10 @@ class InsightsGenerator:
     """
     Generates actionable insights for different restaurant roles.
     
-    UPDATED: Expanded to use top 20 menu items and aspects for better recommendations.
+    UPDATED: 
+    - New sentiment thresholds (0.6/0 instead of 0.3/-0.3)
+    - Expanded to use top 20 menu items and aspects
+    - Clearer mapping of sentiment to strengths/concerns
     """
     
     def __init__(self, client, model: str = "claude-sonnet-4-20250514"):
@@ -109,6 +115,11 @@ MENU PERFORMANCE (Top items by customer mentions):
 FOOD-RELATED ASPECTS:
 {aspect_summary}
 
+SENTIMENT SCALE:
+- 🟢 POSITIVE (0.6 to 1.0): Customers love this - highlight as a STRENGTH
+- 🟡 NEUTRAL (0.0 to 0.59): Mixed or average feedback - room for improvement
+- 🔴 NEGATIVE (below 0): Customers complained - flag as a CONCERN
+
 YOUR TASK:
 Generate actionable insights specifically for the HEAD CHEF. Focus on:
 - Food quality and taste
@@ -121,30 +132,32 @@ Generate actionable insights specifically for the HEAD CHEF. Focus on:
 
 CRITICAL RULES:
 1. Focus ONLY on food/kitchen topics
-2. Be specific with evidence from reviews
-3. Make recommendations actionable
-4. Reference specific menu items by name
-5. Output ONLY valid JSON, no other text
+2. STRENGTHS should come from items/aspects with sentiment >= 0.6 (🟢 positive)
+3. CONCERNS should come from items/aspects with sentiment < 0 (🔴 negative)
+4. Be specific with evidence from reviews
+5. Make recommendations actionable
+6. Reference specific menu items by name
+7. Output ONLY valid JSON, no other text
 
 OUTPUT FORMAT (JSON):
 {{
   "summary": "2-3 sentence executive summary covering overall kitchen performance",
   "strengths": [
-    "Specific strength 1 with menu item example",
-    "Specific strength 2 with menu item example",
-    "Specific strength 3 with menu item example",
-    "Specific strength 4 with menu item example",
-    "Specific strength 5 with menu item example"
+    "Specific strength 1 - reference a 🟢 positive item with sentiment >= 0.6",
+    "Specific strength 2 - reference a 🟢 positive item with sentiment >= 0.6",
+    "Specific strength 3 - reference a 🟢 positive item with sentiment >= 0.6",
+    "Specific strength 4 - reference a 🟢 positive item with sentiment >= 0.6",
+    "Specific strength 5 - reference a 🟢 positive item with sentiment >= 0.6"
   ],
   "concerns": [
-    "Specific concern 1 with evidence",
-    "Specific concern 2 with evidence",
-    "Specific concern 3 with evidence"
+    "Specific concern 1 - reference a 🔴 negative item with sentiment < 0",
+    "Specific concern 2 - reference a 🔴 negative item with sentiment < 0",
+    "Specific concern 3 - reference a 🔴 negative item with sentiment < 0"
   ],
   "recommendations": [
     {{
       "priority": "high",
-      "action": "Specific action to take",
+      "action": "Specific action to fix a negative sentiment item",
       "reason": "Why this matters based on review data",
       "evidence": "Supporting data from reviews"
     }},
@@ -176,14 +189,15 @@ OUTPUT FORMAT (JSON):
 }}
 
 IMPORTANT: 
-- Provide at least 5 strengths and 5 recommendations
+- Provide at least 5 strengths (from 🟢 items) and 5 recommendations
+- If there are no negative items, focus recommendations on improving neutral items
 - Reference actual menu items from the data above
 - Ensure all JSON is properly formatted with no trailing commas
 
 Generate chef insights:"""
         
         return prompt
-    
+
     def _build_manager_prompt(
         self,
         analysis_data: Dict[str, Any],
@@ -204,6 +218,11 @@ OPERATIONAL ASPECTS (All discovered from reviews):
 MENU OVERVIEW (for context):
 {menu_summary}
 
+SENTIMENT SCALE:
+- 🟢 POSITIVE (0.6 to 1.0): Customers love this - highlight as a STRENGTH
+- 🟡 NEUTRAL (0.0 to 0.59): Mixed or average feedback - room for improvement
+- 🔴 NEGATIVE (below 0): Customers complained - flag as a CONCERN
+
 YOUR TASK:
 Generate actionable insights specifically for the RESTAURANT MANAGER. Focus on:
 - Service quality and speed
@@ -217,30 +236,32 @@ Generate actionable insights specifically for the RESTAURANT MANAGER. Focus on:
 
 CRITICAL RULES:
 1. Focus ONLY on operations/service topics
-2. Be specific with evidence from reviews
-3. Make recommendations actionable
-4. Reference specific aspects by name
-5. Output ONLY valid JSON, no other text
+2. STRENGTHS should come from aspects with sentiment >= 0.6 (🟢 positive)
+3. CONCERNS should come from aspects with sentiment < 0 (🔴 negative)
+4. Be specific with evidence from reviews
+5. Make recommendations actionable
+6. Reference specific aspects by name
+7. Output ONLY valid JSON, no other text
 
 OUTPUT FORMAT (JSON):
 {{
   "summary": "2-3 sentence executive summary covering overall operations",
   "strengths": [
-    "Specific operational strength 1 with evidence",
-    "Specific operational strength 2 with evidence",
-    "Specific operational strength 3 with evidence",
-    "Specific operational strength 4 with evidence",
-    "Specific operational strength 5 with evidence"
+    "Specific operational strength 1 - reference a 🟢 positive aspect with sentiment >= 0.6",
+    "Specific operational strength 2 - reference a 🟢 positive aspect with sentiment >= 0.6",
+    "Specific operational strength 3 - reference a 🟢 positive aspect with sentiment >= 0.6",
+    "Specific operational strength 4 - reference a 🟢 positive aspect with sentiment >= 0.6",
+    "Specific operational strength 5 - reference a 🟢 positive aspect with sentiment >= 0.6"
   ],
   "concerns": [
-    "Specific operational concern 1 with evidence",
-    "Specific operational concern 2 with evidence",
-    "Specific operational concern 3 with evidence"
+    "Specific operational concern 1 - reference a 🔴 negative aspect with sentiment < 0",
+    "Specific operational concern 2 - reference a 🔴 negative aspect with sentiment < 0",
+    "Specific operational concern 3 - reference a 🔴 negative aspect with sentiment < 0"
   ],
   "recommendations": [
     {{
       "priority": "high",
-      "action": "Specific action to take",
+      "action": "Specific action to fix a negative sentiment aspect",
       "reason": "Why this matters based on review data",
       "evidence": "Supporting data from reviews"
     }},
@@ -272,14 +293,15 @@ OUTPUT FORMAT (JSON):
 }}
 
 IMPORTANT: 
-- Provide at least 5 strengths and 5 recommendations
+- Provide at least 5 strengths (from 🟢 aspects) and 5 recommendations
+- If there are no negative aspects, focus recommendations on improving neutral aspects
 - Reference actual aspects from the data above
 - Ensure all JSON is properly formatted with no trailing commas
 
 Generate manager insights:"""
         
         return prompt
-    
+
     def _summarize_menu_data(
         self, 
         analysis_data: Dict[str, Any],
@@ -289,7 +311,7 @@ Generate manager insights:"""
         """
         Summarize menu analysis for prompts.
         
-        EXPANDED: Now uses top 20 food items and top 10 drinks (was 10/5).
+        UPDATED: New sentiment thresholds (0.6/0 instead of 0.3/-0.3)
         """
         menu_data = analysis_data.get('menu_analysis', {})
         food_items = menu_data.get('food_items', [])[:max_food]
@@ -302,8 +324,8 @@ Generate manager insights:"""
             for item in food_items:
                 sentiment = item.get('sentiment', 0)
                 mentions = item.get('mention_count', 0)
-                # Add sentiment indicator
-                indicator = "🟢" if sentiment > 0.3 else "🟡" if sentiment > -0.3 else "🔴"
+                # NEW thresholds: >= 0.6 positive, >= 0 neutral, < 0 negative
+                indicator = "🟢" if sentiment >= 0.6 else "🟡" if sentiment >= 0 else "🔴"
                 summary.append(f"  {indicator} {item.get('name', 'unknown')}: sentiment {sentiment:+.2f}, {mentions} mentions")
         
         if drinks:
@@ -311,7 +333,8 @@ Generate manager insights:"""
             for drink in drinks:
                 sentiment = drink.get('sentiment', 0)
                 mentions = drink.get('mention_count', 0)
-                indicator = "🟢" if sentiment > 0.3 else "🟡" if sentiment > -0.3 else "🔴"
+                # NEW thresholds: >= 0.6 positive, >= 0 neutral, < 0 negative
+                indicator = "🟢" if sentiment >= 0.6 else "🟡" if sentiment >= 0 else "🔴"
                 summary.append(f"  {indicator} {drink.get('name', 'unknown')}: sentiment {sentiment:+.2f}, {mentions} mentions")
         
         # Add overall stats
@@ -330,7 +353,7 @@ Generate manager insights:"""
         """
         Summarize aspect analysis for prompts.
         
-        EXPANDED: Now uses top 20 aspects (was 10).
+        UPDATED: New sentiment thresholds (0.6/0 instead of 0.3/-0.3)
         """
         aspect_data = analysis_data.get('aspect_analysis', {})
         aspects = aspect_data.get('aspects', [])
@@ -354,7 +377,8 @@ Generate manager insights:"""
         for aspect in aspects:
             sentiment = aspect.get('sentiment', 0)
             mentions = aspect.get('mention_count', 0)
-            indicator = "🟢" if sentiment > 0.3 else "🟡" if sentiment > -0.3 else "🔴"
+            # NEW thresholds: >= 0.6 positive, >= 0 neutral, < 0 negative
+            indicator = "🟢" if sentiment >= 0.6 else "🟡" if sentiment >= 0 else "🔴"
             summary.append(f"  {indicator} {aspect.get('name', 'unknown')}: sentiment {sentiment:+.2f}, {mentions} mentions")
         
         # Add total count
