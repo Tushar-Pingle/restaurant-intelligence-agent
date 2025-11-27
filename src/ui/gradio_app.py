@@ -475,48 +475,156 @@ def get_aspect_detail(aspect_name: str, state: dict) -> str:
     return f"No data found for '{aspect_name}'"
 
 
+def find_relevant_reviews(question: str, state: dict, top_k: int = 8) -> list:
+    """RETRIEVAL: Find reviews relevant to the question."""
+    q = question.lower()
+    q_words = set(w for w in q.split() if len(w) > 2)
+    
+    menu = state.get("menu_analysis", {})
+    aspects = state.get("aspect_analysis", {})
+    relevant_reviews = []
+    
+    # Category keywords
+    SERVICE_WORDS = {"service", "staff", "waiter", "server", "host", "wait", "slow", "friendly"}
+    AMBIANCE_WORDS = {"ambiance", "ambience", "atmosphere", "vibe", "noise", "loud", "romantic", "date"}
+    VALUE_WORDS = {"price", "value", "worth", "expensive", "cheap", "cost", "money"}
+    FOOD_WORDS = {"food", "dish", "best", "recommend", "order", "try", "taste", "delicious", "menu"}
+    
+    all_items = menu.get('food_items', []) + menu.get('drinks', [])
+    all_aspects = aspects.get('aspects', [])
+    
+    # Get reviews from matching items
+    for item in all_items:
+        name = item.get('name', '').lower()
+        if name in q or any(w in name for w in q_words):
+            for r in item.get('related_reviews', [])[:2]:
+                text = r.get('review_text', str(r)) if isinstance(r, dict) else str(r)
+                if text not in relevant_reviews and len(text) > 20:
+                    relevant_reviews.append(text)
+    
+    # Get reviews from matching aspects
+    for aspect in all_aspects:
+        name = aspect.get('name', '').lower()
+        if name in q or any(w in name for w in q_words):
+            for r in aspect.get('related_reviews', [])[:2]:
+                text = r.get('review_text', str(r)) if isinstance(r, dict) else str(r)
+                if text not in relevant_reviews and len(text) > 20:
+                    relevant_reviews.append(text)
+    
+    # Category-based retrieval
+    if q_words & SERVICE_WORDS:
+        for aspect in all_aspects:
+            if any(w in aspect.get('name', '').lower() for w in ['service', 'staff', 'wait']):
+                for r in aspect.get('related_reviews', [])[:2]:
+                    text = r.get('review_text', str(r)) if isinstance(r, dict) else str(r)
+                    if text not in relevant_reviews:
+                        relevant_reviews.append(text)
+    
+    if q_words & AMBIANCE_WORDS:
+        for aspect in all_aspects:
+            if any(w in aspect.get('name', '').lower() for w in ['ambiance', 'atmosphere', 'noise']):
+                for r in aspect.get('related_reviews', [])[:2]:
+                    text = r.get('review_text', str(r)) if isinstance(r, dict) else str(r)
+                    if text not in relevant_reviews:
+                        relevant_reviews.append(text)
+    
+    if q_words & FOOD_WORDS:
+        sorted_items = sorted(all_items, key=lambda x: x.get('sentiment', 0), reverse=True)
+        for item in sorted_items[:3]:
+            for r in item.get('related_reviews', [])[:2]:
+                text = r.get('review_text', str(r)) if isinstance(r, dict) else str(r)
+                if text not in relevant_reviews:
+                    relevant_reviews.append(text)
+    
+    # Fallback: get reviews from top items
+    if not relevant_reviews:
+        for item in all_items[:5]:
+            for r in item.get('related_reviews', [])[:1]:
+                text = r.get('review_text', str(r)) if isinstance(r, dict) else str(r)
+                if len(text) > 20:
+                    relevant_reviews.append(text)
+    
+    return relevant_reviews[:top_k]
+
+
+def generate_answer_with_claude(question: str, reviews: list, restaurant_name: str) -> str:
+    """GENERATION: Use Claude to generate answer from retrieved reviews."""
+    from anthropic import Anthropic
+    
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        return "⚠️ API key not configured for AI-powered answers."
+    
+    # Format reviews
+    reviews_text = ""
+    for i, review in enumerate(reviews[:6], 1):
+        text = review[:250] + "..." if len(review) > 250 else review
+        reviews_text += f"\n[Review {i}]: {text}\n"
+    
+    prompt = f"""Answer a question about {restaurant_name} based on these customer reviews.
+
+REVIEWS:
+{reviews_text}
+
+QUESTION: {question}
+
+Instructions:
+- Answer based ONLY on the reviews above
+- Be specific - mention dishes, staff, or details from reviews
+- Keep it concise (2-4 sentences)
+- Be natural and helpful
+
+Answer:"""
+
+    try:
+        client = Anthropic(api_key=api_key)
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=300,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.content[0].text
+    except Exception as e:
+        return f"⚠️ Could not generate answer: {str(e)}"
+
+
 def answer_question(question: str, state: dict) -> str:
+    """
+    TRUE RAG Q&A:
+    1. RETRIEVAL - Find relevant reviews
+    2. GENERATION - Claude generates answer from reviews
+    """
     if not question or not question.strip():
         return "❓ Please type a question above."
     if not state:
         return "⚠️ Please analyze a restaurant first."
     
     restaurant = state.get("restaurant_name", "the restaurant")
-    menu = state.get("menu_analysis", {})
-    aspects = state.get("aspect_analysis", {})
     
-    q = question.lower()
-    matches = []
+    # STEP 1: RETRIEVAL
+    relevant_reviews = find_relevant_reviews(question, state, top_k=6)
     
-    for item in menu.get('food_items', []) + menu.get('drinks', []):
-        name = item.get('name', '').lower()
-        if name in q or any(w in name for w in q.split() if len(w) > 3):
-            matches.append(item)
+    if not relevant_reviews:
+        return f"""**Q:** {question}
+
+**A:** I couldn't find relevant reviews to answer this question.
+
+💡 **Try asking:**
+• "What are the best dishes?"
+• "How is the service?"
+• "Is it good for a date?"
+• "Is it worth the price?"
+"""
     
-    for aspect in aspects.get('aspects', []):
-        name = aspect.get('name', '').lower()
-        if name in q or any(w in name for w in q.split() if len(w) > 3):
-            matches.append(aspect)
-    
-    if matches:
-        answer = f"**Based on reviews of {restaurant}:**\n\n"
-        for m in matches[:3]:
-            s = m.get('sentiment', 0)
-            emoji = "🟢" if s > 0.3 else "🟡" if s > -0.3 else "🔴"
-            answer += f"**{m.get('name', '?').title()}** {emoji} (sentiment: {s:+.2f})\n"
-            answer += f"{m.get('summary', '')[:250]}...\n\n"
-        return f"**Q:** {question}\n\n{answer}"
+    # STEP 2: GENERATION (Claude answers from reviews)
+    answer = generate_answer_with_claude(question, relevant_reviews, restaurant)
     
     return f"""**Q:** {question}
 
-**A:** I couldn't find specific information about that topic.
+**A:** {answer}
 
-💡 **Try asking about:**
-• Specific dishes (e.g., "How is the salmon?")
-• Service quality (e.g., "What do people say about service?")
-• Ambiance (e.g., "Is it good for dates?")
-• Value (e.g., "Is it worth the price?")
-"""
+---
+*🤖 AI-generated answer based on {len(relevant_reviews)} customer reviews*"""
 
 
 # ============================================================================
