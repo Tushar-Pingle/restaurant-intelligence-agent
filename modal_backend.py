@@ -1,5 +1,5 @@
 """
-Modal Backend for Restaurant Intelligence Agent - PARALLEL OPTIMIZED
+New Modal Backend for Restaurant Intelligence Agent - PARALLEL OPTIMIZED
 Version 3.0 - Uses Modal's parallel processing for 5x speed improvement
 
 KEY OPTIMIZATIONS:
@@ -9,6 +9,8 @@ KEY OPTIMIZATIONS:
 4. Reduced timeout since parallel is faster
 
 TARGET: 1000 reviews in ~5 minutes (down from 15+ minutes)
+
+FIXED: Proper handling of both OpenTable and Google Maps scraper response formats
 """
 
 import modal
@@ -479,6 +481,7 @@ def full_analysis_parallel(url: str, max_reviews: int = 100) -> Dict[str, Any]:
     Target: 1000 reviews in ~5 minutes
     """
     import time
+    import pandas as pd
     start_time = time.time()
     
     print(f"🚀 Starting PARALLEL analysis for {url}")
@@ -505,54 +508,103 @@ def full_analysis_parallel(url: str, max_reviews: int = 100) -> Dict[str, Any]:
     if not result.get("success"):
         return {"success": False, "error": result.get("error", "Scraping failed")}
     
-    # Check if we actually got any reviews
-    review_count = result.get('total_reviews', 0)
-    reviews_list = result.get('reviews', [])
-    if review_count == 0 and len(reviews_list) == 0:
-        return {"success": False, "error": "No reviews found. The restaurant may have no reviews or the scraper couldn't access them."}
-    
     print(f"✅ Scraping complete in {time.time() - scrape_start:.1f}s")
+    print(f"📦 Raw result keys: {list(result.keys())}")
     
-    # Process reviews - FIXED: Handle both old and new scraper formats
+    # =========================================================================
+    # FIXED: Properly handle BOTH OpenTable and Google Maps response formats
+    # =========================================================================
     from src.data_processing import clean_reviews_for_ai
-    import pandas as pd
     
-    # The scraper returns data at top level, not nested under 'reviews'
-    # Build DataFrame directly from scraper result
-    if 'names' in result:
-        # OpenTable format: data at top level with parallel arrays
-        df = pd.DataFrame({
-            'name': result.get('names', []),
-            'date': result.get('dates', []),
-            'overall_rating': result.get('overall_ratings', []),
-            'food_rating': result.get('food_ratings', []),
-            'service_rating': result.get('service_ratings', []),
-            'ambience_rating': result.get('ambience_ratings', []),
-            'review_text': result.get('reviews', [])
-        })
-    elif 'reviews' in result and isinstance(result['reviews'], list):
-        # Google Maps format: just a list of review texts
-        reviews_list = result.get('reviews', [])
-        dates_list = result.get('dates', [''] * len(reviews_list))
-        ratings_list = result.get('ratings', [0] * len(reviews_list))
+    df = None
+    
+    # Check what format we got
+    reviews_data = result.get('reviews', {})
+    print(f"📦 reviews_data type: {type(reviews_data)}")
+    
+    # FORMAT 1: Google Maps - nested dict with 'review_texts' key
+    # {'reviews': {'names': [...], 'dates': [...], 'overall_ratings': [...], 'review_texts': [...]}}
+    if isinstance(reviews_data, dict) and 'review_texts' in reviews_data:
+        print("📋 Detected Google Maps format (nested dict with review_texts)")
+        review_texts = reviews_data.get('review_texts', [])
+        n = len(review_texts)
         
-        # Ensure all lists are same length
-        n = len(reviews_list)
+        if n == 0:
+            return {"success": False, "error": "No reviews found in Google Maps response."}
+        
+        df = pd.DataFrame({
+            'name': (reviews_data.get('names', []) + [''] * n)[:n],
+            'date': (reviews_data.get('dates', []) + [''] * n)[:n],
+            'overall_rating': (reviews_data.get('overall_ratings', []) + [0.0] * n)[:n],
+            'food_rating': reviews_data.get('food_ratings', [0.0] * n)[:n],
+            'service_rating': reviews_data.get('service_ratings', [0.0] * n)[:n],
+            'ambience_rating': reviews_data.get('ambience_ratings', [0.0] * n)[:n],
+            'review_text': review_texts
+        })
+        print(f"✅ Built DataFrame from Google Maps: {len(df)} reviews")
+    
+    # FORMAT 2: OpenTable - flat structure at top level
+    # {'names': [...], 'dates': [...], 'overall_ratings': [...], 'reviews': [...]}
+    elif 'names' in result and isinstance(result.get('names'), list):
+        print("📋 Detected OpenTable format (flat top-level arrays)")
+        review_texts = result.get('reviews', [])
+        n = len(review_texts) if isinstance(review_texts, list) else 0
+        
+        if n == 0:
+            # Try 'review_texts' key as fallback
+            review_texts = result.get('review_texts', [])
+            n = len(review_texts)
+        
+        if n == 0:
+            return {"success": False, "error": "No reviews found in OpenTable response."}
+        
+        df = pd.DataFrame({
+            'name': (result.get('names', []) + [''] * n)[:n],
+            'date': (result.get('dates', []) + [''] * n)[:n],
+            'overall_rating': (result.get('overall_ratings', []) + [0.0] * n)[:n],
+            'food_rating': (result.get('food_ratings', []) + [0.0] * n)[:n],
+            'service_rating': (result.get('service_ratings', []) + [0.0] * n)[:n],
+            'ambience_rating': (result.get('ambience_ratings', []) + [0.0] * n)[:n],
+            'review_text': review_texts
+        })
+        print(f"✅ Built DataFrame from OpenTable: {len(df)} reviews")
+    
+    # FORMAT 3: Simple list of reviews (legacy format)
+    elif isinstance(reviews_data, list) and len(reviews_data) > 0:
+        print("📋 Detected simple list format")
+        n = len(reviews_data)
+        dates_list = result.get('dates', [''] * n)
+        ratings_list = result.get('ratings', result.get('overall_ratings', [0.0] * n))
+        
         df = pd.DataFrame({
             'name': [''] * n,
             'date': (dates_list + [''] * n)[:n],
-            'overall_rating': (ratings_list + [0] * n)[:n],
-            'food_rating': [0] * n,
-            'service_rating': [0] * n,
-            'ambience_rating': [0] * n,
-            'review_text': reviews_list
+            'overall_rating': (ratings_list + [0.0] * n)[:n],
+            'food_rating': [0.0] * n,
+            'service_rating': [0.0] * n,
+            'ambience_rating': [0.0] * n,
+            'review_text': reviews_data
         })
-    else:
-        # Fallback: try old format with process_reviews
-        from src.data_processing import process_reviews
-        df = process_reviews(result)
+        print(f"✅ Built DataFrame from list: {len(df)} reviews")
     
+    # FORMAT 4: Fallback to process_reviews
+    else:
+        print("📋 Using fallback process_reviews()")
+        try:
+            from src.data_processing import process_reviews
+            df = process_reviews(result)
+            print(f"✅ Built DataFrame via process_reviews: {len(df)} reviews")
+        except Exception as e:
+            print(f"❌ process_reviews failed: {e}")
+            return {"success": False, "error": f"Could not parse reviews: {e}"}
+    
+    # Validate we got something
+    if df is None or len(df) == 0:
+        return {"success": False, "error": "No reviews found. The restaurant may have no reviews or the scraper couldn't access them."}
+    
+    # =========================================================================
     # Convert ratings to numeric (handles both numeric and text ratings)
+    # =========================================================================
     def parse_rating(val):
         """Convert rating to numeric. OpenTable uses text ratings like 'Excellent', 'Good', etc."""
         if pd.isna(val) or val == '' or val is None:
@@ -561,7 +613,7 @@ def full_analysis_parallel(url: str, max_reviews: int = 100) -> Dict[str, Any]:
         # If already numeric
         try:
             num = float(val)
-            if 1 <= num <= 5:
+            if 0 <= num <= 5:
                 return num
         except (ValueError, TypeError):
             pass
@@ -593,7 +645,7 @@ def full_analysis_parallel(url: str, max_reviews: int = 100) -> Dict[str, Any]:
     # Get clean review texts
     reviews = clean_reviews_for_ai(df["review_text"].dropna().tolist(), verbose=False)
     
-    print(f"📊 Total reviews: {len(reviews)}")
+    print(f"📊 Total clean reviews: {len(reviews)}")
     
     # Debug: Check what ratings we got
     valid_ratings = df['overall_rating'][df['overall_rating'] > 0]
@@ -601,7 +653,9 @@ def full_analysis_parallel(url: str, max_reviews: int = 100) -> Dict[str, Any]:
     if len(valid_ratings) > 0:
         print(f"📊 Rating range: {valid_ratings.min():.1f} to {valid_ratings.max():.1f}, avg: {valid_ratings.mean():.2f}")
     
-    # Create trend data with better defaults
+    # =========================================================================
+    # Create trend_data with proper date handling
+    # =========================================================================
     trend_data = []
     for _, row in df.iterrows():
         text = str(row.get("review_text", ""))
@@ -613,11 +667,23 @@ def full_analysis_parallel(url: str, max_reviews: int = 100) -> Dict[str, Any]:
             # Map sentiment (-1 to 1) to rating (1 to 5)
             rating = round((sentiment + 1) * 2 + 1, 1)  # -1→1, 0→3, 1→5
         
+        date_val = row.get("date", "")
+        # Clean up date string
+        if pd.isna(date_val):
+            date_val = ""
+        else:
+            date_val = str(date_val).strip()
+        
         trend_data.append({
-            "date": str(row.get("date", "")),
+            "date": date_val,
             "rating": rating,
             "sentiment": sentiment
         })
+    
+    print(f"📊 Trend data points: {len(trend_data)}")
+    if trend_data:
+        sample_dates = [t['date'] for t in trend_data[:5]]
+        print(f"📊 Sample dates: {sample_dates}")
     
     # Extract restaurant name
     if platform == "opentable":
