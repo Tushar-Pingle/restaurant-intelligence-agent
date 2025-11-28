@@ -869,27 +869,24 @@ def full_analysis_parallel(url: str, max_reviews: int = 100) -> Dict[str, Any]:
         }
     }
     
-    # Phase 3: Generate insights (sequential with delay to avoid API overload)
-    print("🧠 Phase 3: Generating insights...")
+    # Phase 3: PARALLEL insights generation (with retry logic in the function)
+    print("🧠 Phase 3: PARALLEL insights generation...")
     insights_start = time.time()
     
-    # Generate insights sequentially with a small delay to avoid 529 errors
+    # Generate both insights in parallel
+    insight_inputs = [
+        (analysis_data, restaurant_name, "chef"),
+        (analysis_data, restaurant_name, "manager")
+    ]
+    
+    insight_results = list(generate_insights_parallel.starmap(insight_inputs))
+    
     insights = {}
-    
-    # Chef insights first
-    print("🔄 Generating chef insights...")
-    chef_result = generate_insights_parallel.remote(analysis_data, restaurant_name, "chef")
-    insights[chef_result["role"]] = chef_result["insights"]
-    print(f"📊 Chef insights received: {len(chef_result['insights'].get('strengths', []))} strengths")
-    
-    # Small delay before manager to avoid overloading
-    time.sleep(2)
-    
-    # Manager insights
-    print("🔄 Generating manager insights...")
-    manager_result = generate_insights_parallel.remote(analysis_data, restaurant_name, "manager")
-    insights[manager_result["role"]] = manager_result["insights"]
-    print(f"📊 Manager insights received: {len(manager_result['insights'].get('strengths', []))} strengths")
+    for result in insight_results:
+        role = result.get("role", "unknown")
+        role_insights = result.get("insights", {})
+        insights[role] = role_insights
+        print(f"📊 {role.title()} insights: {len(role_insights.get('strengths', []))} strengths, {len(role_insights.get('concerns', []))} concerns")
     
     print(f"✅ Insights complete in {time.time() - insights_start:.1f}s")
     
