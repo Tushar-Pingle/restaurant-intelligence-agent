@@ -1,3 +1,4 @@
+"""
 Google Maps Review Scraper - 2025 Production Version
 Updated with verified selectors from actual Google Maps DOM inspection.
 
