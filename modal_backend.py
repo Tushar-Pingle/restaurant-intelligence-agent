@@ -45,14 +45,18 @@ image = (
 # ============================================================================
 
 def calculate_sentiment(text: str) -> float:
-    """Simple sentiment calculation from review text."""
+    """
+    Simple sentiment calculation from review text.
+    This is the WORKING version from Document 4.
+    """
     if not text:
         return 0.0
     text = str(text).lower()
     
     positive = ['amazing', 'excellent', 'fantastic', 'great', 'awesome', 'delicious', 
                 'perfect', 'outstanding', 'loved', 'beautiful', 'fresh', 'friendly', 
-                'best', 'wonderful', 'incredible', 'superb', 'exceptional']
+                'best', 'wonderful', 'incredible', 'superb', 'exceptional', 'good',
+                'nice', 'tasty', 'recommend', 'enjoy', 'impressed', 'favorite']
     negative = ['terrible', 'horrible', 'awful', 'bad', 'worst', 'disappointing', 
                 'poor', 'overpriced', 'slow', 'rude', 'cold', 'bland', 'mediocre',
                 'disgusting', 'inedible', 'undercooked', 'overcooked']
@@ -548,24 +552,71 @@ def full_analysis_parallel(url: str, max_reviews: int = 100) -> Dict[str, Any]:
         from src.data_processing import process_reviews
         df = process_reviews(result)
     
-    # Convert ratings to numeric
+    # Convert ratings to numeric (handles both numeric and text ratings)
+    def parse_rating(val):
+        """Convert rating to numeric. OpenTable uses text ratings like 'Excellent', 'Good', etc."""
+        if pd.isna(val) or val == '' or val is None:
+            return 0.0
+        
+        # If already numeric
+        try:
+            num = float(val)
+            if 1 <= num <= 5:
+                return num
+        except (ValueError, TypeError):
+            pass
+        
+        # Text to number mapping (OpenTable style)
+        text_map = {
+            'excellent': 5.0,
+            'very good': 4.5,
+            'good': 4.0,
+            'average': 3.0,
+            'below average': 2.0,
+            'poor': 1.0,
+            'terrible': 1.0,
+            # Also handle numeric strings
+            '5': 5.0, '4': 4.0, '3': 3.0, '2': 2.0, '1': 1.0,
+        }
+        
+        val_str = str(val).lower().strip()
+        for key, num in text_map.items():
+            if key in val_str:
+                return num
+        
+        return 0.0
+    
     for col in ['overall_rating', 'food_rating', 'service_rating', 'ambience_rating']:
         if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors='coerce')
+            df[col] = df[col].apply(parse_rating)
     
     # Get clean review texts
     reviews = clean_reviews_for_ai(df["review_text"].dropna().tolist(), verbose=False)
     
     print(f"📊 Total reviews: {len(reviews)}")
     
-    # Create trend data
+    # Debug: Check what ratings we got
+    valid_ratings = df['overall_rating'][df['overall_rating'] > 0]
+    print(f"📊 Valid ratings: {len(valid_ratings)} out of {len(df)} reviews")
+    if len(valid_ratings) > 0:
+        print(f"📊 Rating range: {valid_ratings.min():.1f} to {valid_ratings.max():.1f}, avg: {valid_ratings.mean():.2f}")
+    
+    # Create trend data with better defaults
     trend_data = []
     for _, row in df.iterrows():
         text = str(row.get("review_text", ""))
+        rating = float(row.get("overall_rating", 0) or 0)
+        sentiment = calculate_sentiment(text)
+        
+        # If no rating extracted, estimate from sentiment
+        if rating == 0 and sentiment != 0:
+            # Map sentiment (-1 to 1) to rating (1 to 5)
+            rating = round((sentiment + 1) * 2 + 1, 1)  # -1→1, 0→3, 1→5
+        
         trend_data.append({
             "date": str(row.get("date", "")),
-            "rating": float(row.get("overall_rating", 0) or 0),
-            "sentiment": calculate_sentiment(text)
+            "rating": rating,
+            "sentiment": sentiment
         })
     
     # Extract restaurant name

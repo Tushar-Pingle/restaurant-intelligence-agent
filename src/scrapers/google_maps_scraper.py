@@ -1,19 +1,18 @@
 """
-Google Maps Review Scraper - ROBUST VERSION
-Updated for 2024/2025 Google Maps DOM structure with retry logic.
+Google Maps Review Scraper - VERIFIED SELECTORS VERSION
+Based on confirmed DOM structure research (Nov 2024).
 
-FEATURES:
-1. Updated selectors for current Google Maps DOM
-2. Retry logic with exponential backoff
-3. Multiple strategies to find reviews
-4. Works in containerized environments (Modal)
+VERIFIED SELECTORS:
+- Reviews tab: button.hh2c6.G7m0Af with aria-label="Reviews"
+- Scroll container: div.m6QErb.DxyBCb with role="feed"
+- Review card: div.jftiEf.fontBodyMedium with data-review-id
+- Review text: span.wiI7pd
+- More button: button.w8nwRe.kyuRq
 
-Author: Tushar Pingle
-Updated: Nov 2024
+NO RETRY DELAYS - keep it simple like the OpenTable scraper that works.
 """
 
 import time
-import random
 from typing import List, Dict, Any, Optional, Callable
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -33,76 +32,65 @@ from selenium.common.exceptions import (
 
 class GoogleMapsScraper:
     """
-    Robust Google Maps review scraper with multiple fallback strategies.
+    Google Maps review scraper with VERIFIED selectors.
     """
     
-    # Updated selectors for 2024/2025 Google Maps
+    # VERIFIED selectors from DOM research
     SELECTORS = {
-        # Reviews tab button - multiple options
+        # Reviews tab button
         "reviews_tab": [
-            "//button[contains(@aria-label, 'Reviews')]",
-            "//button[.//div[contains(text(), 'Reviews')]]",
-            "//div[@role='tab'][contains(., 'Reviews')]",
+            "//button[@aria-label='Reviews']",
+            "//button[contains(@class, 'hh2c6')]",
             "//button[@data-tab-index='1']",
-            "//div[contains(@class, 'Gpq6kf')]/button[2]",  # Second tab is usually Reviews
+            "//div[@role='tablist']//button[contains(., 'Review')]",
         ],
         
-        # Scrollable container for reviews
+        # Scrollable container - VERIFIED: div with role="feed"
         "scroll_container": [
-            "//div[contains(@class, 'm6QErb') and contains(@class, 'DxyBCb')]",
             "//div[@role='feed']",
-            "//div[contains(@class, 'review-dialog-list')]",
-            "//div[contains(@class, 'm6QErb')]//div[contains(@class, 'DxyBCb')]",
-            "//div[@tabindex='-1' and contains(@class, 'm6QErb')]",
+            "//div[contains(@class, 'm6QErb') and contains(@class, 'DxyBCb')]",
+            "//div[contains(@class, 'm6QErb')][@tabindex='-1']",
         ],
         
-        # Individual review cards
+        # Individual review cards - VERIFIED: div.jftiEf with data-review-id
         "review_cards": [
             "//div[@data-review-id]",
             "//div[contains(@class, 'jftiEf')]",
-            "//div[contains(@class, 'WMbnJf')]//div[contains(@class, 'jftiEf')]",
-            "//div[@jscontroller and contains(@class, 'fontBodyMedium')]//ancestor::div[@data-review-id]",
+            "//div[contains(@class, 'jftiEf') and contains(@class, 'fontBodyMedium')]",
         ],
         
-        # Review text within a card
+        # Review text - VERIFIED: span.wiI7pd
         "review_text": [
+            ".//span[@class='wiI7pd']",
             ".//span[contains(@class, 'wiI7pd')]",
             ".//div[contains(@class, 'MyEned')]//span",
-            ".//span[@class='wiI7pd']",
-            ".//div[@data-expandable-section]//span",
         ],
         
-        # "More" button to expand text
+        # "More" button to expand text - VERIFIED: button.w8nwRe
         "more_button": [
-            ".//button[contains(@aria-label, 'See more')]",
-            ".//button[contains(text(), 'More')]",
             ".//button[contains(@class, 'w8nwRe')]",
+            ".//button[@aria-expanded='false']",
+            ".//button[contains(text(), 'More')]",
         ],
         
-        # Rating stars
+        # Rating - span.kvMYJc or aria-label with stars
         "rating": [
-            ".//span[contains(@aria-label, 'star')]",
             ".//span[contains(@class, 'kvMYJc')]",
-            ".//div[contains(@class, 'DU9Pgb')]//span",
+            ".//span[contains(@aria-label, 'star')]",
         ],
         
-        # Review date
+        # Date - span.rsqaWe
         "date": [
             ".//span[contains(@class, 'rsqaWe')]",
             ".//span[contains(text(), 'ago')]",
-            ".//span[contains(text(), 'month') or contains(text(), 'year') or contains(text(), 'week') or contains(text(), 'day')]",
         ],
         
-        # Reviewer name
+        # Reviewer name - div.d4r55
         "reviewer_name": [
             ".//div[contains(@class, 'd4r55')]",
-            ".//button[contains(@class, 'WEBjve')]",
-            ".//a[contains(@class, 'WNxzHc')]",
+            ".//button[contains(@class, 'WEBjve')]//div",
         ],
     }
-    
-    MAX_RETRIES = 3
-    RETRY_DELAYS = [5, 15, 30]
     
     def __init__(self, headless: bool = True):
         self.headless = headless
@@ -116,58 +104,15 @@ class GoogleMapsScraper:
         progress_callback: Optional[Callable[[str], None]] = None
     ) -> Dict[str, Any]:
         """
-        Scrape reviews with automatic retry on failure.
+        Scrape reviews from Google Maps.
         """
         if not self._validate_url(url):
-            return {'success': False, 'error': 'Invalid Google Maps URL', 'reviews': []}
+            return {'success': False, 'error': 'Invalid Google Maps URL', 'reviews': [], 'total_reviews': 0}
         
-        last_error = None
-        
-        for attempt in range(self.MAX_RETRIES):
-            try:
-                self._log(f"🚀 Attempt {attempt + 1}/{self.MAX_RETRIES}...", progress_callback)
-                
-                result = self._scrape_with_retry(url, max_reviews, progress_callback)
-                
-                if result.get('success') and result.get('total_reviews', 0) > 0:
-                    return result
-                elif result.get('total_reviews', 0) == 0:
-                    last_error = "No reviews found - selectors may need updating"
-                    self._log(f"⚠️ Attempt {attempt + 1}: {last_error}", progress_callback)
-                else:
-                    last_error = result.get('error', 'Unknown error')
-                    self._log(f"⚠️ Attempt {attempt + 1} failed: {last_error}", progress_callback)
-                    
-            except Exception as e:
-                last_error = str(e)
-                self._log(f"⚠️ Attempt {attempt + 1} exception: {last_error}", progress_callback)
-            
-            finally:
-                self._cleanup()
-            
-            # Wait before retry
-            if attempt < self.MAX_RETRIES - 1:
-                delay = self.RETRY_DELAYS[attempt] + random.uniform(0, 5)
-                self._log(f"⏳ Waiting {delay:.0f}s before retry...", progress_callback)
-                time.sleep(delay)
-        
-        return {
-            'success': False,
-            'error': f'Failed after {self.MAX_RETRIES} attempts. Last error: {last_error}',
-            'reviews': [],
-            'total_reviews': 0
-        }
-    
-    def _scrape_with_retry(
-        self,
-        url: str,
-        max_reviews: Optional[int],
-        progress_callback: Optional[Callable]
-    ) -> Dict[str, Any]:
-        """
-        Core scraping logic.
-        """
-        self._init_driver()
+        try:
+            self._init_driver()
+        except Exception as e:
+            return {'success': False, 'error': f'Browser init failed: {str(e)}', 'reviews': [], 'total_reviews': 0}
         
         reviews = []
         dates = []
@@ -175,33 +120,28 @@ class GoogleMapsScraper:
         names = []
         
         try:
-            self._log("🌐 Loading Google Maps page...", progress_callback)
+            self._log("🚀 Starting Google Maps scraper...", progress_callback)
             self.driver.get(url)
             time.sleep(5)  # Wait for initial load
             
-            # Accept cookies if prompted
+            # Handle consent dialog if it appears
             self._handle_consent_dialog()
             
-            # Try to click on Reviews tab
+            # Click on Reviews tab
             self._log("📋 Looking for Reviews tab...", progress_callback)
             if not self._click_reviews_tab(progress_callback):
-                self._log("⚠️ Could not find Reviews tab, trying alternative methods...", progress_callback)
-                # Try scrolling on the main panel anyway
+                self._log("⚠️  Could not find Reviews tab, trying to scroll anyway...", progress_callback)
             
-            time.sleep(3)
+            time.sleep(3)  # Wait for reviews to load
             
             # Find scrollable container
             scroll_container = self._find_scroll_container(progress_callback)
             
-            if not scroll_container:
-                self._log("⚠️ Could not find scrollable container, trying body scroll...", progress_callback)
-                scroll_container = self.driver.find_element(By.TAG_NAME, "body")
-            
             # Scroll and collect reviews
             collected_ids = set()
-            no_new_reviews_count = 0
+            no_new_count = 0
             scroll_count = 0
-            max_scrolls = max(50, (max_reviews or 100) // 3)  # Estimate scrolls needed
+            max_scrolls = min(100, max(20, (max_reviews or 100) // 2))
             
             while len(reviews) < (max_reviews or 100) and scroll_count < max_scrolls:
                 scroll_count += 1
@@ -212,24 +152,26 @@ class GoogleMapsScraper:
                 new_count = 0
                 for card in review_cards:
                     try:
-                        # Get unique identifier
-                        card_id = card.get_attribute('data-review-id') or card.id
+                        # Get unique ID
+                        card_id = card.get_attribute('data-review-id')
+                        if not card_id:
+                            card_id = str(id(card))
                         
                         if card_id in collected_ids:
                             continue
                         
-                        # Expand "More" text if available
-                        self._expand_review_text(card)
+                        # Click "More" to expand if needed
+                        self._expand_review(card)
                         
-                        # Extract data
-                        text = self._extract_review_text(card)
+                        # Extract text
+                        text = self._extract_text(card, self.SELECTORS["review_text"])
                         
                         if text and len(text.strip()) > 10:
                             collected_ids.add(card_id)
                             reviews.append(text)
-                            dates.append(self._extract_date(card))
+                            dates.append(self._extract_text(card, self.SELECTORS["date"]))
                             ratings.append(self._extract_rating(card))
-                            names.append(self._extract_name(card))
+                            names.append(self._extract_text(card, self.SELECTORS["reviewer_name"]))
                             new_count += 1
                             
                             if len(reviews) >= (max_reviews or 100):
@@ -240,40 +182,48 @@ class GoogleMapsScraper:
                     except Exception:
                         continue
                 
-                self._log(f"📄 Scroll {scroll_count}: Found {len(review_cards)} cards, collected {len(reviews)} unique reviews", progress_callback)
+                self._log(f"📄 Scroll {scroll_count}: Found {len(review_cards)} review cards, collected {len(reviews)} unique reviews", progress_callback)
                 
                 if new_count == 0:
-                    no_new_reviews_count += 1
-                    if no_new_reviews_count >= 5:
-                        self._log("📍 No new reviews found after 5 scrolls, stopping", progress_callback)
+                    no_new_count += 1
+                    if no_new_count >= 5:
+                        self._log("📍 No new reviews after 5 scrolls, stopping", progress_callback)
                         break
                 else:
-                    no_new_reviews_count = 0
+                    no_new_count = 0
                 
                 # Scroll down
-                try:
-                    if scroll_container:
-                        self.driver.execute_script(
-                            "arguments[0].scrollTop = arguments[0].scrollTop + arguments[0].offsetHeight * 0.8",
-                            scroll_container
-                        )
-                    else:
-                        ActionChains(self.driver).send_keys(Keys.PAGE_DOWN).perform()
-                except:
-                    ActionChains(self.driver).send_keys(Keys.PAGE_DOWN).perform()
-                
+                self._scroll_down(scroll_container)
                 time.sleep(1.5)
             
             self._log(f"✅ Scraped {len(reviews)} reviews from Google Maps", progress_callback)
             
+            if len(reviews) == 0:
+                return {
+                    'success': False,
+                    'error': 'No reviews found. Selectors may need updating.',
+                    'reviews': {},
+                    'total_reviews': 0
+                }
+            
+            # Return NESTED format matching working version
             return {
                 'success': True,
                 'total_reviews': len(reviews),
-                'reviews': reviews,
-                'dates': dates,
-                'ratings': ratings,
-                'names': names,
-                'source': 'google_maps'
+                'total_pages': scroll_count,
+                'reviews': {  # NESTED dict like working version
+                    'names': names,
+                    'dates': dates,
+                    'overall_ratings': ratings,
+                    'food_ratings': [0.0] * len(ratings),
+                    'service_ratings': [0.0] * len(ratings),
+                    'ambience_ratings': [0.0] * len(ratings),
+                    'review_texts': reviews  # 'review_texts' not 'reviews'
+                },
+                'metadata': {
+                    'source': 'google_maps',
+                    'scroll_count': scroll_count
+                }
             }
             
         except TimeoutException as e:
@@ -282,17 +232,14 @@ class GoogleMapsScraper:
             return {'success': False, 'error': f'Browser error: {str(e)}', 'reviews': [], 'total_reviews': 0}
         except Exception as e:
             return {'success': False, 'error': f'Scraping error: {str(e)}', 'reviews': [], 'total_reviews': 0}
+        finally:
+            self._cleanup()
     
     def _handle_consent_dialog(self):
-        """Handle Google consent/cookie dialog if it appears."""
+        """Handle Google consent/cookie dialog."""
         try:
-            consent_buttons = [
-                "//button[contains(., 'Accept')]",
-                "//button[contains(., 'Reject')]",
-                "//button[contains(., 'I agree')]",
-                "//form//button",
-            ]
-            for selector in consent_buttons:
+            # Try various consent buttons
+            for selector in ["//button[contains(., 'Accept')]", "//button[contains(., 'Reject all')]", "//form//button"]:
                 try:
                     btn = self.driver.find_element(By.XPATH, selector)
                     if btn.is_displayed():
@@ -305,7 +252,7 @@ class GoogleMapsScraper:
             pass
     
     def _click_reviews_tab(self, progress_callback: Optional[Callable]) -> bool:
-        """Try to click the Reviews tab."""
+        """Click the Reviews tab."""
         for selector in self.SELECTORS["reviews_tab"]:
             try:
                 tab = WebDriverWait(self.driver, 10).until(
@@ -317,12 +264,12 @@ class GoogleMapsScraper:
             except:
                 continue
         
-        # Alternative: try clicking based on visible text
+        # Fallback: look for any button containing "Review" text
         try:
-            tabs = self.driver.find_elements(By.XPATH, "//button[@role='tab']")
-            for tab in tabs:
-                if 'review' in tab.text.lower():
-                    tab.click()
+            buttons = self.driver.find_elements(By.TAG_NAME, "button")
+            for btn in buttons:
+                if 'review' in btn.text.lower():
+                    btn.click()
                     self._log("✅ Clicked Reviews tab (text match)", progress_callback)
                     return True
         except:
@@ -337,19 +284,16 @@ class GoogleMapsScraper:
                 container = WebDriverWait(self.driver, 5).until(
                     EC.presence_of_element_located((By.XPATH, selector))
                 )
-                # Verify it's scrollable
-                scroll_height = self.driver.execute_script("return arguments[0].scrollHeight", container)
-                if scroll_height > 100:
-                    self._log(f"✅ Found scrollable container", progress_callback)
-                    return container
+                self._log("✅ Found scrollable container", progress_callback)
+                return container
             except:
                 continue
         
-        self._log("⚠️ Could not find scrollable reviews container", progress_callback)
+        self._log("⚠️  Could not find scrollable reviews container", progress_callback)
         return None
     
     def _find_review_cards(self) -> List:
-        """Find all review cards on the page."""
+        """Find all review cards."""
         for selector in self.SELECTORS["review_cards"]:
             try:
                 cards = self.driver.find_elements(By.XPATH, selector)
@@ -359,7 +303,7 @@ class GoogleMapsScraper:
                 continue
         return []
     
-    def _expand_review_text(self, card):
+    def _expand_review(self, card):
         """Click "More" button to expand review text."""
         for selector in self.SELECTORS["more_button"]:
             try:
@@ -371,38 +315,33 @@ class GoogleMapsScraper:
             except:
                 continue
     
-    def _extract_review_text(self, card) -> str:
-        """Extract review text from a card."""
-        for selector in self.SELECTORS["review_text"]:
+    def _extract_text(self, card, selectors: List[str]) -> str:
+        """Extract text using fallback selectors."""
+        for selector in selectors:
             try:
                 elem = card.find_element(By.XPATH, selector)
                 text = elem.text.strip()
-                if text and len(text) > 10:
+                if text:
                     return text
             except:
                 continue
-        
-        # Fallback: get all text and filter
-        try:
-            full_text = card.text
-            lines = [l.strip() for l in full_text.split('\n') if l.strip()]
-            # Find longest line that looks like a review
-            for line in sorted(lines, key=len, reverse=True):
-                if len(line) > 30 and not any(x in line.lower() for x in ['star', 'ago', 'review', 'photo']):
-                    return line
-        except:
-            pass
-        
         return ""
     
     def _extract_rating(self, card) -> float:
-        """Extract star rating from a card."""
+        """Extract star rating."""
         for selector in self.SELECTORS["rating"]:
             try:
                 elem = card.find_element(By.XPATH, selector)
-                aria_label = elem.get_attribute('aria-label') or ""
-                # Parse "5 stars" or "4 star" etc
-                for word in aria_label.split():
+                # Try aria-label first
+                aria = elem.get_attribute('aria-label') or ""
+                for word in aria.split():
+                    try:
+                        return float(word)
+                    except:
+                        continue
+                # Try text content
+                text = elem.text
+                for word in text.split():
                     try:
                         return float(word)
                     except:
@@ -411,63 +350,58 @@ class GoogleMapsScraper:
                 continue
         return 0.0
     
-    def _extract_date(self, card) -> str:
-        """Extract date from a card."""
-        for selector in self.SELECTORS["date"]:
-            try:
-                elem = card.find_element(By.XPATH, selector)
-                return elem.text.strip()
-            except:
-                continue
-        return ""
-    
-    def _extract_name(self, card) -> str:
-        """Extract reviewer name from a card."""
-        for selector in self.SELECTORS["reviewer_name"]:
-            try:
-                elem = card.find_element(By.XPATH, selector)
-                return elem.text.strip()
-            except:
-                continue
-        return ""
+    def _scroll_down(self, container):
+        """Scroll down in the container."""
+        try:
+            if container:
+                self.driver.execute_script(
+                    "arguments[0].scrollTop = arguments[0].scrollTop + arguments[0].offsetHeight * 0.8",
+                    container
+                )
+            else:
+                ActionChains(self.driver).send_keys(Keys.PAGE_DOWN).perform()
+        except:
+            ActionChains(self.driver).send_keys(Keys.PAGE_DOWN).perform()
     
     def _init_driver(self):
-        """Initialize Chrome with robust settings for containers."""
+        """Initialize Chrome - SIMPLE settings like OpenTable."""
         chrome_options = Options()
+        chrome_options.page_load_strategy = 'eager'  # Fast like OpenTable
         
         if self.headless:
             chrome_options.add_argument('--headless=new')
+            chrome_options.add_argument('--no-sandbox')
+            chrome_options.add_argument('--disable-dev-shm-usage')
+            chrome_options.add_argument('--disable-gpu')
         
-        # Container-friendly options
-        chrome_options.add_argument('--no-sandbox')
-        chrome_options.add_argument('--disable-dev-shm-usage')
-        chrome_options.add_argument('--disable-gpu')
-        chrome_options.add_argument('--disable-software-rasterizer')
-        chrome_options.add_argument('--disable-extensions')
-        chrome_options.add_argument('--disable-plugins')
-        chrome_options.add_argument('--window-size=1920,1080')
-        
-        # Avoid bot detection
+        # User agent
         chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36')
+        
+        # Anti-detection
         chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
         chrome_options.add_experimental_option('useAutomationExtension', False)
         
         service = Service('/usr/local/bin/chromedriver')
         self.driver = webdriver.Chrome(service=service, options=chrome_options)
-        self.driver.set_page_load_timeout(60)
-        self.driver.set_script_timeout(60)
-        self.driver.implicitly_wait(10)
-        self.wait = WebDriverWait(self.driver, 20)
+        self.driver.set_page_load_timeout(30)
+        self.wait = WebDriverWait(self.driver, 10)
+        
+        # Anti-detection CDP command (from working version)
+        self.driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
+            'source': '''
+                Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+                Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
+            '''
+        })
     
     def _cleanup(self):
-        """Close browser safely."""
+        """Close browser."""
         if self.driver:
             try:
                 self.driver.quit()
             except:
                 pass
             self.driver = None
-            self.wait = None
     
     def _validate_url(self, url: str) -> bool:
         """Validate Google Maps URL."""
@@ -486,14 +420,13 @@ class GoogleMapsScraper:
 
 def scrape_google_maps(url: str, max_reviews: Optional[int] = 100, headless: bool = True) -> Dict[str, Any]:
     """
-    Convenience function to scrape Google Maps reviews.
+    Scrape reviews from Google Maps.
     """
     scraper = GoogleMapsScraper(headless=headless)
     return scraper.scrape_reviews(url, max_reviews)
 
 
 if __name__ == "__main__":
-    # Test
     test_url = "https://www.google.com/maps/place/Nightingale/@49.2784422,-123.1214336,17z"
     result = scrape_google_maps(test_url, max_reviews=20)
     

@@ -114,14 +114,22 @@ def parse_opentable_date(date_str: str) -> Optional[datetime]:
 
 
 def calculate_review_sentiment(text: str) -> float:
-    """Simple sentiment calculation from review text."""
+    """
+    Simple sentiment calculation from review text.
+    Returns value from -1 (very negative) to +1 (very positive).
+    
+    NOTE: This matches the backend's calculate_sentiment() function.
+    The backend pre-calculates sentiment in trend_data, but this is used
+    as a fallback when text needs to be analyzed locally.
+    """
     if not text:
         return 0.0
     text = str(text).lower()
     
     positive = ['amazing', 'excellent', 'fantastic', 'great', 'awesome', 'delicious', 
                 'perfect', 'outstanding', 'loved', 'beautiful', 'fresh', 'friendly', 
-                'best', 'wonderful', 'incredible', 'superb', 'exceptional']
+                'best', 'wonderful', 'incredible', 'superb', 'exceptional', 'good',
+                'nice', 'tasty', 'recommend', 'enjoy', 'impressed', 'favorite']
     negative = ['terrible', 'horrible', 'awful', 'bad', 'worst', 'disappointing', 
                 'poor', 'overpriced', 'slow', 'rude', 'cold', 'bland', 'mediocre',
                 'disgusting', 'inedible', 'undercooked', 'overcooked']
