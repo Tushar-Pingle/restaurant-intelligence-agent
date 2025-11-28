@@ -79,7 +79,7 @@ def calculate_sentiment(text: str) -> float:
     image=image,
     secrets=[modal.Secret.from_name("anthropic-api-key")],
     timeout=120,  # 2 min per batch is plenty
-    retries=2,
+    retries=3,  # Retry on transient failures
 )
 def process_batch(batch_data: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -209,12 +209,14 @@ Extract everything:"""
     image=image,
     secrets=[modal.Secret.from_name("anthropic-api-key")],
     timeout=180,  # 3 min for insights
+    retries=3,  # Retry on failure
 )
 def generate_insights_parallel(analysis_data: Dict[str, Any], restaurant_name: str, role: str) -> Dict[str, Any]:
     """Generate insights for a single role - runs in parallel with other insights."""
     from anthropic import Anthropic
     import os
     import re
+    import time as time_module
     
     print(f"🧠 Generating {role} insights...")
     
@@ -225,20 +227,20 @@ def generate_insights_parallel(analysis_data: Dict[str, Any], restaurant_name: s
     drinks = analysis_data.get('menu_analysis', {}).get('drinks', [])[:10]
     aspects = analysis_data.get('aspect_analysis', {}).get('aspects', [])[:20]
     
-    # Format menu summary
+    # Format menu summary (using text instead of emojis for reliability)
     menu_lines = ["TOP MENU ITEMS:"]
     for item in menu_items:
         s = item.get('sentiment', 0)
-        emoji = "🟢" if s >= 0.6 else "🟡" if s >= 0 else "🔴"
-        menu_lines.append(f"  {emoji} {item.get('name', '?')}: sentiment {s:+.2f}, {item.get('mention_count', 0)} mentions")
+        indicator = "[+]" if s >= 0.6 else "[~]" if s >= 0 else "[-]"
+        menu_lines.append(f"  {indicator} {item.get('name', '?')}: sentiment {s:+.2f}, {item.get('mention_count', 0)} mentions")
     menu_summary = "\n".join(menu_lines)
     
     # Format aspect summary
     aspect_lines = ["TOP ASPECTS:"]
     for a in aspects:
         s = a.get('sentiment', 0)
-        emoji = "🟢" if s >= 0.6 else "🟡" if s >= 0 else "🔴"
-        aspect_lines.append(f"  {emoji} {a.get('name', '?')}: sentiment {s:+.2f}, {a.get('mention_count', 0)} mentions")
+        indicator = "[+]" if s >= 0.6 else "[~]" if s >= 0 else "[-]"
+        aspect_lines.append(f"  {indicator} {a.get('name', '?')}: sentiment {s:+.2f}, {a.get('mention_count', 0)} mentions")
     aspect_summary = "\n".join(aspect_lines)
     
     if role == 'chef':
@@ -255,9 +257,9 @@ def generate_insights_parallel(analysis_data: Dict[str, Any], restaurant_name: s
 {aspect_summary}
 
 SENTIMENT SCALE:
-- 🟢 POSITIVE (>= 0.6): Highlight as STRENGTH
-- 🟡 NEUTRAL (0 to 0.59): Room for improvement
-- 🔴 NEGATIVE (< 0): Flag as CONCERN
+- POSITIVE (>= 0.6): Highlight as STRENGTH
+- NEUTRAL (0 to 0.59): Room for improvement
+- NEGATIVE (< 0): Flag as CONCERN
 
 YOUR TASK: Generate insights for the {"HEAD CHEF" if role == "chef" else "RESTAURANT MANAGER"}.
 {focus}
@@ -282,30 +284,59 @@ OUTPUT:
 
 Generate {role} insights:"""
 
-    try:
-        response = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=2000,
-            temperature=0.4,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        
-        result_text = response.content[0].text.strip()
-        result_text = result_text.replace('```json', '').replace('```', '').strip()
-        
-        # Find JSON in response
-        match = re.search(r'\{[\s\S]*\}', result_text)
-        if match:
-            insights = json.loads(match.group())
-            print(f"✅ {role.title()} insights generated")
-            return {"role": role, "insights": insights}
-        else:
-            print(f"⚠️ No JSON found in {role} response")
-            return {"role": role, "insights": _fallback_insights(role)}
+    # Retry logic for transient errors (overloaded, rate limits, etc.)
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            print(f"🔄 Calling API for {role} insights (attempt {attempt + 1}/{max_retries})...")
+            response = client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=2000,
+                temperature=0.4,
+                messages=[{"role": "user", "content": prompt}]
+            )
             
-    except Exception as e:
-        print(f"❌ Error generating {role} insights: {e}")
-        return {"role": role, "insights": _fallback_insights(role)}
+            result_text = response.content[0].text.strip()
+            print(f"📝 {role} raw response length: {len(result_text)} chars")
+            
+            result_text = result_text.replace('```json', '').replace('```', '').strip()
+            
+            # Find JSON in response
+            match = re.search(r'\{[\s\S]*\}', result_text)
+            if match:
+                try:
+                    insights = json.loads(match.group())
+                    # Validate the insights structure
+                    if 'summary' in insights and 'strengths' in insights:
+                        print(f"✅ {role.title()} insights generated successfully")
+                        return {"role": role, "insights": insights}
+                    else:
+                        print(f"⚠️ {role} insights missing required fields")
+                        return {"role": role, "insights": _fallback_insights(role)}
+                except json.JSONDecodeError as je:
+                    print(f"⚠️ {role} JSON parse error: {je}")
+                    return {"role": role, "insights": _fallback_insights(role)}
+            else:
+                print(f"⚠️ No JSON found in {role} response")
+                return {"role": role, "insights": _fallback_insights(role)}
+                
+        except Exception as e:
+            error_str = str(e)
+            # Check if it's a transient error (overloaded, rate limit, etc.)
+            if '529' in error_str or 'overloaded' in error_str.lower() or '429' in error_str or 'rate' in error_str.lower():
+                if attempt < max_retries - 1:
+                    wait_time = (attempt + 1) * 5  # 5s, 10s, 15s
+                    print(f"⚠️ API overloaded for {role}, waiting {wait_time}s before retry...")
+                    time_module.sleep(wait_time)
+                    continue
+                else:
+                    print(f"❌ API still overloaded after {max_retries} retries for {role}")
+                    return {"role": role, "insights": _fallback_insights(role)}
+            else:
+                print(f"❌ Error generating {role} insights: {e}")
+                return {"role": role, "insights": _fallback_insights(role)}
+    
+    return {"role": role, "insights": _fallback_insights(role)}
 
 
 def _fallback_insights(role: str) -> Dict[str, Any]:
@@ -838,21 +869,27 @@ def full_analysis_parallel(url: str, max_reviews: int = 100) -> Dict[str, Any]:
         }
     }
     
-    # Phase 3: PARALLEL insights generation
-    print("🧠 Phase 3: PARALLEL insights generation...")
+    # Phase 3: Generate insights (sequential with delay to avoid API overload)
+    print("🧠 Phase 3: Generating insights...")
     insights_start = time.time()
     
-    # Generate both insights in parallel!
-    insight_inputs = [
-        (analysis_data, restaurant_name, "chef"),
-        (analysis_data, restaurant_name, "manager")
-    ]
-    
-    insight_results = list(generate_insights_parallel.starmap(insight_inputs))
-    
+    # Generate insights sequentially with a small delay to avoid 529 errors
     insights = {}
-    for result in insight_results:
-        insights[result["role"]] = result["insights"]
+    
+    # Chef insights first
+    print("🔄 Generating chef insights...")
+    chef_result = generate_insights_parallel.remote(analysis_data, restaurant_name, "chef")
+    insights[chef_result["role"]] = chef_result["insights"]
+    print(f"📊 Chef insights received: {len(chef_result['insights'].get('strengths', []))} strengths")
+    
+    # Small delay before manager to avoid overloading
+    time.sleep(2)
+    
+    # Manager insights
+    print("🔄 Generating manager insights...")
+    manager_result = generate_insights_parallel.remote(analysis_data, restaurant_name, "manager")
+    insights[manager_result["role"]] = manager_result["insights"]
+    print(f"📊 Manager insights received: {len(manager_result['insights'].get('strengths', []))} strengths")
     
     print(f"✅ Insights complete in {time.time() - insights_start:.1f}s")
     
