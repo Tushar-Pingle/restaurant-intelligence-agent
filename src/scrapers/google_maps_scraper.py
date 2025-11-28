@@ -45,10 +45,11 @@ class GoogleMapsScraper:
             "//div[@role='tablist']//button[contains(., 'Review')]",
         ],
         
-        # Scrollable container - VERIFIED: div with role="feed"
+        # Scrollable container - from working version
         "scroll_container": [
-            "//div[@role='feed']",
             "//div[contains(@class, 'm6QErb') and contains(@class, 'DxyBCb')]",
+            "//div[contains(@class, 'XiKgde')]",
+            "//div[@role='feed']",
             "//div[contains(@class, 'm6QErb')][@tabindex='-1']",
         ],
         
@@ -59,10 +60,11 @@ class GoogleMapsScraper:
             "//div[contains(@class, 'jftiEf') and contains(@class, 'fontBodyMedium')]",
         ],
         
-        # Review text - VERIFIED: span.wiI7pd
+        # Review text - from working version with expanded text support
         "review_text": [
-            ".//span[@class='wiI7pd']",
             ".//span[contains(@class, 'wiI7pd')]",
+            ".//span[@jsname='fbQN7e']",  # Full expanded text
+            ".//span[@jsname='bN97Pc']",  # Truncated text
             ".//div[contains(@class, 'MyEned')]//span",
         ],
         
@@ -163,8 +165,21 @@ class GoogleMapsScraper:
                         # Click "More" to expand if needed
                         self._expand_review(card)
                         
-                        # Extract text
-                        text = self._extract_text(card, self.SELECTORS["review_text"])
+                        # Extract text - try multiple approaches like working version
+                        text = ""
+                        # First try expanded text selectors
+                        for selector in [".//span[@jsname='fbQN7e']", ".//span[contains(@class, 'wiI7pd')]"]:
+                            try:
+                                elem = card.find_element(By.XPATH, selector)
+                                t = elem.text.strip()
+                                if t and len(t) > len(text):
+                                    text = t
+                            except:
+                                continue
+                        
+                        # Fallback to general text selectors
+                        if not text:
+                            text = self._extract_text(card, self.SELECTORS["review_text"])
                         
                         if text and len(text.strip()) > 10:
                             collected_ids.add(card_id)
@@ -351,14 +366,16 @@ class GoogleMapsScraper:
         return 0.0
     
     def _scroll_down(self, container):
-        """Scroll down in the container."""
+        """Scroll down in the container - matches working version."""
         try:
             if container:
+                # Scroll to bottom (like working version)
                 self.driver.execute_script(
-                    "arguments[0].scrollTop = arguments[0].scrollTop + arguments[0].offsetHeight * 0.8",
+                    "arguments[0].scrollTop = arguments[0].scrollHeight",
                     container
                 )
             else:
+                # Fallback: scroll the page
                 ActionChains(self.driver).send_keys(Keys.PAGE_DOWN).perform()
         except:
             ActionChains(self.driver).send_keys(Keys.PAGE_DOWN).perform()
