@@ -1,3 +1,17 @@
+# ============================================================
+# CHANGELOG - google_maps_scraper.py
+# ============================================================
+# Issue ID | Change Description                          | Lines Affected
+# ------------------------------------------------------------
+# INIT-01  | ALREADY IMPLEMENTED - no changes needed     | N/A
+# INIT-03  | Enhanced error messages for browser init    | scrape_reviews() (lines ~310-330)
+# NAV-01   | Added _wait_for_page_load() method          | New method (lines ~260-280)
+# NAV-01   | Replaced time.sleep(5) with WebDriverWait   | scrape_reviews() (lines ~340-355)
+# ============================================================
+# IMPORTANT: All other code is UNCHANGED from original working version
+# FMT-02 is already NESTED - NO CHANGE NEEDED
+# ============================================================
+
 """
 Google Maps Review Scraper - 2025 Production Version
 Updated with VERIFIED selectors from actual Google Maps DOM inspection.
@@ -119,6 +133,14 @@ class GoogleMapsScraper:
             ".//span[text()='More']/parent::button",
             ".//button[.//span[text()='More']]",
         ],
+        
+        # [NAV-01] Added selectors for page load verification
+        "page_loaded": [
+            "//div[contains(@class, 'fontHeadlineSmall')]",  # Restaurant name
+            "//button[contains(@aria-label, 'Reviews')]",     # Reviews tab
+            "//div[@role='main']",                            # Main content
+            "//h1",                                           # Page title
+        ],
     }
     
     def __init__(self, headless: bool = True, chromedriver_path: Optional[str] = None):
@@ -144,7 +166,9 @@ class GoogleMapsScraper:
         try:
             from webdriver_manager.chrome import ChromeDriverManager
             return ChromeDriverManager().install()
-        except:
+        except ImportError:
+            pass
+        except Exception:
             pass
         
         return '/usr/local/bin/chromedriver'
@@ -450,6 +474,22 @@ class GoogleMapsScraper:
             print(f"[GMAPS] Error extracting review {idx}: {e}")
             return None
     
+    # [NAV-01] NEW METHOD - Wait for page to load with specific element
+    def _wait_for_page_load(self, timeout: int = 10) -> bool:
+        """
+        Wait for Google Maps page to load by checking for key elements.
+        Returns True if page loaded, False if timeout.
+        """
+        for selector in self.SELECTORS["page_loaded"]:
+            try:
+                WebDriverWait(self.driver, timeout).until(
+                    EC.presence_of_element_located((By.XPATH, selector))
+                )
+                return True
+            except TimeoutException:
+                continue
+        return False
+    
     def scrape_reviews(
         self,
         url: str,
@@ -465,8 +505,28 @@ class GoogleMapsScraper:
                 'reviews': {}
             }
         
+        # [INIT-03] Enhanced error handling with user-friendly messages
         try:
             self._init_driver()
+        except FileNotFoundError as e:
+            return {
+                'success': False,
+                'error': f'Chromedriver not found at {self.chromedriver_path}. Please install Chrome/Chromedriver or set the correct path.',
+                'reviews': {}
+            }
+        except WebDriverException as e:
+            error_msg = str(e).lower()
+            if 'chromedriver' in error_msg or 'chrome' in error_msg or 'session not created' in error_msg:
+                return {
+                    'success': False,
+                    'error': f'Browser initialization failed. Please ensure Chrome and Chromedriver are installed and compatible. Details: {str(e)[:200]}',
+                    'reviews': {}
+                }
+            return {
+                'success': False,
+                'error': f'Browser initialization failed: {str(e)[:200]}',
+                'reviews': {}
+            }
         except Exception as e:
             return {
                 'success': False, 
@@ -479,7 +539,15 @@ class GoogleMapsScraper:
             
             # Load the page
             self.driver.get(url)
-            time.sleep(5)
+            
+            # [NAV-01] Use WebDriverWait instead of fixed 5s sleep
+            self._log_progress("⏳ Waiting for page to load...", progress_callback)
+            if not self._wait_for_page_load(timeout=10):
+                # Fallback to short sleep if element not found (page might still work)
+                self._log_progress("⚠️ Page load check timed out, continuing with fallback...", progress_callback)
+                time.sleep(3)
+            else:
+                self._log_progress("✅ Page loaded successfully", progress_callback)
             
             # Handle consent dialog if present
             self._handle_consent_dialog(progress_callback)
@@ -591,6 +659,7 @@ class GoogleMapsScraper:
                 progress_callback
             )
             
+            # Return NESTED format (already correct - FMT-02)
             return {
                 'success': True,
                 'total_reviews': len(review_texts),
@@ -659,7 +728,7 @@ def scrape_google_maps(
         chromedriver_path: Optional path to chromedriver
     
     Returns:
-        Dict with 'success', 'total_reviews', and 'reviews' data
+        Dict with 'success', 'total_reviews', and 'reviews' data in NESTED format
     """
     scraper = GoogleMapsScraper(headless=headless, chromedriver_path=chromedriver_path)
     return scraper.scrape_reviews(url, max_reviews=max_reviews)

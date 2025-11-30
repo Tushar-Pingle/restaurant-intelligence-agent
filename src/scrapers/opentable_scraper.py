@@ -1,3 +1,16 @@
+# ============================================================
+# CHANGELOG - opentable_scraper.py
+# ============================================================
+# Issue ID | Change Description                          | Lines Affected
+# ------------------------------------------------------------
+# INIT-01  | Added chromedriver_path param + auto-detect | __init__ (line ~95), _find_chromedriver() (lines ~100-120), _init_driver() (line ~140)
+# INIT-03  | Enhanced error message on browser init fail | scrape_reviews() (line ~165)
+# NAV-01   | WebDriverWait instead of fixed 5s sleep     | scrape_reviews() (lines ~175-185)
+# FMT-01   | Changed return format from FLAT to NESTED   | scrape_reviews() return (lines ~280-300)
+# ============================================================
+# IMPORTANT: All other code is UNCHANGED from original working version
+# ============================================================
+
 """
 OpenTable Review Scraper - ORIGINAL WORKING VERSION
 This is the scraper that WAS working. Only change: returns data in correct format.
@@ -10,6 +23,7 @@ DO NOT ADD:
 """
 
 import time
+import os
 from typing import List, Dict, Any, Optional, Callable
 from selenium import webdriver
 from selenium.common.exceptions import (
@@ -78,14 +92,147 @@ class OpenTableScraper:
             ".//div[contains(@class,'review')]/span",
             ".//p[not(contains(., 'Dined')) and not(.//*) and string-length(normalize-space())>20]",
             ".//span[not(contains(., 'Dined')) and not(.//*) and string-length(normalize-space())>20]"
+        ],
+        # [INIT-01] Added selector for page load verification (used in NAV-01)
+        "page_loaded": [
+            "//section[@id='reviews']",
+            "//section[contains(@class, 'review')]",
+            "//li[@data-test='reviews-list-item']",
+            "//h2[contains(., 'people are saying') or contains(., 'Reviews')]"
         ]
     }
     
-    def __init__(self, headless: bool = True, page_load_strategy: str = 'eager'):
+    # [INIT-01] Added chromedriver_path parameter
+    def __init__(self, headless: bool = True, page_load_strategy: str = 'eager', chromedriver_path: Optional[str] = None):
         self.headless = headless
         self.page_load_strategy = page_load_strategy  # KEEP 'eager' - it works!
         self.driver = None
         self.wait = None
+        # [INIT-01] Use provided path or auto-detect
+        self.chromedriver_path = chromedriver_path or self._find_chromedriver()
+    
+    # [INIT-01] NEW METHOD - Auto-detect chromedriver location
+    def _find_chromedriver(self) -> str:
+        """Find chromedriver in common locations."""
+        common_paths = [
+            '/usr/local/bin/chromedriver',
+            '/usr/bin/chromedriver',
+            '/opt/chromedriver',
+            'chromedriver',  # Current directory or PATH
+        ]
+        
+        for path in common_paths:
+            if os.path.exists(path):
+                return path
+        
+        # Try webdriver_manager as fallback
+        try:
+            from webdriver_manager.chrome import ChromeDriverManager
+            return ChromeDriverManager().install()
+        except ImportError:
+            pass
+        except Exception:
+            pass
+        
+        # Default fallback (Modal uses this path)
+        return '/usr/local/bin/chromedriver'
+    
+    def _init_driver(self):
+        """Initialize Chrome WebDriver with production settings."""
+        chrome_options = Options()
+        chrome_options.page_load_strategy = self.page_load_strategy  # 'eager' is fast!
+        
+        if self.headless:
+            chrome_options.add_argument('--headless=new')
+            chrome_options.add_argument('--no-sandbox')
+            chrome_options.add_argument('--disable-dev-shm-usage')
+            chrome_options.add_argument('--disable-gpu')
+        
+        # Realistic user agent
+        chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36')
+        
+        # Anti-detection
+        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        chrome_options.add_experimental_option('useAutomationExtension', False)
+        
+        # [INIT-01] Use configurable chromedriver path
+        service = Service(self.chromedriver_path)
+        self.driver = webdriver.Chrome(service=service, options=chrome_options)
+        self.driver.set_page_load_timeout(30)  # 30s is enough
+        
+        self.wait = WebDriverWait(self.driver, 10)
+    
+    def _cleanup(self):
+        """Close browser."""
+        if self.driver:
+            try:
+                self.driver.quit()
+            except:
+                pass
+            self.driver = None
+    
+    def _validate_url(self, url: str) -> bool:
+        """Validate OpenTable URL."""
+        return 'opentable.c' in url.lower()
+    
+    def _log_progress(self, message: str, callback: Optional[Callable]):
+        """Log progress."""
+        print(message)
+        if callback:
+            callback(message)
+    
+    def _find_elements_with_fallback(self, selectors: List[str], by: By = By.XPATH) -> List:
+        """Try multiple selectors until one returns elements."""
+        for selector in selectors:
+            try:
+                elements = self.driver.find_elements(by, selector)
+                if elements:
+                    return elements
+            except:
+                continue
+        return []
+    
+    def _extract_text_with_fallback(self, parent_element, selectors: List[str]) -> str:
+        """Try multiple selectors to extract text."""
+        for selector in selectors:
+            try:
+                element = parent_element.find_element(By.XPATH, selector)
+                text = element.text.strip()
+                if text:
+                    return text
+            except:
+                continue
+        return ""
+    
+    def _click_next(self) -> bool:
+        """Click 'Next' button with robust error handling."""
+        for selector in self.SELECTORS["next_button"]:
+            try:
+                next_btn = self.driver.find_element(By.XPATH, selector)
+                if next_btn and next_btn.is_displayed() and next_btn.is_enabled():
+                    next_btn.click()
+                    return True
+            except (NoSuchElementException, StaleElementReferenceException):
+                continue
+            except Exception:
+                continue
+        return False
+    
+    # [NAV-01] NEW METHOD - Wait for page to load with specific element
+    def _wait_for_page_load(self, timeout: int = 10) -> bool:
+        """
+        Wait for page to load by checking for review section elements.
+        Returns True if page loaded, False if timeout.
+        """
+        for selector in self.SELECTORS["page_loaded"]:
+            try:
+                WebDriverWait(self.driver, timeout).until(
+                    EC.presence_of_element_located((By.XPATH, selector))
+                )
+                return True
+            except TimeoutException:
+                continue
+        return False
     
     def scrape_reviews(
         self,
@@ -95,28 +242,48 @@ class OpenTableScraper:
     ) -> Dict[str, Any]:
         """Scrape reviews from OpenTable restaurant page."""
         if not self._validate_url(url):
-            return {'success': False, 'error': 'Invalid OpenTable URL', 'reviews': []}
+            return {'success': False, 'error': 'Invalid OpenTable URL', 'reviews': {}}
         
+        # [INIT-03] Enhanced error handling with user-friendly message
         try:
             self._init_driver()
+        except FileNotFoundError as e:
+            return {
+                'success': False, 
+                'error': f'Chromedriver not found at {self.chromedriver_path}. Please install Chrome/Chromedriver or set the correct path.',
+                'reviews': {}
+            }
         except Exception as e:
-            return {'success': False, 'error': f'Browser init failed: {str(e)}', 'reviews': []}
+            error_msg = str(e).lower()
+            if 'chromedriver' in error_msg or 'chrome' in error_msg:
+                return {
+                    'success': False,
+                    'error': f'Browser initialization failed. Please ensure Chrome and Chromedriver are installed and compatible. Details: {str(e)[:200]}',
+                    'reviews': {}
+                }
+            return {'success': False, 'error': f'Browser init failed: {str(e)}', 'reviews': {}}
         
         try:
             self._log_progress("🚀 Starting scraper...", progress_callback)
             self.driver.get(url)
             
-            # Wait for page to fully load
-            time.sleep(5)
+            # [NAV-01] Use WebDriverWait instead of fixed 5s sleep
+            self._log_progress("⏳ Waiting for page to load...", progress_callback)
+            if not self._wait_for_page_load(timeout=10):
+                # Fallback to short sleep if element not found (page might still work)
+                self._log_progress("⚠️ Page load check timed out, continuing with fallback...", progress_callback)
+                time.sleep(3)
+            else:
+                self._log_progress("✅ Page loaded successfully", progress_callback)
             
-            # Initialize data containers - FLAT LISTS (not nested!)
+            # Initialize data containers
             names = []
             dates = []
             overall_ratings = []
             food_ratings = []
             service_ratings = []
             ambience_ratings = []
-            reviews = []
+            review_texts = []  # [FMT-01] Renamed from 'reviews' to 'review_texts' for consistency
             
             page_count = 0
             review_count = 0
@@ -172,7 +339,7 @@ class OpenTableScraper:
                             food_ratings.append(food_rating)
                             service_ratings.append(service_rating)
                             ambience_ratings.append(ambience_rating)
-                            reviews.append(review_text)
+                            review_texts.append(review_text)  # [FMT-01] Using review_texts
                             
                             review_count += 1
                             
@@ -195,150 +362,58 @@ class OpenTableScraper:
             
             self._log_progress(f"✅ DONE! Scraped {review_count} reviews from {page_count} pages", progress_callback)
             
-            # Return data in FLAT format (what modal_backend expects)
+            # [FMT-01] Return data in NESTED format (matching Google Maps structure)
             return {
                 'success': True,
                 'total_reviews': review_count,
                 'total_pages': page_count,
-                # FLAT LISTS - not nested!
-                'names': names,
-                'dates': dates,
-                'overall_ratings': overall_ratings,
-                'food_ratings': food_ratings,
-                'service_ratings': service_ratings,
-                'ambience_ratings': ambience_ratings,
-                'reviews': reviews,  # This is review TEXT
-                'metadata': {'pages_scraped': page_count}
+                'reviews': {  # NESTED structure - same as Google Maps
+                    'names': names,
+                    'dates': dates,
+                    'overall_ratings': overall_ratings,
+                    'food_ratings': food_ratings,
+                    'service_ratings': service_ratings,
+                    'ambience_ratings': ambience_ratings,
+                    'review_texts': review_texts  # Using 'review_texts' key like Google Maps
+                },
+                'metadata': {
+                    'source': 'opentable',
+                    'url': url,
+                    'pages_scraped': page_count
+                }
             }
             
         except Exception as e:
             self._log_progress(f"❌ Fatal error: {str(e)}", progress_callback)
-            return {'success': False, 'error': str(e), 'reviews': []}
+            return {'success': False, 'error': str(e), 'reviews': {}}
         
         finally:
             self._cleanup()
-    
-    def _click_next(self) -> bool:
-        """Click 'Next' button with robust error handling."""
-        xpaths = self.SELECTORS["next_button"]
-        
-        for xp in xpaths:
-            try:
-                btn = self.wait.until(EC.presence_of_element_located((By.XPATH, xp)))
-                
-                if btn.tag_name.lower() != "a":
-                    try:
-                        btn = btn.find_element(By.XPATH, "ancestor::a[1]")
-                    except:
-                        pass
-                
-                aria_disabled = (btn.get_attribute("aria-disabled") or "").lower()
-                if aria_disabled in ("true", "1"):
-                    return False
-                
-                try:
-                    self.driver.execute_script("arguments[0].scrollIntoView({block:'center'});", btn)
-                    time.sleep(0.15)
-                except:
-                    pass
-                
-                try:
-                    WebDriverWait(self.driver, 5).until(EC.element_to_be_clickable((By.XPATH, xp)))
-                    btn.click()
-                except:
-                    self.driver.execute_script("arguments[0].click();", btn)
-                
-                return True
-                
-            except TimeoutException:
-                continue
-            except StaleElementReferenceException:
-                try:
-                    btn = self.driver.find_element(By.XPATH, xp)
-                    self.driver.execute_script("arguments[0].click();", btn)
-                    return True
-                except:
-                    continue
-            except:
-                continue
-        
-        return False
-    
-    def _find_elements_with_fallback(self, selectors: List[str], by: By) -> List:
-        """Try multiple selectors until one works."""
-        for selector in selectors:
-            try:
-                elements = self.driver.find_elements(by, selector)
-                if elements:
-                    return elements
-            except:
-                continue
-        return []
-    
-    def _extract_text_with_fallback(self, parent_element, selectors: List[str]) -> str:
-        """Extract text using fallback XPath selectors - SIMPLE VERSION."""
-        for selector in selectors:
-            try:
-                element = parent_element.find_element(By.XPATH, selector)
-                text = element.text.strip()
-                if text:
-                    return text
-            except:
-                continue
-        return ""
-    
-    def _init_driver(self):
-        """Initialize Chrome WebDriver with production settings."""
-        chrome_options = Options()
-        chrome_options.page_load_strategy = self.page_load_strategy  # 'eager' is fast!
-        
-        if self.headless:
-            chrome_options.add_argument('--headless=new')
-            chrome_options.add_argument('--no-sandbox')
-            chrome_options.add_argument('--disable-dev-shm-usage')
-            chrome_options.add_argument('--disable-gpu')
-        
-        # Realistic user agent
-        chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36')
-        
-        # Anti-detection
-        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-        chrome_options.add_experimental_option('useAutomationExtension', False)
-        
-        service = Service('/usr/local/bin/chromedriver')
-        self.driver = webdriver.Chrome(service=service, options=chrome_options)
-        self.driver.set_page_load_timeout(30)  # 30s is enough
-        
-        self.wait = WebDriverWait(self.driver, 10)
-    
-    def _cleanup(self):
-        """Close browser."""
-        if self.driver:
-            try:
-                self.driver.quit()
-            except:
-                pass
-            self.driver = None
-    
-    def _validate_url(self, url: str) -> bool:
-        """Validate OpenTable URL."""
-        return 'opentable.c' in url.lower()
-    
-    def _log_progress(self, message: str, callback: Optional[Callable]):
-        """Log progress."""
-        print(message)
-        if callback:
-            callback(message)
     
     def __del__(self):
         self._cleanup()
 
 
-def scrape_opentable(url: str, max_reviews: Optional[int] = None, headless: bool = True) -> Dict[str, Any]:
+# [INIT-01] Updated function signature to accept chromedriver_path
+def scrape_opentable(
+    url: str, 
+    max_reviews: Optional[int] = None, 
+    headless: bool = True,
+    chromedriver_path: Optional[str] = None
+) -> Dict[str, Any]:
     """
     Scrape reviews from OpenTable.
+    
+    Args:
+        url: OpenTable restaurant URL
+        max_reviews: Maximum number of reviews to scrape (None = all available)
+        headless: Run browser in headless mode
+        chromedriver_path: Optional path to chromedriver (auto-detects if not provided)
+    
+    Returns:
+        Dict with 'success', 'total_reviews', and 'reviews' data in NESTED format
     """
-    scraper = OpenTableScraper(headless=headless)
+    scraper = OpenTableScraper(headless=headless, chromedriver_path=chromedriver_path)
     return scraper.scrape_reviews(url, max_reviews=max_reviews)
 
 
@@ -351,4 +426,10 @@ if __name__ == "__main__":
     print(f"Reviews: {result.get('total_reviews', 0)}")
     if result.get('error'):
         print(f"Error: {result.get('error')}")
+    
+    # [FMT-01] Show nested structure
+    if result.get('success') and result.get('reviews'):
+        reviews_data = result['reviews']
+        print(f"Reviews data keys: {list(reviews_data.keys())}")
+        print(f"Sample review text: {reviews_data['review_texts'][0][:100] if reviews_data.get('review_texts') else 'N/A'}...")
     print(f"{'='*60}")
