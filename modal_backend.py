@@ -115,7 +115,7 @@ def calculate_sentiment(text: str) -> float:
 @app.function(
     image=image,
     secrets=[modal.Secret.from_name("anthropic-api-key")],
-    timeout=120,
+    timeout=210,
     retries=3,
     memory=512,  # [INIT-04] Added memory config
 )
@@ -252,7 +252,7 @@ Extract everything:"""
 @app.function(
     image=image,
     secrets=[modal.Secret.from_name("anthropic-api-key")],
-    timeout=180,
+    timeout=210,
     retries=3,
     memory=512,  # [INIT-04] Added memory config
 )
@@ -401,7 +401,7 @@ def _fallback_insights(role: str) -> Dict[str, Any]:
 @app.function(
     image=image,
     secrets=[modal.Secret.from_name("anthropic-api-key")],
-    timeout=120,
+    timeout=210,
     memory=512,  # [INIT-04] Added memory config
 )
 def generate_all_summaries(
@@ -492,7 +492,7 @@ CRITICAL: Output ONLY valid JSON. Generate summaries for ALL items listed above.
 @app.function(
     image=image,
     secrets=[modal.Secret.from_name("anthropic-api-key")],
-    timeout=900,  # [API-06] Increased from 600 to 900 (15 min)
+    timeout=2100,  # [API-06] Increased from 600 to 900 (15 min)
     memory=1024,  # [INIT-04] Added memory config for main function
 )
 def full_analysis_parallel(url: str, max_reviews: int = 100) -> Dict[str, Any]:
@@ -891,7 +891,7 @@ def full_analysis_parallel(url: str, max_reviews: int = 100) -> Dict[str, Any]:
 @app.function(
     image=image, 
     secrets=[modal.Secret.from_name("anthropic-api-key")],
-    timeout=1200,  # [API-06] Increased from 900 to 1200 (20 min) for API endpoint
+    timeout=2100,  # [API-06] Increased from 900 to 1200 (20 min) for API endpoint
     memory=1024,   # [INIT-04] Added memory config
 )
 @modal.asgi_app()

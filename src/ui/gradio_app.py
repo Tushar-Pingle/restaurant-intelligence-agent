@@ -1439,7 +1439,7 @@ def analyze_restaurant(url: str, review_count: int):
         response = session.post(
             f"{MODAL_API_URL}/analyze",
             json={"url": url, "max_reviews": review_count},
-            timeout=(30, 600),  # 30s connect, 600s read (10 min)
+            timeout=(30, 2100),  # 30s connect, 600s read (10 min)
             headers={"Connection": "keep-alive"}
         )
         
