@@ -145,34 +145,46 @@ def calculate_review_sentiment(text: str) -> float:
 def generate_trend_chart(trend_data: List[Dict], restaurant_name: str) -> Optional[str]:
     """
     Generate Rating vs Sentiment trend chart.
-    
-    UPDATED: Now uses pre-calculated trend_data from backend.
-    Format: [{"date": "2 days ago", "rating": 4.5, "sentiment": 0.6}, ...]
+    DEBUG VERSION - prints diagnostic info
     """
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     import matplotlib.dates as mdates
     
+    print(f"[TREND DEBUG] Input trend_data length: {len(trend_data) if trend_data else 0}")
+    
     if not trend_data or len(trend_data) < 3:
+        print(f"[TREND DEBUG] Not enough data, returning None")
         return None
     
+    # Debug: print first 3 items
+    for i, r in enumerate(trend_data[:3]):
+        print(f"[TREND DEBUG] Item {i}: {r}")
+    
     dated_reviews = []
+    parse_failures = 0
+    
     for r in trend_data:
         if not isinstance(r, dict):
             continue
         date = parse_opentable_date(r.get('date', ''))
         if date:
             rating = float(r.get('rating', 0) or 0)
-            sentiment = float(r.get('sentiment', 0) or 0)  # Already calculated!
+            sentiment = float(r.get('sentiment', 0) or 0)
             dated_reviews.append({
                 'date': date,
                 'rating': rating if rating > 0 else 3.5,
                 'sentiment': sentiment
             })
+        else:
+            parse_failures += 1
+    
+    print(f"[TREND DEBUG] Parsed {len(dated_reviews)} dates, {parse_failures} failures")
     
     # Fallback: if no dates parsed, use sequential ordering
     if len(dated_reviews) < 3 and len(trend_data) >= 3:
+        print(f"[TREND DEBUG] Using sequential fallback")
         dated_reviews = []
         for i, r in enumerate(trend_data):
             if not isinstance(r, dict):
@@ -185,7 +197,10 @@ def generate_trend_chart(trend_data: List[Dict], restaurant_name: str) -> Option
                 'sentiment': sentiment
             })
     
+    print(f"[TREND DEBUG] Final dated_reviews count: {len(dated_reviews)}")
+    
     if len(dated_reviews) < 3:
+        print(f"[TREND DEBUG] Still not enough data after fallback")
         return None
     
     dated_reviews.sort(key=lambda x: x['date'])
@@ -207,7 +222,10 @@ def generate_trend_chart(trend_data: List[Dict], restaurant_name: str) -> Option
         ratings.append(sum(w['ratings']) / len(w['ratings']))
         sentiments.append(sum(w['sentiments']) / len(w['sentiments']))
     
+    print(f"[TREND DEBUG] Weekly aggregated: {len(dates)} weeks")
+    
     if len(dates) < 2:
+        print(f"[TREND DEBUG] Not enough weeks for chart")
         return None
     
     BG = '#1f2937'
@@ -260,9 +278,13 @@ def generate_trend_chart(trend_data: List[Dict], restaurant_name: str) -> Option
         with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
             plt.savefig(f.name, dpi=120, bbox_inches='tight', facecolor=BG)
             plt.close()
+            print(f"[TREND DEBUG] Chart saved to: {f.name}")
             return f.name
+            
     except Exception as e:
         print(f"[TREND CHART] Error: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 

@@ -205,17 +205,69 @@ class OpenTableScraper:
         return ""
     
     def _click_next(self) -> bool:
-        """Click 'Next' button with robust error handling."""
-        for selector in self.SELECTORS["next_button"]:
-            try:
-                next_btn = self.driver.find_element(By.XPATH, selector)
-                if next_btn and next_btn.is_displayed() and next_btn.is_enabled():
-                    next_btn.click()
-                    return True
-            except (NoSuchElementException, StaleElementReferenceException):
+        """Click 'Next' button with robust error handling - FIXED FOR 2025 OPENTABLE."""
+        import time
+    
+    # First, scroll to bottom to ensure pagination is visible
+        try:
+            self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            time.sleep(1)
+        except:
+            pass
+    
+        # Updated selectors - most specific first
+        next_selectors = [
+            # EXACT match for current OpenTable (from your inspection)
+            "//a[@aria-label='Go to the next page']",
+            "//div[@data-test='pagination-next']/parent::a",
+            "//a[.//div[@data-test='pagination-next']]",
+            "//a[contains(@class, 'C7Tp-bANpE4')]",  # Class from your HTML
+        # Fallbacks
+            "//*[@data-test='pagination-next']/ancestor::a[1]",
+            "//a[@rel='next']",
+        ]
+    
+        for selector in next_selectors:
+            try:           
+                next_btn = WebDriverWait(self.driver, 3).until(
+                    EC.presence_of_element_located((By.XPATH, selector))
+                )
+            
+                if next_btn:
+                    # Scroll element into view
+                    self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", next_btn)
+                    time.sleep(0.5)
+                
+                    # Check if enabled (not disabled pagination)
+                    is_disabled = next_btn.get_attribute('aria-disabled')
+                    if is_disabled == 'true':
+                        print(f"   ⚠️ Next button found but disabled")
+                        return False
+                
+                    # Try JavaScript click (more reliable for SPAs)
+                    try:
+                        self.driver.execute_script("arguments[0].click();", next_btn)
+                        print(f"   ✅ Clicked next with JS click")
+                        return True
+                    except Exception as js_err:
+                        # Fallback to regular click
+                        try:
+                            next_btn.click()
+                            print(f"   ✅ Clicked next with regular click")
+                            return True
+                        except Exception as click_err:
+                            print(f"   ❌ Both click methods failed: {click_err}")
+                            continue
+                        
+            except TimeoutException:
                 continue
-            except Exception:
+            except NoSuchElementException:
                 continue
+            except Exception as e:
+                print(f"   ⚠️ Selector error: {e}")
+                continue
+    
+        print("   📍 No next button found or all pages scraped")
         return False
     
     # [NAV-01] NEW METHOD - Wait for page to load with specific element
