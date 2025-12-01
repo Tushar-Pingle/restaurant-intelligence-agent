@@ -12,7 +12,6 @@ short_description: AI-powered restaurant review analysis for owners, chefs & man
 tags:
   - mcp-in-action-track-productivity
 ---
-
 # 🍽️ Restaurant Intelligence Agent
 
 > **AI-Powered Review Analysis for Restaurant Owners, Chefs & Managers**
@@ -29,13 +28,13 @@ tags:
 
 ## 📺 Demo Video
 
-🎬 **[Watch the Demo Video](YOUR_VIDEO_LINK_HERE)** (2-3 minutes)
+🎬 **[Watch the Demo Video]([YOUR_VIDEO_LINK_HERE](https://youtu.be/cjznIC4S1Go))**
 
 ---
 
 ## 📱 Social Media
 
-🐦 **[View Social Post](YOUR_SOCIAL_MEDIA_LINK_HERE)**
+🐦 **[View Social Post]([YOUR_SOCIAL_MEDIA_LINK_HERE](https://www.linkedin.com/posts/tushar-pingle_mcphackathon-ai-gradio-activity-7401088853937278976-V4Yb?utm_source=share&utm_medium=member_desktop&rcm=ACoAADdzh9EBVWrX6-P_c5YFgOYECUmEuOqXvhg))**
 
 ---
 
