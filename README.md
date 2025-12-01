@@ -28,7 +28,7 @@ tags:
 
 ## 📺 Demo Video
 
-🎬 **[Watch the Demo Video](https://youtu.be/cjznIC4S1Go)**
+🎬 **[Watch the Demo Video](https://www.youtube.com/watch?v=cjznIC4S1Go)**
 
 ---
 
